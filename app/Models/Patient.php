@@ -62,9 +62,17 @@ class Patient extends Model
         return $this->hasMany(Visit::class);
     }
 
+    // public function currentVisit(): ?Visit
+    // {
+    //     return $this->visits()
+    //         ->where('status', '!=', VisitStatus::Completed->value)
+    //         ->latest('checked_in_at')
+    //         ->first();
+    // }
     public function currentVisit(): ?Visit
     {
         return $this->visits()
+            ->where('type', 'consultation')
             ->where('status', '!=', VisitStatus::Completed->value)
             ->latest('checked_in_at')
             ->first();

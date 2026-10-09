@@ -22,7 +22,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Runs lazily when these views render, so it is safe during migrations
-        View::composer(['layouts.app', 'billing.receipt'], function ($view) {
+        // View::composer(['layouts.app', 'billing.receipt'], function ($view) {
+        //     $view->with('hospital', HospitalSetting::current());
+        // });
+        View::composer(['layouts.app', 'billing.receipt', 'lab.report'], function ($view) {
             $view->with('hospital', HospitalSetting::current());
         });
     }

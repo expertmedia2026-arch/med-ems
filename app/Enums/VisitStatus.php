@@ -8,6 +8,7 @@ enum VisitStatus: string
     case WaitingDoctor  = 'waiting_doctor';
     case InConsultation = 'in_consultation';
     case Completed      = 'completed';
+    case LabOnly        = 'lab_only';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum VisitStatus: string
             self::WaitingDoctor  => 'Waiting for Doctor',
             self::InConsultation => 'In Consultation',
             self::Completed      => 'Completed',
+            self::LabOnly        => 'Lab Only (Referral)',
         };
     }
 
@@ -23,8 +25,8 @@ enum VisitStatus: string
     {
         return match ($this) {
             self::WaitingTriage, self::WaitingDoctor => 'amber',
-            self::InConsultation => 'blue',
-            self::Completed => 'green',
+            self::InConsultation, self::LabOnly      => 'blue',
+            self::Completed                          => 'green',
         };
     }
 }

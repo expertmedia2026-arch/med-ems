@@ -11,6 +11,25 @@ use Illuminate\Support\Facades\DB;
 class BillingService
 {
     /** Create the visit's invoice with the consultation fee (safe to call repeatedly). */
+    // public function invoiceFor(Visit $visit): Invoice
+    // {
+    //     $invoice = Invoice::firstOrCreate(
+    //         ['visit_id' => $visit->id],
+    //         ['patient_id' => $visit->patient_id]
+    //     );
+
+    //     if (! $invoice->items()->where('category', 'consultation')->exists()) {
+    //         $invoice->items()->create([
+    //             'category'    => 'consultation',
+    //             'description' => 'Doctor consultation',
+    //             'quantity'    => 1,
+    //             'unit_price'  => config('hms.consultation_fee'),
+    //         ]);
+    //     }
+
+    //     return $invoice;
+    // }
+
     public function invoiceFor(Visit $visit): Invoice
     {
         $invoice = Invoice::firstOrCreate(
@@ -18,7 +37,8 @@ class BillingService
             ['patient_id' => $visit->patient_id]
         );
 
-        if (! $invoice->items()->where('category', 'consultation')->exists()) {
+        // Referral (lab-only) patients pay for their tests only
+        if (! $visit->isLabOnly() && ! $invoice->items()->where('category', 'consultation')->exists()) {
             $invoice->items()->create([
                 'category'    => 'consultation',
                 'description' => 'Doctor consultation',

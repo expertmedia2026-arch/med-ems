@@ -1,7 +1,14 @@
 <x-app-layout>
     <x-slot name="header">Laboratory</x-slot>
     @include('lab._tabs')
-
+    @if (auth()->user()->hasRole('admin', 'lab'))
+        <div class="mb-6">
+            <a href="{{ route('lab.referrals.create') }}"
+            class="inline-block rounded-lg border border-teal-700 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">
+                + External lab request
+            </a>
+        </div>
+    @endif
     <h2 class="mb-3 font-semibold">Pending requests ({{ $pending->count() }})</h2>
     <div class="mb-10 overflow-x-auto rounded-xl border bg-white shadow-sm">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
@@ -21,6 +28,8 @@
                             <span class="font-medium">{{ $req->visit->patient->full_name }}</span>
                             <span class="block font-mono text-xs text-slate-400">{{ $req->visit->patient->hospital_number }}</span>
                         </td>
+
+                        
                         <td class="px-4 py-3 font-medium text-teal-800">{{ $req->test->name }}</td>
                         <td class="px-4 py-3">{{ $req->requester->name }}</td>
                         <td class="px-4 py-3">{{ $req->created_at->diffForHumans(short: true) }}</td>

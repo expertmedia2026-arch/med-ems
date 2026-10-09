@@ -7,6 +7,12 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="font-mono text-sm text-teal-700">{{ $patient->hospital_number }}</p>
+
+                @if ($labRequest->visit->isLabOnly())
+                    <x-badge color="blue" class="mt-1">Referral</x-badge>
+                    <span class="block text-xs text-slate-400">From {{ $labRequest->visit->referred_from }}</span>
+                @endif
+
                 <h2 class="text-xl font-semibold">{{ $patient->full_name }}</h2>
                 <p class="text-sm text-slate-500">
                     {{ ucfirst($patient->gender) }} · {{ $patient->age }} yrs
@@ -20,6 +26,38 @@
             <p class="mt-3 text-sm text-slate-600">Clinical note: “{{ $labRequest->visit->complaint }}”</p>
         @endif
     </div>
+    
+
+    @if ($labRequest->visit->isLabOnly())
+        <div class="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-900">
+            <p class="font-semibold">External referral</p>
+            <p class="mt-1">
+                Referred from <strong>{{ $labRequest->visit->referred_from }}</strong>
+                @if ($labRequest->visit->referred_by) by {{ $labRequest->visit->referred_by }}@endif.
+            </p>
+            @if ($labRequest->visit->complaint)
+                <p class="mt-1">Reason: {{ $labRequest->visit->complaint }}</p>
+            @endif
+
+            @if ($canCancel)
+                <form method="POST" action="{{ route('lab.referrals.destroy', $labRequest->visit) }}" class="mt-3"
+                    onsubmit="return confirm('Cancel this whole referral request? This removes its tests and invoice.')">
+                    @csrf @method('DELETE')
+                    <button class="text-red-600 hover:underline">Cancel this referral request</button>
+                </form>
+            @endif
+        </div>
+    @endif
+
+    @if ($labRequest->status->value === 'completed')
+        <div class="mb-6">
+            <a href="{{ route('lab.report', $labRequest->visit) }}" target="_blank"
+            class="inline-block rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">
+                Print report
+            </a>
+            <span class="ml-2 text-xs text-slate-500">Includes every completed test on this visit.</span>
+        </div>
+    @endif
 
     <div class="max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
         @if ($canProcess && $labRequest->is_paid)

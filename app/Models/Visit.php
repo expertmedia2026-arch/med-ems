@@ -84,4 +84,10 @@ class Visit extends Model
         });
     }
 
+
+    public function isLabOnly(): bool
+    {
+        return $this->type === 'lab_only';
+    }
+
 }

@@ -15,7 +15,7 @@
     );
 @endphp
 
-<div x-data="{ open: false }" class="min-h-screen md:flex">
+<div x-data="{ open: false }" class="min-h-screen md:flex"> 
 
     {{-- Mobile overlay --}}
     <div x-show="open" x-cloak @click="open = false" class="fixed inset-0 z-30 bg-black/40 md:hidden"></div>
@@ -35,11 +35,13 @@
         </div>
 
         <nav class="p-4 space-y-1">
+
             @foreach ($menu as $item)
                 @php
                     $isLink = $item['route'] !== '#';
                     $href   = $isLink ? route($item['route']) : '#';
-                    $active = $isLink && request()->routeIs($item['active'] ?? $item['route']);                @endphp
+                    $active = $isLink && request()->routeIs(...(array) ($item['active'] ?? $item['route']));
+                @endphp 
                 <a href="{{ $href }}"
                    class="block rounded-lg px-4 py-2.5 text-sm font-medium transition
                           {{ $active ? 'bg-teal-700 text-white' : 'text-teal-100 hover:bg-teal-800' }}">

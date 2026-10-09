@@ -6,12 +6,13 @@ use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DrugController;
 use App\Http\Controllers\InvitationAcceptController;
+use App\Http\Controllers\LabAttachmentController;
 use App\Http\Controllers\LabController;
+use App\Http\Controllers\LabReferralController;
 use App\Http\Controllers\LabRequestController;
 use App\Http\Controllers\LabTestController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PharmacyController;
-use App\Http\Controllers\LabAttachmentController;
 use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
@@ -105,7 +106,10 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::delete('{visit}/lab-requests/{labRequest}', [LabRequestController::class, 'destroy'])->name('lab-requests.destroy');
     });
 
-    // Lab test catalog (admin and lab only). Must come BEFORE lab/{labRequest}
+    // ---------------- Laboratory ----------------
+    // Order matters: the specific lab/... routes must come BEFORE lab/{labRequest}
+
+    // Test catalog (admin and lab only)
     Route::middleware('role:admin,lab')->prefix('lab/tests')->name('lab.tests.')->group(function () {
         Route::get('/', [LabTestController::class, 'index'])->name('index');
         Route::get('create', [LabTestController::class, 'create'])->name('create');
@@ -115,13 +119,14 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::patch('{labTest}/toggle', [LabTestController::class, 'toggle'])->name('toggle');
     });
 
-    // Lab requests: doctors get read-only access to results they requested
-    Route::middleware('role:admin,lab,doctor')->prefix('lab')->name('lab.')->group(function () {
-        Route::get('/', [LabController::class, 'index'])->name('index');
-        Route::get('{labRequest}', [LabController::class, 'show'])->whereNumber('labRequest')->name('show');
+    // External lab requests (patients referred from other hospitals)
+    Route::middleware('role:admin,receptionist,lab')->prefix('lab/referrals')->name('lab.referrals.')->group(function () {
+        Route::get('create', [LabReferralController::class, 'create'])->name('create');
+        Route::post('/', [LabReferralController::class, 'store'])->name('store');
+        Route::delete('{visit}', [LabReferralController::class, 'destroy'])->name('destroy');
     });
 
-    // Lab result attachments (private files, served through the controller)
+    // Result attachments (private files, served through the controller)
     Route::get('lab/attachments/{attachment}', [LabAttachmentController::class, 'show'])
         ->middleware('role:admin,lab,doctor')
         ->whereNumber('attachment')
@@ -131,7 +136,14 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->middleware('role:admin,lab')
         ->whereNumber('attachment')
         ->name('lab.attachments.destroy');
-        
+
+    // Lab requests and printable report: doctors get read-only access to results they requested
+    Route::middleware('role:admin,lab,doctor')->prefix('lab')->name('lab.')->group(function () {
+        Route::get('/', [LabController::class, 'index'])->name('index');
+        Route::get('visits/{visit}/report', [LabController::class, 'report'])->name('report');
+        Route::get('{labRequest}', [LabController::class, 'show'])->whereNumber('labRequest')->name('show');
+    });
+
     Route::put('lab/{labRequest}', [LabController::class, 'update'])
         ->middleware('role:admin,lab')
         ->whereNumber('labRequest')
@@ -152,15 +164,13 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::patch('drugs/{drug}/toggle', [DrugController::class, 'toggle'])->name('drugs.toggle');
     });
 
-   // Cashier
+    // Cashier
     Route::middleware('role:admin,cashier')->prefix('billing')->name('billing.')->group(function () {
         Route::get('/', [BillingController::class, 'index'])->name('index');
         Route::get('invoices/{invoice}', [BillingController::class, 'show'])->name('show');
         Route::post('invoices/{invoice}/payments', [BillingController::class, 'pay'])->name('pay');
         Route::get('payments/{payment}/receipt', [BillingController::class, 'receipt'])->name('receipt');
     });
-
-    
 });
 
 require __DIR__.'/auth.php';

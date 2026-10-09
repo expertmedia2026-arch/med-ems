@@ -83,6 +83,10 @@
                    class="block rounded-xl border bg-white p-4 text-center text-sm font-medium text-teal-700 shadow-sm hover:bg-slate-50">
                     Book appointment
                 </a>
+                <a href="{{ route('lab.referrals.create', ['patient' => $patient->hospital_number]) }}"
+                    class="block rounded-xl border bg-white p-4 text-center text-sm font-medium text-teal-700 shadow-sm hover:bg-slate-50">
+                    Lab-only request (referral)
+                </a>
             @endif
         </div>
     </div>

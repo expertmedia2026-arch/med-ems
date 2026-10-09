@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Role;
+use App\Enums\VisitStatus;
 use App\Enums\WorkStatus;
 use App\Models\LabRequest;
+use App\Models\Visit;
 use Illuminate\Http\Request;
 
 class LabController extends Controller
@@ -36,10 +38,16 @@ class LabController extends Controller
 
         $labRequest->load(['visit.patient', 'test', 'requester', 'processor', 'attachments', 'invoiceItem']);
 
-        return view('lab.show', [
-            'labRequest' => $labRequest,
-            'canProcess' => $user->hasRole(Role::Admin, Role::Lab),
-        ]);
+        $canProcess = $user->hasRole(Role::Admin, Role::Lab);
+        $visit      = $labRequest->visit;
+
+        // A referral can be cancelled only while nothing has been paid or resulted
+        $canCancel = $canProcess
+            && $visit->isLabOnly()
+            && ! $visit->invoice?->payments()->exists()
+            && ! $visit->labRequests()->completed()->exists();
+
+        return view('lab.show', compact('labRequest', 'canProcess', 'canCancel'));
     }
 
     public function update(Request $request, LabRequest $labRequest)
@@ -84,8 +92,33 @@ class LabController extends Controller
             'completed_at' => $labRequest->completed_at ?? now(),
         ]);
 
+        // Referral visits have no doctor to close them: finish when the last test is done
+        $visit = $labRequest->visit;
+        if ($visit->isLabOnly() && ! $visit->labRequests()->pending()->exists()) {
+            $visit->update(['status' => VisitStatus::Completed, 'closed_at' => now()]);
+        }
+
         return redirect()
             ->route('lab.index')
             ->with('success', "Result saved for {$labRequest->visit->patient->full_name}.");
+    }
+
+    /** Printable report of every completed test on a visit. */
+    public function report(Request $request, Visit $visit)
+    {
+        $user = $request->user();
+
+        $requests = $visit->labRequests()
+            ->completed()
+            ->when($user->hasRole(Role::Doctor), fn ($q) => $q->where('requested_by', $user->id))
+            ->with(['test', 'attachments', 'processor'])
+            ->orderBy('id')
+            ->get();
+
+        abort_if($requests->isEmpty(), 404, 'There are no completed results to print for this visit.');
+
+        $visit->load(['patient', 'doctor']);
+
+        return view('lab.report', compact('visit', 'requests'));
     }
 }
