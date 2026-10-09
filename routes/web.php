@@ -82,6 +82,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('appointments', [AppointmentController::class, 'index'])
         ->middleware('role:admin,receptionist,doctor')
         ->name('appointments.index');
+    Route::get('appointments/{appointment}', [AppointmentController::class, 'show'])
+        ->middleware('role:doctor')
+        ->name('appointments.show');
 
     // Nurse: triage
     Route::middleware('role:admin,nurse')->prefix('triage')->name('triage.')->group(function () {

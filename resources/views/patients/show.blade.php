@@ -3,6 +3,7 @@
 
     @php
         $frontDesk = auth()->user()->hasRole('admin', 'receptionist');
+        $doctor = auth()->user()->hasRole('doctor');
         $input = 'mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600';
     @endphp
 
@@ -97,12 +98,17 @@
             <h3 class="border-b px-5 py-3 font-semibold">Visits</h3>
             <ul class="divide-y text-sm">
                 @forelse ($patient->visits as $visit)
-                    <li class="flex items-center justify-between px-5 py-3">
+                    <li class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                         <div>
                             <p class="font-medium">{{ $visit->checked_in_at->format('d M Y, g:i A') }}</p>
                             <p class="text-slate-500">{{ $visit->doctor?->name ?? 'No doctor assigned' }}{{ $visit->diagnosis ? ' · ' . $visit->diagnosis : '' }}</p>
                         </div>
-                        <x-badge :color="$visit->status->color()">{{ $visit->status->label() }}</x-badge>
+                        <div class="flex items-center gap-3">
+                            <x-badge :color="$visit->status->color()">{{ $visit->status->label() }}</x-badge>
+                            @if ($doctor && $visit->status->value === 'completed')
+                                <a href="{{ route('consultations.history', $visit) }}" class="rounded-lg border px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-50">View</a>
+                            @endif
+                        </div>
                     </li>
                 @empty
                     <li class="px-5 py-6 text-center text-slate-500">No visits yet.</li>
@@ -114,12 +120,17 @@
             <h3 class="border-b px-5 py-3 font-semibold">Appointments</h3>
             <ul class="divide-y text-sm">
                 @forelse ($patient->appointments as $appt)
-                    <li class="flex items-center justify-between px-5 py-3">
+                    <li class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                         <div>
                             <p class="font-medium">{{ $appt->scheduled_at->format('d M Y, g:i A') }}</p>
                             <p class="text-slate-500">{{ $appt->doctor->name }}{{ $appt->reason ? ' · ' . $appt->reason : '' }}</p>
                         </div>
-                        <x-badge :color="$appt->status->color()">{{ $appt->status->label() }}</x-badge>
+                        <div class="flex items-center gap-3">
+                            <x-badge :color="$appt->status->color()">{{ $appt->status->label() }}</x-badge>
+                            @if ($doctor)
+                                <a href="{{ route('appointments.show', $appt) }}" class="rounded-lg border px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-50">View</a>
+                            @endif
+                        </div>
                     </li>
                 @empty
                     <li class="px-5 py-6 text-center text-slate-500">No appointments.</li>
