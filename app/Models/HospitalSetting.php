@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Model;
+
+class HospitalSetting extends Model
+{
+    protected $guarded = [];
+
+    private static ?self $current = null;
+
+    public static function current(): self
+    {
+        return self::$current ??= static::first()
+            ?? static::create(['name' => config('app.name', 'Hospital')]);
+    }
+
+    protected function logoUrl(): Attribute
+    {
+        return Attribute::get(fn () => $this->logo_path ? asset('storage/' . $this->logo_path) : null);
+    }
+}

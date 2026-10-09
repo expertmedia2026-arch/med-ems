@@ -1,0 +1,93 @@
+<x-app-layout>
+    <x-slot name="header">{{ $labRequest->test->name }}</x-slot>
+
+    @php $patient = $labRequest->visit->patient; @endphp
+
+    <div class="mb-6 rounded-xl border bg-white p-5 shadow-sm">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="font-mono text-sm text-teal-700">{{ $patient->hospital_number }}</p>
+                <h2 class="text-xl font-semibold">{{ $patient->full_name }}</h2>
+                <p class="text-sm text-slate-500">
+                    {{ ucfirst($patient->gender) }} · {{ $patient->age }} yrs
+                    · Requested by {{ $labRequest->requester->name }}, {{ $labRequest->created_at->format('d M, g:i A') }}
+                </p>
+            </div>
+            <x-badge :color="$labRequest->status->value === 'pending' ? 'amber' : 'green'">{{ $labRequest->status->label() }}</x-badge>
+        </div>
+
+        @if ($labRequest->visit->complaint)
+            <p class="mt-3 text-sm text-slate-600">Clinical note: “{{ $labRequest->visit->complaint }}”</p>
+        @endif
+    </div>
+
+    <div class="max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
+        @if ($canProcess && $labRequest->is_paid)
+            @if ($labRequest->attachments->isNotEmpty())
+                <h3 class="text-sm font-medium text-slate-700">Attached files ({{ $labRequest->attachments->count() }})</h3>
+                @include('lab._attachments', ['attachments' => $labRequest->attachments, 'canManage' => true])
+                <hr class="my-6">
+            @endif
+
+            <form method="POST" action="{{ route('lab.update', $labRequest) }}" enctype="multipart/form-data">
+                @csrf
+                @method('PUT')
+
+                <label for="result" class="block text-sm font-medium text-slate-700">Result / report</label>
+                <textarea id="result" name="result" rows="6"
+                          placeholder="e.g. Malaria parasite: positive (++)"
+                          class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-teal-600 focus:ring-teal-600">{{ old('result', $labRequest->result) }}</textarea>
+                @error('result')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+
+                <label for="files" class="mt-5 block text-sm font-medium text-slate-700">
+                    {{ $labRequest->attachments->isNotEmpty() ? 'Add more images or files' : 'Attach images or files (X-ray, scan, report)' }}
+                </label>
+                <input id="files" name="files[]" type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf"
+                       class="mt-1 block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-teal-700 hover:file:bg-teal-100">
+                <p class="mt-1 text-xs text-slate-500">JPG, PNG, WebP or PDF. Up to 10 files, 10 MB each. You can save with a result, files, or both.</p>
+                @error('files')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                @foreach ($errors->get('files.*') as $messages)
+                    @foreach ($messages as $message)
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @endforeach
+                @endforeach
+
+                <div class="mt-5 flex items-center gap-3">
+                    <button class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800">
+                        {{ $labRequest->status->value === 'completed' ? 'Update result' : 'Save result' }}
+                    </button>
+                    <a href="{{ route('lab.index') }}" class="text-sm text-slate-500 hover:underline">Back</a>
+                </div>
+            </form>
+        @elseif ($canProcess)
+            <div class="rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+                <p class="font-semibold">Payment required</p>
+                <p class="mt-1">
+                    This test (₦{{ number_format($labRequest->invoiceItem?->total ?? 0, 2) }}) has not been paid for.
+                    Results can be entered once the patient has paid at the cashier.
+                </p>
+                <a href="{{ route('lab.index') }}" class="mt-3 inline-block text-teal-700 hover:underline">Back</a>
+            </div>
+
+
+        @else
+            <h3 class="mb-2 text-sm font-medium text-slate-700">Result</h3>
+
+            @if ($labRequest->result)
+                <p class="whitespace-pre-line rounded-lg bg-slate-50 px-4 py-3 text-sm">{{ $labRequest->result }}</p>
+            @endif
+
+            @include('lab._attachments', ['attachments' => $labRequest->attachments, 'canManage' => false])
+
+            @if ($labRequest->status->value === 'completed')
+                <p class="mt-3 text-xs text-slate-500">
+                    Processed by {{ $labRequest->processor?->name }} on {{ $labRequest->completed_at->format('d M Y, g:i A') }}
+                </p>
+            @else
+                <p class="text-sm text-slate-500">Awaiting result from the lab.</p>
+            @endif
+
+            <a href="{{ route('lab.index') }}" class="mt-5 inline-block text-sm text-teal-700 hover:underline">Back</a>
+        @endif
+    </div>
+</x-app-layout>
