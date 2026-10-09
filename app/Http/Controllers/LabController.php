@@ -52,6 +52,12 @@ class LabController extends Controller
 
     public function update(Request $request, LabRequest $labRequest)
     {
+        if ($labRequest->visit->status === VisitStatus::Completed) {
+            return redirect()
+                ->route('lab.show', $labRequest)
+                ->with('error', 'This visit has been completed. Lab results can no longer be updated.');
+        }
+
         $labRequest->loadMissing('invoiceItem');
 
         if (! $labRequest->is_paid) {

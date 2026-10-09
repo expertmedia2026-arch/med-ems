@@ -60,7 +60,12 @@
     @endif
 
     <div class="max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
-        @if ($canProcess && $labRequest->is_paid)
+        @if ($canProcess && $labRequest->visit->status->value === 'completed')
+            <div class="rounded-lg border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-700">
+                <p class="font-semibold">Visit completed</p>
+                <p class="mt-1">Lab results are read-only and can no longer be updated.</p>
+            </div>
+        @elseif ($canProcess && $labRequest->is_paid)
             @if ($labRequest->attachments->isNotEmpty())
                 <h3 class="text-sm font-medium text-slate-700">Attached files ({{ $labRequest->attachments->count() }})</h3>
                 @include('lab._attachments', ['attachments' => $labRequest->attachments, 'canManage' => true])
