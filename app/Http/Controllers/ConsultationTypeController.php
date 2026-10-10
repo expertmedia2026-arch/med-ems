@@ -2,71 +2,45 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SaveConsultationTypeRequest;
 use App\Models\ConsultationType;
-use App\Models\Department;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use App\Services\ConsultationTypeService;
 
 class ConsultationTypeController extends Controller
 {
-    public function index()
+    public function index(ConsultationTypeService $types)
     {
-        $consultationTypes = ConsultationType::with('department')
-            ->orderBy('department_id')
-            ->orderBy('name')
-            ->paginate(15);
+        $consultationTypes = $types->index();
 
         return view('consultation-types.index', compact('consultationTypes'));
     }
 
-    public function create()
+    public function create(ConsultationTypeService $types)
     {
         return view('consultation-types.create', [
-            'departments' => Department::orderBy('name')->get(),
+            'departments' => $types->departments(),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(SaveConsultationTypeRequest $request, ConsultationTypeService $types)
     {
-        $data = $this->validated($request);
-        $data['is_active'] = $request->boolean('is_active');
-
-        ConsultationType::create($data);
+        $types->create($request->validated());
 
         return redirect()->route('consultation-types.index')->with('success', 'Consultation type added.');
     }
 
-    public function edit(ConsultationType $consultationType)
+    public function edit(ConsultationType $consultationType, ConsultationTypeService $types)
     {
         return view('consultation-types.edit', [
             'consultationType' => $consultationType,
-            'departments' => Department::orderBy('name')->get(),
+            'departments' => $types->departments(),
         ]);
     }
 
-    public function update(Request $request, ConsultationType $consultationType)
+    public function update(SaveConsultationTypeRequest $request, ConsultationType $consultationType, ConsultationTypeService $types)
     {
-        $data = $this->validated($request, $consultationType);
-        $data['is_active'] = $request->boolean('is_active');
-
-        $consultationType->update($data);
+        $types->update($consultationType, $request->validated());
 
         return redirect()->route('consultation-types.index')->with('success', 'Consultation type updated.');
-    }
-
-    private function validated(Request $request, ?ConsultationType $consultationType = null): array
-    {
-        return $request->validate([
-            'department_id' => ['required', 'integer', 'exists:departments,id'],
-            'name' => [
-                'required', 'string', 'max:150',
-                Rule::unique('consultation_types', 'name')
-                    ->where('department_id', $request->input('department_id'))
-                    ->ignore($consultationType?->id),
-            ],
-            'description' => ['nullable', 'string', 'max:500'],
-            'price' => ['required', 'numeric', 'min:0', 'max:99999999'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
     }
 }

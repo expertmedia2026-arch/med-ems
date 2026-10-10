@@ -2,100 +2,50 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\VisitStatus;
-use App\Enums\WorkStatus;
 use App\Models\LabAttachment;
 use App\Models\Visit;
+use App\Services\PortalVisitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
-
 class PortalVisitController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, PortalVisitService $visits)
     {
         $patient = $request->user()->patient;
         abort_unless($patient, 403);
 
-        $visits = $patient->visits()
-            ->with('doctor')
-            ->withCount(['labRequests', 'prescriptions'])
-            ->latest('checked_in_at')
-            ->paginate(10);
-
-        return view('portal.visits.index', compact('visits'));
+        return view('portal.visits.index', ['visits' => $visits->index($patient)]);
     }
 
-    public function show(Request $request, Visit $visit)
+    public function show(Request $request, Visit $visit, PortalVisitService $visits)
     {
-        $this->authorizeVisit($request, $visit);
-
-        $visit->load([
-            'doctor',
-            'vitals',
-            'prescriptions.drug',
-            'labRequests.test',
-            'labRequests.attachments',
-            'labRequests.processor',
-            'invoice.items',
-        ]);
-
-        return view('portal.visits.show', [
-            'visit'      => $visit,
-            'inProgress' => ! $this->detailsVisible($visit),
-        ]);
+        return view('portal.visits.show', $visits->showForPatient($visit, $this->patientId($request)));
     }
 
-    /** The same printable report the lab prints. */
-    public function labReport(Request $request, Visit $visit)
+    public function labReport(Request $request, Visit $visit, PortalVisitService $visits)
     {
-        $this->authorizeVisit($request, $visit);
-        abort_unless($this->detailsVisible($visit), 404);
-
-        $requests = $visit->labRequests()
-            ->completed()
-            ->with(['test', 'attachments', 'processor', 'requester'])
-            ->orderBy('id')
-            ->get();
-
-        abort_if($requests->isEmpty(), 404, 'There are no completed results to print for this visit.');
-
-        $visit->load(['patient', 'doctor']);
-
-        return view('lab.report', compact('visit', 'requests'));
+        return view('lab.report', $visits->labReportData($visit, $this->patientId($request)));
     }
 
-    /** Lab images and documents, only for the patient they belong to. */
-    public function attachment(Request $request, LabAttachment $attachment)
+    public function attachment(Request $request, LabAttachment $attachment, PortalVisitService $visits)
     {
-        $labRequest = $attachment->labRequest()->with('visit')->first();
-        $visit      = $labRequest->visit;
-
-        abort_unless(
-            $visit->patient_id === $request->user()->patient_id
-                && $this->detailsVisible($visit)
-                && $labRequest->status === WorkStatus::Completed,
-            404
-        );
+        abort_unless($visits->attachmentVisibleToPatient($attachment, $this->patientId($request)), 404);
 
         $disk = Storage::disk('local');
         abort_unless($disk->exists($attachment->path), 404);
 
         return $disk->response($attachment->path, $attachment->original_name, [
-            'Content-Type'           => $attachment->mime,
+            'Content-Type' => $attachment->mime,
             'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control'          => 'private, max-age=3600',
+            'Cache-Control' => 'private, max-age=3600',
         ]);
     }
 
-    private function authorizeVisit(Request $request, Visit $visit): void
+    private function patientId(Request $request): int
     {
-        abort_unless($request->user()->patient_id && $visit->patient_id === $request->user()->patient_id, 404);
-    }
+        abort_unless($request->user()->patient_id, 403);
 
-    /** Lab-only visits show results as they arrive; consultations only once the doctor has completed them. */
-    private function detailsVisible(Visit $visit): bool
-    {
-        return $visit->isLabOnly() || $visit->status === VisitStatus::Completed;
+        return (int) $request->user()->patient_id;
     }
 }

@@ -2,54 +2,33 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\StaffInvitation;
-use App\Models\User;
-use Illuminate\Http\Request;
+use App\Http\Requests\AcceptStaffInvitationRequest;
+use App\Services\StaffInvitationService;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rules\Password;
 
 class InvitationAcceptController extends Controller
 {
-    public function show(string $token)
+    public function show(string $token, StaffInvitationService $invitations)
     {
-        $invitation = StaffInvitation::findByToken($token);
+        $invitation = $invitations->findUsable($token);
 
-        if (! $invitation?->isUsable() || User::where('email', $invitation->email)->exists()) {
+        if (! $invitation) {
             return view('invitations.invalid');
         }
 
         return view('invitations.accept', compact('invitation', 'token'));
     }
 
-    public function store(Request $request, string $token)
+    public function store(AcceptStaffInvitationRequest $request, string $token, StaffInvitationService $invitations)
     {
-        $invitation = StaffInvitation::findByToken($token);
+        $invitation = $invitations->findUsable($token);
 
-        if (! $invitation?->isUsable() || User::where('email', $invitation->email)->exists()) {
+        if (! $invitation) {
             return view('invitations.invalid');
         }
 
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-            'password' => ['required', 'confirmed', Password::defaults()],
-        ]);
-
-        $user = DB::transaction(function () use ($invitation, $data) {
-            $user = User::create([
-                'name' => $data['name'],
-                'email' => $invitation->email,
-                'password' => $data['password'],
-                'role' => $invitation->role,
-                'department_id' => $invitation->department_id,
-                'is_active' => true,
-                'email_verified_at' => now(),
-            ]);
-
-            $invitation->update(['accepted_at' => now()]);
-
-            return $user;
-        });
+        $data = $request->validated();
+        $user = $invitations->accept($invitation, $data['name'], $data['password']);
 
         Auth::login($user);
         $request->session()->regenerate();

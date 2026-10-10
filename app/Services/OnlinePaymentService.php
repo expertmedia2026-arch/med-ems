@@ -14,6 +14,13 @@ class OnlinePaymentService
 {
     public function __construct(private PaystackGateway $gateway) {}
 
+    public function findForPatient(string $reference, int $patientId): ?OnlinePayment
+    {
+        return OnlinePayment::where('reference', $reference)
+            ->where('patient_id', $patientId)
+            ->first();
+    }
+
     /** Record the attempt, ask the gateway for a checkout page, and return its URL. */
     public function start(Invoice $invoice, Collection $items, User $user): string
     {
@@ -22,18 +29,18 @@ class OnlinePaymentService
         $attempt = OnlinePayment::create([
             'patient_id' => $invoice->patient_id,
             'invoice_id' => $invoice->id,
-            'reference'  => 'HMS' . now()->format('ymdHis') . strtoupper(Str::random(6)),
-            'amount'     => $amount,
-            'item_ids'   => $items->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            'reference' => 'HMS'.now()->format('ymdHis').strtoupper(Str::random(6)),
+            'amount' => $amount,
+            'item_ids' => $items->pluck('id')->map(fn ($id) => (int) $id)->all(),
         ]);
 
         try {
             return $this->gateway->initialize(
-                email:       $user->email,
-                amountKobo:  (int) round($amount * 100),
-                reference:   $attempt->reference,
+                email: $user->email,
+                amountKobo: (int) round($amount * 100),
+                reference: $attempt->reference,
                 callbackUrl: route('portal.payments.callback'),
-                metadata:    ['online_payment_id' => $attempt->id, 'invoice' => $invoice->invoice_number],
+                metadata: ['online_payment_id' => $attempt->id, 'invoice' => $invoice->invoice_number],
             );
         } catch (\Throwable $e) {
             $attempt->update(['status' => 'failed', 'note' => 'Could not reach the payment gateway.']);
@@ -63,7 +70,7 @@ class OnlinePaymentService
         if ($result['status'] !== 'success') {
             // Still in progress: leave it pending. Anything else means it did not go through.
             if (! in_array($result['status'], ['ongoing', 'pending', 'processing', 'queued'], true)) {
-                $attempt->update(['status' => 'failed', 'note' => 'Gateway status: ' . $result['status']]);
+                $attempt->update(['status' => 'failed', 'note' => 'Gateway status: '.$result['status']]);
             }
 
             return $attempt->fresh();
@@ -74,9 +81,9 @@ class OnlinePaymentService
 
         if ($result['amount_kobo'] !== $expected || $result['currency'] !== 'NGN') {
             $attempt->update([
-                'status'  => 'review',
+                'status' => 'review',
                 'paid_at' => now(),
-                'note'    => 'Amount or currency did not match what was requested. Check the gateway dashboard.',
+                'note' => 'Amount or currency did not match what was requested. Check the gateway dashboard.',
             ]);
 
             return $attempt->fresh();
@@ -101,18 +108,18 @@ class OnlinePaymentService
             // Something was settled at the cashier in the meantime: do not record twice
             if ($items->count() !== count($attempt->item_ids)) {
                 $attempt->update([
-                    'status'  => 'review',
+                    'status' => 'review',
                     'paid_at' => now(),
-                    'note'    => 'Paid online, but some items were already settled at the cashier. Refund or reconcile in the gateway dashboard.',
+                    'note' => 'Paid online, but some items were already settled at the cashier. Refund or reconcile in the gateway dashboard.',
                 ]);
 
                 return $attempt;
             }
 
             $payment = $invoice->payments()->create([
-                'amount'      => $attempt->amount,
-                'method'      => 'online',
-                'reference'   => $attempt->reference,
+                'amount' => $attempt->amount,
+                'method' => 'online',
+                'reference' => $attempt->reference,
                 'received_by' => null,
             ]);
 
@@ -124,10 +131,10 @@ class OnlinePaymentService
             }
 
             $attempt->update([
-                'status'     => 'success',
-                'paid_at'    => now(),
+                'status' => 'success',
+                'paid_at' => now(),
                 'payment_id' => $payment->id,
-                'note'       => null,
+                'note' => null,
             ]);
 
             return $attempt;

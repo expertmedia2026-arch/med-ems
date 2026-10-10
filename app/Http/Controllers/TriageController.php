@@ -2,90 +2,40 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\VisitStatus;
+use App\Http\Requests\RecordVitalsRequest;
 use App\Models\Visit;
 use App\Services\BillingService;
-use Illuminate\Http\Request;
+use App\Services\TriageService;
 
 class TriageController extends Controller
 {
-    public function index(BillingService $billing)
+    public function index(TriageService $triage)
     {
-        $waiting = Visit::with(['patient', 'invoice.items'])
-            ->withStatus(VisitStatus::WaitingTriage)
-            ->oldest('checked_in_at')
-            ->get();
-
-        // Safety net for visits that somehow have no invoice yet
-        $waiting->each(function (Visit $visit) use ($billing) {
-            if (! $visit->invoice) {
-                $billing->invoiceFor($visit);
-                $visit->load('invoice.items');
-            }
-        });
-
-        $done = Visit::with(['patient', 'vitals'])
-            ->withStatus(VisitStatus::WaitingDoctor)
-            ->today()
-            ->latest('updated_at')
-            ->get();
-
-        return view('triage.index', compact('waiting', 'done'));
+        return view('triage.index', $triage->indexData());
     }
 
-    public function show(Visit $visit, BillingService $billing)
+    public function show(Visit $visit, BillingService $billing, TriageService $triage)
     {
-        abort_unless(
-            in_array($visit->status, [VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor]),
-            403,
-            'Vitals can no longer be edited for this visit.'
-        );
+        $triage->assertVitalsEditable($visit);
 
         if (! $billing->consultationPaid($visit)) {
             return $this->unpaid();
         }
 
-        $visit->load(['patient', 'vitals']);
+        $visit = $triage->loadVitalsData($visit);
 
         return view('triage.show', compact('visit'));
     }
 
-    public function store(Request $request, Visit $visit, BillingService $billing)
+    public function store(RecordVitalsRequest $request, Visit $visit, BillingService $billing, TriageService $triage)
     {
-        abort_unless(
-            in_array($visit->status, [VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor]),
-            403
-        );
+        $triage->assertVitalsEditable($visit);
 
         if (! $billing->consultationPaid($visit)) {
             return $this->unpaid();
         }
 
-        $data = $request->validate([
-            'temperature'      => ['required', 'numeric', 'between:30,45'],
-            'pulse'            => ['required', 'integer', 'between:20,250'],
-            'respiratory_rate' => ['nullable', 'integer', 'between:5,80'],
-            'spo2'             => ['nullable', 'integer', 'between:50,100'],
-            'bp_systolic'      => ['nullable', 'required_with:bp_diastolic', 'integer', 'between:50,300'],
-            'bp_diastolic'     => ['nullable', 'required_with:bp_systolic', 'integer', 'between:30,200', 'lt:bp_systolic'],
-            'weight'           => ['nullable', 'numeric', 'between:0.5,400'],
-            'height'           => ['nullable', 'numeric', 'between:20,250'],
-            'notes'            => ['nullable', 'string', 'max:500'],
-            'complaint'        => ['nullable', 'string', 'max:500'],
-        ]);
-
-        $complaint = $data['complaint'] ?? null;
-        unset($data['complaint']);
-
-        $visit->vitals()->updateOrCreate(
-            ['visit_id' => $visit->id],
-            $data + ['recorded_by' => $request->user()->id]
-        );
-
-        $visit->update(array_filter([
-            'status'    => VisitStatus::WaitingDoctor,
-            'complaint' => $complaint,
-        ]));
+        $triage->recordVitals($visit, $request->validated(), $request->user());
 
         return redirect()
             ->route('triage.index')

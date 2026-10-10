@@ -2,46 +2,24 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\AppointmentStatus;
-use App\Enums\Role;
-use App\Enums\VisitStatus;
+use App\Http\Requests\AppointmentCheckInRequest;
+use App\Http\Requests\WalkInCheckInRequest;
 use App\Models\Appointment;
-use App\Models\ConsultationType;
 use App\Models\Patient;
-use App\Services\BillingService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use App\Services\VisitCheckInService;
 
 class VisitController extends Controller
 {
     /** Walk-in: check the patient in straight from their profile. */
-    public function walkIn(Request $request, Patient $patient, BillingService $billing)
+    public function walkIn(WalkInCheckInRequest $request, Patient $patient, VisitCheckInService $checkIn)
     {
-        if ($patient->currentVisit()) {
+        $visit = $checkIn->walkIn($patient, $request->validated());
+
+        if (! $visit) {
             return back()->with('error', 'This patient already has an active visit.');
         }
 
-        $data = $request->validate([
-            'complaint' => ['nullable', 'string', 'max:500'],
-            'department_id' => ['required', 'integer', 'exists:departments,id'],
-            'consultation_type_id' => [
-                'required', 'integer',
-                Rule::exists('consultation_types', 'id')
-                    ->where('department_id', $request->input('department_id'))
-                    ->where('is_active', true),
-            ],
-            'doctor_id' => [
-                'nullable',
-                Rule::exists('users', 'id')->where('role', Role::Doctor->value)
-                    ->where('is_active', true)
-                    ->where('department_id', $request->input('department_id')),
-            ],
-        ]);
-
-        $consultationType = ConsultationType::findOrFail($data['consultation_type_id']);
-        $visit = $patient->visits()->create($data);
-        $billing->invoiceFor($visit);
+        $consultationType = $visit->consultationType;
 
         return redirect()
             ->route('patients.show', $patient)
@@ -49,78 +27,32 @@ class VisitController extends Controller
     }
 
     /** Appointment: check in and link the visit to the booking. */
-    public function fromAppointment(Request $request, Appointment $appointment, BillingService $billing)
+    public function fromAppointment(AppointmentCheckInRequest $request, Appointment $appointment, VisitCheckInService $checkIn)
     {
-        abort_unless($appointment->status === AppointmentStatus::Scheduled, 422);
-
         // Lab booking: becomes a lab-only visit with the booked tests (no consultation)
         if ($appointment->isLab()) {
-            $tests = $appointment->labTests()->where('is_active', true)->get();
+            $visit = $checkIn->fromLabAppointment($appointment, $request->user()->id);
 
-            if ($tests->isEmpty()) {
+            if (! $visit) {
                 return back()->with('error', 'None of the booked tests are available any more. Cancel this booking and book again.');
             }
 
-            DB::transaction(function () use ($appointment, $tests, $request, $billing) {
-                $visit = $appointment->patient->visits()->create([
-                    'appointment_id' => $appointment->id,
-                    'type' => 'lab_only',
-                    'status' => VisitStatus::LabOnly,
-                    'complaint' => $appointment->reason,
-                ]);
-
-                foreach ($tests as $test) {
-                    $visit->labRequests()->create([
-                        'lab_test_id' => $test->id,
-                        'requested_by' => $request->user()->id,
-                    ]);
-                }
-
-                $appointment->update(['status' => AppointmentStatus::CheckedIn]);
-
-                $billing->syncFor($visit);
-            });
-
-            return back()->with('success', "{$appointment->patient->full_name} checked in for lab tests. Send them to the cashier to pay for the tests.");
+            return back()->with('success', "{$visit->patient->full_name} checked in for lab tests. Send them to the cashier to pay for the tests.");
         }
 
-        // Doctor booking
-        if ($appointment->patient->currentVisit()) {
-            return back()->with('error', 'This patient already has an active visit.');
-        }
-
-        $appointment->loadMissing('doctor');
-        $departmentId = $appointment->doctor?->department_id;
-
-        if (! $departmentId) {
+        if (! $checkIn->doctorDepartmentId($appointment)) {
             return back()->with('error', 'Assign this doctor to a department before checking in the appointment.');
         }
 
-        $data = $request->validate([
-            'consultation_type_id' => [
-                'required', 'integer',
-                Rule::exists('consultation_types', 'id')
-                    ->where('department_id', $departmentId)
-                    ->where('is_active', true),
-            ],
-        ]);
+        $data = $request->validated();
+        $visit = $checkIn->fromDoctorAppointment($appointment, $data['consultation_type_id']);
 
-        $consultationType = ConsultationType::findOrFail($data['consultation_type_id']);
+        if (! $visit) {
+            return back()->with('error', 'This patient already has an active visit.');
+        }
 
-        DB::transaction(function () use ($appointment, $billing, $consultationType, $departmentId) {
-            $visit = $appointment->patient->visits()->create([
-                'appointment_id' => $appointment->id,
-                'doctor_id' => $appointment->doctor_id,
-                'department_id' => $departmentId,
-                'consultation_type_id' => $consultationType->id,
-                'complaint' => $appointment->reason,
-            ]);
+        $consultationType = $visit->consultationType;
 
-            $appointment->update(['status' => AppointmentStatus::CheckedIn]);
-
-            $billing->invoiceFor($visit);
-        });
-
-        return back()->with('success', "{$appointment->patient->full_name} checked in for {$consultationType->name}. Send them to the cashier to pay ₦".number_format((float) $consultationType->price, 2).', then to triage.');
+        return back()->with('success', "{$visit->patient->full_name} checked in for {$consultationType->name}. Send them to the cashier to pay ₦".number_format((float) $consultationType->price, 2).', then to triage.');
     }
 }

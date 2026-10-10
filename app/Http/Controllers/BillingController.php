@@ -2,85 +2,31 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\BillingIndexRequest;
+use App\Http\Requests\PayInvoiceRequest;
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use App\Models\Payment;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use App\Models\OnlinePayment;
+use App\Services\CashierService;
 
 class BillingController extends Controller
 {
-    public function index(Request $request)
+    public function index(BillingIndexRequest $request, CashierService $cashier)
     {
-        $status = $request->query('status');
+        $filters = $request->validated();
 
-        $invoices = Invoice::with('patient')
-            ->withCount(['items as unpaid_items_count' => fn ($q) => $q->whereNull('payment_id')->where('total', '>', 0)])
-            ->when($request->filled('q'), fn ($q) => $q->whereHas('patient', fn ($p) => $p->search($request->query('q'))))
-            ->when(in_array($status, ['unpaid', 'partial', 'paid'], true), fn ($q) => $q->where('status', $status))
-            ->latest()
-            ->paginate(15)
-            ->withQueryString();
-
-        return view('billing.index', [
-            'invoices'       => $invoices,
-            'status'         => $status,
-            'collectedToday' => Payment::whereDate('created_at', today())->sum('amount'),
-            'outstanding'    => Invoice::whereIn('status', ['unpaid', 'partial'])->sum(DB::raw('total - amount_paid')),
-            'review' => OnlinePayment::where('status', 'review')->with('patient')->latest()->get(),
-        ]);
+        return view('billing.index', $cashier->indexData($filters['status'] ?? null, $filters['q'] ?? null));
     }
 
-    public function show(Invoice $invoice)
+    public function show(Invoice $invoice, CashierService $cashier)
     {
-        $invoice->load(['patient', 'visit.doctor', 'items.payment', 'payments.receiver']);
+        $invoice = $cashier->invoiceDetails($invoice);
 
         return view('billing.show', compact('invoice'));
     }
 
-    public function pay(Request $request, Invoice $invoice)
+    public function pay(PayInvoiceRequest $request, Invoice $invoice, CashierService $cashier)
     {
-        $data = $request->validate([
-            'item_ids'   => ['required', 'array', 'min:1'],
-            'item_ids.*' => ['integer'],
-            'method'     => ['required', 'in:cash,transfer,pos'],
-            'reference'  => ['nullable', 'string', 'max:100'],
-        ], ['item_ids.required' => 'Select at least one item to pay for.']);
-
-        $payment = null;
-        $wanted  = array_values(array_unique($data['item_ids']));
-
-        DB::transaction(function () use ($invoice, $data, $wanted, $request, &$payment) {
-            // Lock the invoice so two cashiers can't take payment for the same item
-            Invoice::lockForUpdate()->findOrFail($invoice->id);
-
-            $items = $invoice->items()
-                ->whereIn('id', $wanted)
-                ->whereNull('payment_id')
-                ->where('total', '>', 0)
-                ->lockForUpdate()
-                ->get();
-
-            if ($items->count() !== count($wanted)) {
-                return; // an item was already paid, or does not belong to this invoice
-            }
-
-            $payment = $invoice->payments()->create([
-                'amount'      => round((float) $items->sum('total'), 2),
-                'method'      => $data['method'],
-                'reference'   => $data['reference'] ?? null,
-                'received_by' => $request->user()->id,
-            ]);
-
-            InvoiceItem::whereIn('id', $items->pluck('id'))->update(['payment_id' => $payment->id]);
-
-            // Paying the registration fee activates the patient's portal login
-            if ($items->contains('category', 'registration')) {
-                $invoice->patient()->whereNull('registration_paid_at')->update(['registration_paid_at' => now()]);
-            }
-
-        });
+        $payment = $cashier->recordPayment($invoice, $request->validated(), $request->user()->id);
 
         if (! $payment) {
             return redirect()->route('billing.show', $invoice)
@@ -89,12 +35,12 @@ class BillingController extends Controller
 
         return redirect()
             ->route('billing.receipt', $payment)
-            ->with('success', 'Payment of ₦' . number_format((float) $payment->amount, 2) . ' recorded.');
+            ->with('success', 'Payment of ₦'.number_format((float) $payment->amount, 2).' recorded.');
     }
 
-    public function receipt(Payment $payment)
+    public function receipt(Payment $payment, CashierService $cashier)
     {
-        $payment->load(['invoice.patient', 'invoice.visit.doctor', 'items', 'receiver']);
+        $payment = $cashier->receiptDetails($payment);
 
         return view('billing.receipt', compact('payment'));
     }

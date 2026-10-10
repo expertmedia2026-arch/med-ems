@@ -3,111 +3,39 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Role;
-use App\Enums\VisitStatus;
-use App\Models\LabTest;
-use App\Models\Patient;
+use App\Http\Requests\LabReferralFormRequest;
+use App\Http\Requests\StoreLabReferralRequest;
 use App\Models\Visit;
-use App\Services\BillingService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
+use App\Services\LabReferralService;
 
 class LabReferralController extends Controller
 {
-    public function create(Request $request)
+    public function create(LabReferralFormRequest $request, LabReferralService $referrals)
     {
-        return view('lab.referrals.create', [
-            'patients' => Patient::orderBy('last_name')->limit(500)
-                ->get(['id', 'hospital_number', 'first_name', 'last_name']),
-            'tests'    => LabTest::active()->orderBy('name')->get(),
-            'selected' => $request->query('patient'),
-        ]);
+        return view('lab.referrals.create', $referrals->createFormData($request->validated('patient')));
     }
 
-    public function store(Request $request, BillingService $billing)
+    public function store(StoreLabReferralRequest $request, LabReferralService $referrals)
     {
-        $mode = $request->input('mode') === 'new' ? 'new' : 'existing';
+        $data = $request->validated();
+        $result = $referrals->create($data, $request->user()->id, $request->boolean('confirm_new'));
 
-        $rules = [
-            'referred_from'  => ['nullable', 'string', 'max:150'],
-            'referred_by'    => ['nullable', 'string', 'max:150'],
-            'complaint'      => ['nullable', 'string', 'max:500'],
-            'lab_test_ids'   => ['required', 'array', 'min:1'],
-            'lab_test_ids.*' => [Rule::exists('lab_tests', 'id')->where('is_active', true)],
-        ];
-
-        $rules += $mode === 'new'
-            ? [
-                'first_name' => ['required', 'string', 'max:100'],
-                'last_name'  => ['required', 'string', 'max:100'],
-                'gender'     => ['required', 'in:male,female'],
-                'age'        => ['required', 'integer', 'min:0', 'max:120'],
-                'phone'      => ['nullable', 'string', 'max:20'],
-            ]
-            : ['hospital_number' => ['required', 'string', 'max:100']];
-
-        $data = $request->validate($rules, [
-            'hospital_number.required' => "Enter the patient's name, hospital number or phone.",
-            'lab_test_ids.required'    => 'Select at least one test.',
-        ]);
-
-        $patient = null;
-
-        if ($mode === 'existing') {
-            $patient = $this->findPatient($data['hospital_number']);
-        } else {
-            $matches = $this->possibleDuplicates($data);
-
-            // Ask before creating a second record for someone who may already exist
-            if ($matches->isNotEmpty() && ! $request->boolean('confirm_new')) {
-                return back()->withInput()->with('possible_matches', $matches->map(fn ($p) => [
-                    'hospital_number' => $p->hospital_number,
-                    'name'            => $p->full_name,
-                    'gender'          => ucfirst($p->gender),
-                    'age'             => $p->age,
-                    'phone'           => $p->phone,
-                ])->values()->all());
-            }
+        if ($result['matches']->isNotEmpty()) {
+            return back()->withInput()->with('possible_matches', $result['matches']->map(fn ($patient) => [
+                'hospital_number' => $patient->hospital_number,
+                'name' => $patient->full_name,
+                'gender' => ucfirst($patient->gender),
+                'age' => $patient->age,
+                'phone' => $patient->phone,
+            ])->values()->all());
         }
 
-        $visit = DB::transaction(function () use ($data, $patient, $request, $billing) {
-            // New client: create a minimal record. Age becomes an estimated date of birth.
-            $patient ??= Patient::create([
-                'first_name'    => trim($data['first_name']),
-                'last_name'     => trim($data['last_name']),
-                'gender'        => $data['gender'],
-                'date_of_birth' => now()->subYears((int) $data['age'])->toDateString(),
-                'dob_estimated' => true,
-                'phone'         => $data['phone'] ?? null,
-            ]);
-
-            $visit = $patient->visits()->create([
-                'type'          => 'lab_only',
-                'status'        => VisitStatus::LabOnly,
-                'complaint'     => $data['complaint'] ?? null,
-                'referred_from' => $data['referred_from'] ?? null,
-                'referred_by'   => $data['referred_by'] ?? null,
-            ]);
-
-            foreach (array_unique($data['lab_test_ids']) as $testId) {
-                $visit->labRequests()->create([
-                    'lab_test_id'  => $testId,
-                    'requested_by' => $request->user()->id,
-                ]);
-            }
-
-            $billing->syncFor($visit);
-
-            return $visit;
-        });
-
+        $visit = $result['visit'];
         $patient = $visit->patient;
-        $total   = number_format((float) $visit->invoice()->value('total'), 2);
+        $total = number_format($result['total'] ?? 0, 2);
         $message = "Request created for {$patient->full_name}"
-            . ($mode === 'new' ? " (lab number {$patient->hospital_number})" : '')
-            . ". Send them to the cashier to pay ₦{$total}.";
+            .($result['is_new'] ? " (lab number {$patient->hospital_number})" : '')
+            .". Send them to the cashier to pay ₦{$total}.";
 
         // Front desk has no access to the lab pages, so send them back to the patient
         return $request->user()->hasRole(Role::Receptionist)
@@ -115,77 +43,12 @@ class LabReferralController extends Controller
             : redirect()->route('lab.index')->with('success', $message);
     }
 
-    public function destroy(Visit $visit)
+    public function destroy(Visit $visit, LabReferralService $referrals)
     {
-        abort_unless($visit->isLabOnly(), 404);
-
-        $hasPayment = $visit->invoice?->payments()->exists();
-        $hasResults = $visit->labRequests()->completed()->exists();
-
-        if ($hasPayment || $hasResults) {
+        if (! $referrals->cancel($visit)) {
             return back()->with('error', 'This request cannot be cancelled after payment has been taken or a result entered.');
         }
 
-        $visit->delete(); // invoice and lab requests are removed with it
-
         return redirect()->route('lab.index')->with('success', 'Referral request cancelled.');
-    }
-
-    /** Existing patients who may be the same person as a new client. */
-    private function possibleDuplicates(array $data): Collection
-    {
-        return Patient::query()
-            ->where(function ($q) use ($data) {
-                $q->where(fn ($n) => $n
-                    ->whereRaw('LOWER(first_name) = ?', [strtolower(trim($data['first_name']))])
-                    ->whereRaw('LOWER(last_name) = ?', [strtolower(trim($data['last_name']))]));
-
-                if (! empty($data['phone'])) {
-                    $q->orWhere('phone', $data['phone']);
-                }
-            })
-            ->limit(5)
-            ->get();
-    }
-
-    /** Find a patient by hospital number, or by name / phone when the match is unambiguous. */
-    private function findPatient(string $input): Patient
-    {
-        $term = trim($input);
-
-        $exact = Patient::whereRaw('LOWER(hospital_number) = ?', [strtolower($term)])->first();
-        if ($exact) {
-            return $exact;
-        }
-
-        // Every word must match the first name, last name, hospital number or phone
-        $matches = Patient::query()
-            ->where(function ($q) use ($term) {
-                foreach (preg_split('/\s+/', $term) as $part) {
-                    $q->where(fn ($w) => $w->whereLike('first_name', "%{$part}%")
-                                           ->orWhereLike('last_name', "%{$part}%")
-                                           ->orWhereLike('hospital_number', "%{$part}%")
-                                           ->orWhereLike('phone', "%{$part}%"));
-                }
-            })
-            ->orderBy('last_name')
-            ->limit(6)
-            ->get();
-
-        if ($matches->count() === 1) {
-            return $matches->first();
-        }
-
-        if ($matches->isEmpty()) {
-            throw ValidationException::withMessages([
-                'hospital_number' => "No patient found for \"{$term}\". Check the spelling, or switch to New client.",
-            ]);
-        }
-
-        throw ValidationException::withMessages([
-            'hospital_number' => 'Several patients match: '
-                . $matches->map(fn ($p) => "{$p->full_name} ({$p->hospital_number})")->join('; ')
-                . '. Enter the exact hospital number.',
-        ]);
     }
 }

@@ -3,74 +3,41 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Role;
-use App\Mail\StaffInvitationMail;
-use App\Models\Department;
-use App\Models\HospitalSetting;
+use App\Http\Requests\StoreStaffInvitationRequest;
 use App\Models\StaffInvitation;
+use App\Services\StaffInvitationService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class StaffInvitationController extends Controller
 {
-    public function create()
+    public function create(StaffInvitationService $invitations)
     {
-        return view('staff.invite', ['departments' => Department::orderBy('name')->get()]);
+        return view('staff.invite', ['departments' => $invitations->departments()]);
     }
 
-    public function store(Request $request)
+    public function store(StoreStaffInvitationRequest $request, StaffInvitationService $invitations)
     {
-        $data = $request->validate([
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role' => ['required', Rule::enum(Role::class)->except([Role::Patient])],
-            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
-        ], ['email.unique' => 'A staff member with this email already exists.']);
+        $data = $request->validated();
+        $result = $invitations->issue($data['email'], Role::from($data['role']), $data['department_id'] ?? null, $request->user());
 
-        return $this->issue($data['email'], Role::from($data['role']), $request, $data['department_id'] ?? null);
+        return redirect()->route('staff.index')
+            ->with($result['sent'] ? 'success' : 'error', $result['message'])
+            ->with('invite_link', $result['link']);
     }
 
-    public function resend(Request $request, StaffInvitation $invitation)
+    public function resend(Request $request, StaffInvitation $invitation, StaffInvitationService $invitations)
     {
-        abort_if($invitation->accepted_at, 422, 'This invitation was already accepted.');
+        $result = $invitations->resend($invitation, $request->user());
 
-        return $this->issue($invitation->email, $invitation->role, $request, $invitation->department_id);
+        return redirect()->route('staff.index')
+            ->with($result['sent'] ? 'success' : 'error', $result['message'])
+            ->with('invite_link', $result['link']);
     }
 
-    public function destroy(StaffInvitation $invitation)
+    public function destroy(StaffInvitation $invitation, StaffInvitationService $invitations)
     {
-        $invitation->delete();
+        $invitations->revoke($invitation);
 
         return back()->with('success', 'Invitation revoked.');
-    }
-
-    /** Create a fresh invitation (replacing any open one for this email) and email the link. */
-    private function issue(string $email, Role $role, Request $request, ?int $departmentId = null)
-    {
-        StaffInvitation::where('email', $email)->whereNull('accepted_at')->delete();
-
-        // Only a hash is stored; the plain token exists only in the link
-        $token = Str::random(48);
-
-        $invitation = StaffInvitation::create([
-            'email' => $email,
-            'role' => $role,
-            'department_id' => $departmentId,
-            'token_hash' => StaffInvitation::hashToken($token),
-            'invited_by' => $request->user()->id,
-            'expires_at' => now()->addDays(7),
-        ]);
-
-        $url = route('invitations.accept', $token);
-
-        try {
-            Mail::to($email)->send(new StaffInvitationMail($invitation, $url, HospitalSetting::current()->name));
-            $flash = ['success' => "Invitation sent to {$email}."];
-        } catch (\Throwable $e) {
-            report($e);
-            $flash = ['error' => "The email could not be sent, but the invitation is valid. Share the link below with {$email} manually."];
-        }
-
-        return redirect()->route('staff.index')->with($flash + ['invite_link' => $url]);
     }
 }

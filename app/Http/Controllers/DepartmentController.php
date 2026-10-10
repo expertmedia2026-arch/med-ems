@@ -2,24 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\Role;
+use App\Http\Requests\SaveDepartmentRequest;
 use App\Models\Department;
+use App\Services\DepartmentService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class DepartmentController extends Controller
 {
-    public function index(): View
+    public function index(DepartmentService $departments): View
     {
-        $departments = Department::withCount([
-            'users' => fn ($query) => $query->where('role', '!=', Role::Patient->value),
-            'staffInvitations' => fn ($query) => $query->pending(),
-            'consultationTypes',
-        ])->orderBy('name')->paginate(15);
+        $records = $departments->index();
 
-        return view('departments.index', compact('departments'));
+        return view('departments.index', ['departments' => $records]);
     }
 
     public function create(): View
@@ -27,14 +22,9 @@ class DepartmentController extends Controller
         return view('departments.create');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(SaveDepartmentRequest $request, DepartmentService $departments): RedirectResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:120', 'unique:departments,name'],
-            'description' => ['nullable', 'string', 'max:500'],
-        ]);
-
-        Department::create($data);
+        $departments->create($request->validated());
 
         return redirect()->route('departments.index')->with('success', 'Department added.');
     }
@@ -44,25 +34,20 @@ class DepartmentController extends Controller
         return view('departments.edit', compact('department'));
     }
 
-    public function update(Request $request, Department $department): RedirectResponse
+    public function update(SaveDepartmentRequest $request, Department $department, DepartmentService $departments): RedirectResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:120', Rule::unique('departments', 'name')->ignore($department->id)],
-            'description' => ['nullable', 'string', 'max:500'],
-        ]);
-
-        $department->update($data);
+        $departments->update($department, $request->validated());
 
         return redirect()->route('departments.index')->with('success', 'Department updated.');
     }
 
-    public function destroy(Department $department): RedirectResponse
+    public function destroy(Department $department, DepartmentService $departments): RedirectResponse
     {
-        if ($department->users()->exists() || $department->staffInvitations()->pending()->exists() || $department->consultationTypes()->exists()) {
+        if (! $departments->canDelete($department)) {
             return back()->with('error', 'Remove staff assignments, pending invitations, and consultation types before deleting this department.');
         }
 
-        $department->delete();
+        $departments->delete($department);
 
         return redirect()->route('departments.index')->with('success', 'Department deleted.');
     }

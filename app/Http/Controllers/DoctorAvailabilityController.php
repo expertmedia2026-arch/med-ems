@@ -2,19 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreDoctorAvailabilityRequest;
 use App\Models\DoctorAvailability;
+use App\Services\DoctorAvailabilityService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class DoctorAvailabilityController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, DoctorAvailabilityService $availability): View
     {
-        $availabilities = $request->user()->doctorAvailabilities()
-            ->whereDate('date', '>=', today())
-            ->orderBy('date')
-            ->get();
+        $availabilities = $availability->forDoctor($request->user());
 
         return view('doctor.availability', [
             'availabilities' => $availabilities,
@@ -22,27 +21,16 @@ class DoctorAvailabilityController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreDoctorAvailabilityRequest $request, DoctorAvailabilityService $availability): RedirectResponse
     {
-        $data = $request->validate([
-            'date' => [
-                'required',
-                'date',
-                'after_or_equal:today',
-                'before_or_equal:'.today()->addDays(config('hms.booking.max_days_ahead'))->toDateString(),
-            ],
-        ]);
-
-        $request->user()->doctorAvailabilities()->firstOrCreate(['date' => $data['date']]);
+        $availability->add($request->user(), $request->validated('date'));
 
         return redirect()->route('doctor.availability.index')->with('success', 'Availability date saved.');
     }
 
-    public function destroy(Request $request, DoctorAvailability $doctorAvailability): RedirectResponse
+    public function destroy(Request $request, DoctorAvailability $doctorAvailability, DoctorAvailabilityService $availability): RedirectResponse
     {
-        abort_unless($doctorAvailability->doctor_id === $request->user()->id, 404);
-
-        $doctorAvailability->delete();
+        $availability->remove($request->user(), $doctorAvailability);
 
         return redirect()->route('doctor.availability.index')->with('success', 'Availability date removed.');
     }

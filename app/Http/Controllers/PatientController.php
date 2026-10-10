@@ -2,26 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\Role;
-use App\Models\ConsultationType;
-use App\Models\Department;
-use App\Models\HospitalSetting;
+use App\Http\Requests\PatientDetailsRequest;
+use App\Http\Requests\PatientIndexRequest;
 use App\Models\Patient;
-use App\Models\User;
-use App\Services\BillingService;
+use App\Services\PatientRegistrationService;
+use App\Services\PatientService;
 use App\Services\PortalInvitationService;
-use Illuminate\Http\Request;
 
 class PatientController extends Controller
 {
-    public function index(Request $request)
+    public function index(PatientIndexRequest $request, PatientService $patients)
     {
-        $patients = Patient::search($request->query('q'))
-            ->latest()
-            ->paginate(10)
-            ->withQueryString();
+        $records = $patients->index($request->validated('q'));
 
-        return view('patients.index', compact('patients'));
+        return view('patients.index', ['patients' => $records]);
     }
 
     public function create()
@@ -29,12 +23,9 @@ class PatientController extends Controller
         return view('patients.create');
     }
 
-    public function store(Request $request, BillingService $billing, PortalInvitationService $portal)
+    public function store(PatientDetailsRequest $request, PatientRegistrationService $registration, PortalInvitationService $portal)
     {
-        $patient = Patient::create($this->validated($request));
-
-        // Registration fee goes to the cashier
-        $invoice = $billing->registrationInvoiceFor($patient);
+        ['patient' => $patient, 'invoice' => $invoice] = $registration->register($request->validated());
 
         $message = "Patient registered: {$patient->hospital_number}.";
 
@@ -59,92 +50,25 @@ class PatientController extends Controller
         return redirect()->route('patients.show', $patient)->with(['success' => $message] + $flash);
     }
 
-    public function show(Patient $patient)
+    public function show(Patient $patient, PatientService $patients)
     {
-        $patient->load([
-            'visits' => fn ($q) => $q->latest('checked_in_at')->with(['doctor', 'consultationType.department']),
-            'appointments' => fn ($q) => $q->latest('scheduled_at')->with('doctor'),
-        ]);
-
-        return view('patients.show', [
-            'patient' => $patient,
-            'activeVisit' => $patient->currentVisit(),
-            'doctors' => User::ofRole(Role::Doctor)->where('is_active', true)->with('department')->orderBy('name')->get(),
-            'departments' => Department::orderBy('name')->get(),
-            'consultationTypes' => ConsultationType::active()->orderBy('name')->get(),
-            'portalUser' => User::where('patient_id', $patient->id)->first(),
-            'pendingInvite' => $patient->invitations()->pending()->latest()->first(),
-        ]);
+        return view('patients.show', $patients->showData($patient));
     }
 
-    public function card(Patient $patient)
+    public function card(Patient $patient, PatientService $patients)
     {
-        abort_unless($patient->registration_paid_at, 403, 'The patient card is available after the registration fee has been paid.');
-
-        return view('patients.card', [
-            'patient' => $patient,
-            'hospital' => HospitalSetting::current(),
-        ]);
+        return view('patients.card', $patients->cardData($patient));
     }
-
-    // public function store(Request $request)
-    // {
-    //     $patient = Patient::create($this->validated($request));
-
-    //     return redirect()
-    //         ->route('patients.show', $patient)
-    //         ->with('success', "Patient registered: {$patient->hospital_number}");
-    // }
-
-    // public function show(Patient $patient)
-    // {
-    //     $patient->load([
-    //         'visits'       => fn ($q) => $q->latest('checked_in_at')->with('doctor'),
-    //         'appointments' => fn ($q) => $q->latest('scheduled_at')->with('doctor'),
-    //     ]);
-
-    //     return view('patients.show', [
-    //         'patient'     => $patient,
-    //         'activeVisit' => $patient->currentVisit(),
-    //         'doctors'     => User::ofRole(Role::Doctor)->orderBy('name')->get(),
-    //     ]);
-    // }
 
     public function edit(Patient $patient)
     {
         return view('patients.edit', compact('patient'));
     }
 
-    public function update(Request $request, Patient $patient)
+    public function update(PatientDetailsRequest $request, Patient $patient, PatientService $patients)
     {
-        // $patient->update($this->validated($request));
-        $patient->update($this->validated($request) + ['dob_estimated' => false]);
+        $patients->update($patient, $request->validated());
 
         return redirect()->route('patients.show', $patient)->with('success', 'Patient updated.');
-    }
-
-    private function validated(Request $request): array
-    {
-        $data = $request->validate([
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
-            'gender' => ['required', 'in:male,female'],
-            'date_of_birth' => ['required', 'date', 'before_or_equal:today'],
-            'phone' => ['nullable', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'address' => ['nullable', 'string', 'max:500'],
-            'blood_group' => ['nullable', 'in:A+,A-,B+,B-,AB+,AB-,O+,O-'],
-            'genotype' => ['nullable', 'in:AA,AS,SS,AC,SC'],
-            'allergies' => ['nullable', 'string', 'max:500'],
-            'next_of_kin_name' => ['nullable', 'string', 'max:150'],
-            'next_of_kin_phone' => ['nullable', 'string', 'max:20'],
-            'is_nhis' => ['sometimes', 'boolean'],
-            'nhis_number' => ['nullable', 'required_if:is_nhis,1', 'string', 'max:50'],
-        ]);
-
-        $data['is_nhis'] = $request->boolean('is_nhis');
-        $data['nhis_number'] = $data['is_nhis'] ? ($data['nhis_number'] ?? null) : null;
-
-        return $data;
     }
 }
