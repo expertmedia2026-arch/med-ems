@@ -58,6 +58,10 @@ class StaffService
         abort_if($staff->is($actor), 403, 'You cannot deactivate your own account.');
         $staff->update(['is_active' => ! $staff->is_active]);
 
+        if (! $staff->is_active) {
+            $staff->tokens()->delete();
+        }
+
         return $staff->refresh();
     }
 

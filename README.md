@@ -21,6 +21,10 @@ Laravel is a web application framework with expressive, elegant syntax. We belie
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
+## Mobile API
+
+The versioned mobile API uses Sanctum bearer tokens. See [the API v1 endpoint guide](docs/api-v1.md) for authentication, role access, request shapes, and available patient, staff, clinical, laboratory, pharmacy, billing, and admin routes. API routes are registered in `routes/api.php` and do not replace the existing browser routes.
+
 ## Learning Laravel
 
 Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.

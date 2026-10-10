@@ -22,7 +22,7 @@ class LabRequestController extends Controller
     public function destroy(Request $request, Visit $visit, LabRequest $labRequest, LabWorkflowService $lab)
     {
         abort_unless($visit->isOpenFor($request->user()), 403);
-        if (! $lab->removeRequest($labRequest)) {
+        if (! $lab->removeRequest($labRequest, $request->user())) {
             return back()->with('error', 'This test has already been paid for and cannot be removed.');
         }
 

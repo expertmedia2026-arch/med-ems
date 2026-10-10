@@ -21,6 +21,7 @@ class ProfileService
 
     public function delete(User $user): void
     {
+        $user->tokens()->delete();
         $user->delete();
     }
 }

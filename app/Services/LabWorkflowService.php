@@ -10,6 +10,7 @@ use App\Models\LabRequest;
 use App\Models\User;
 use App\Models\Visit;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 
 class LabWorkflowService
 {
@@ -17,16 +18,21 @@ class LabWorkflowService
 
     public function requestTests(Visit $visit, array $testIds, int $requestedBy): int
     {
-        $already = $visit->labRequests()->pluck('lab_test_id');
-        $new = collect($testIds)->unique()->diff($already);
+        return DB::transaction(function () use ($visit, $testIds, $requestedBy) {
+            $visit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
+            abort_unless($visit->status === VisitStatus::InConsultation && $visit->doctor_id === $requestedBy, 403, 'Lab tests can only be added during your active consultation.');
 
-        foreach ($new as $testId) {
-            $visit->labRequests()->create(['lab_test_id' => $testId, 'requested_by' => $requestedBy]);
-        }
+            $already = $visit->labRequests()->pluck('lab_test_id');
+            $new = collect($testIds)->unique()->diff($already);
 
-        $this->billing->syncFor($visit);
+            foreach ($new as $testId) {
+                $visit->labRequests()->create(['lab_test_id' => $testId, 'requested_by' => $requestedBy]);
+            }
 
-        return $new->count();
+            $this->billing->syncFor($visit);
+
+            return $new->count();
+        });
     }
 
     public function indexData(User $user, string $term): array
@@ -78,17 +84,23 @@ class LabWorkflowService
         return compact('visit', 'requests');
     }
 
-    public function removeRequest(LabRequest $request): bool
+    public function removeRequest(LabRequest $request, User $doctor): bool
     {
-        abort_unless($request->status === WorkStatus::Pending, 422);
+        return DB::transaction(function () use ($request, $doctor) {
+            $visit = Visit::query()->lockForUpdate()->findOrFail($request->visit_id);
+            abort_unless($visit->isOpenFor($doctor), 403, 'This consultation is not open for editing.');
 
-        if (! $this->billing->release($request)) {
-            return false;
-        }
+            $request = LabRequest::query()->lockForUpdate()->findOrFail($request->id);
+            abort_unless($request->status === WorkStatus::Pending, 422);
 
-        $request->delete();
+            if (! $this->billing->release($request)) {
+                return false;
+            }
 
-        return true;
+            $request->delete();
+
+            return true;
+        });
     }
 
     /** @param array<int, UploadedFile> $files */

@@ -7,6 +7,7 @@
         $input   = 'mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600';
         $label   = 'block text-sm font-medium text-slate-700';
         $requested = $visit->labRequests->pluck('lab_test_id');
+        $outstandingLabRequests = $visit->labRequests->filter(fn ($request) => $request->status->value !== 'completed');
     @endphp
 
     {{-- Patient banner --}}
@@ -186,6 +187,15 @@
             <div class="rounded-xl border bg-white p-6 shadow-sm">
                 <h3 class="mb-4 font-semibold">Lab requests</h3>
 
+                @if ($outstandingLabRequests->isNotEmpty())
+                    <p class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                        This consultation must remain open until results are entered or uploaded for all {{ $outstandingLabRequests->count() }} outstanding test(s).
+                    </p>
+                @endif
+                @error('lab_requests')
+                    <p class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ $message }}</p>
+                @enderror
+
                 @if ($visit->labRequests->isNotEmpty())
                 
                     <!-- <ul class="mb-5 divide-y text-sm">
@@ -267,7 +277,8 @@
                     </button>
                     <button form="visit-form" formaction="{{ route('consultations.complete', $visit) }}"
                             onclick="return confirm('Complete this consultation? Prescriptions and lab requests will go to the pharmacy and lab.')"
-                            class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800">
+                            @disabled($outstandingLabRequests->isNotEmpty())
+                            class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">
                         Complete consultation
                     </button>
                 </div>

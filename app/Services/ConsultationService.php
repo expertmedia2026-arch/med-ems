@@ -4,11 +4,13 @@ namespace App\Services;
 
 use App\Enums\AppointmentStatus;
 use App\Enums\VisitStatus;
+use App\Enums\WorkStatus;
 use App\Models\Drug;
 use App\Models\LabTest;
 use App\Models\User;
 use App\Models\Visit;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ConsultationService
 {
@@ -54,14 +56,17 @@ class ConsultationService
 
     public function start(Visit $visit, User $doctor): void
     {
-        $this->assertAssignedToDoctor($visit, $doctor);
-        abort_unless($visit->status === VisitStatus::WaitingDoctor, 422, 'This patient is not waiting for a doctor.');
+        DB::transaction(function () use ($visit, $doctor) {
+            $visit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
+            $this->assertAssignedToDoctor($visit, $doctor);
+            abort_unless($visit->status === VisitStatus::WaitingDoctor, 422, 'This patient is not waiting for a doctor.');
 
-        $visit->update([
-            'doctor_id' => $doctor->id,
-            'status' => VisitStatus::InConsultation,
-            'consulted_at' => now(),
-        ]);
+            $visit->update([
+                'doctor_id' => $doctor->id,
+                'status' => VisitStatus::InConsultation,
+                'consulted_at' => now(),
+            ]);
+        });
     }
 
     public function saveNotes(Visit $visit, array $notes, User $doctor): void
@@ -74,7 +79,24 @@ class ConsultationService
     {
         abort_unless($visit->isOpenFor($doctor), 403, 'This consultation is not open for editing.');
 
-        DB::transaction(function () use ($visit, $notes) {
+        DB::transaction(function () use ($visit, $notes, $doctor) {
+            $visit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
+            abort_unless($visit->isOpenFor($doctor), 403, 'This consultation is not open for editing.');
+
+            $outstandingLabs = $visit->labRequests()
+                ->where('status', '!=', WorkStatus::Completed->value)
+                ->with('test:id,name')
+                ->lockForUpdate()
+                ->get();
+
+            if ($outstandingLabs->isNotEmpty()) {
+                $testNames = $outstandingLabs->map(fn ($request) => $request->test?->name ?? 'Requested test')->join(', ');
+
+                throw ValidationException::withMessages([
+                    'lab_requests' => "This consultation cannot be completed until results are entered or uploaded for: {$testNames}.",
+                ]);
+            }
+
             $visit->update($notes + ['status' => VisitStatus::Completed, 'closed_at' => now()]);
             $visit->appointment?->update(['status' => AppointmentStatus::Completed]);
             $this->billing->syncFor($visit);

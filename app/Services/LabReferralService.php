@@ -16,11 +16,14 @@ class LabReferralService
 
     public function createFormData(?int $selectedPatientId = null): array
     {
+        $selectedPatient = $selectedPatientId ? Patient::find($selectedPatientId) : null;
+
         return [
             'patients' => Patient::orderBy('last_name')->limit(500)
                 ->get(['id', 'hospital_number', 'first_name', 'last_name']),
             'tests' => LabTest::active()->orderBy('name')->get(),
-            'selected' => $selectedPatientId,
+            'selected' => $selectedPatient?->hospital_number,
+            'selected_patient' => $selectedPatient,
         ];
     }
 

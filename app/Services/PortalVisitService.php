@@ -13,18 +13,25 @@ class PortalVisitService
 {
     public function index(Patient $patient)
     {
-        return $patient->visits()
-            ->with('doctor')
+        $visits = $patient->visits()
+            ->with(['doctor.department', 'department', 'consultationType.department'])
             ->withCount(['labRequests', 'prescriptions'])
             ->latest('checked_in_at')
             ->paginate(10);
+
+        $visits->getCollection()->each(fn (Visit $visit) => $visit->setAttribute(
+            'patient_details_visible',
+            $this->detailsVisible($visit),
+        ));
+
+        return $visits;
     }
 
     public function showForPatient(Visit $visit, int $patientId): array
     {
         $this->authorizePatientVisit($visit, $patientId);
         $visit->load([
-            'doctor', 'vitals', 'prescriptions.drug', 'labRequests.test',
+            'doctor.department', 'department', 'consultationType.department', 'vitals', 'prescriptions.drug', 'labRequests.test',
             'labRequests.attachments', 'labRequests.processor', 'invoice.items',
         ]);
 

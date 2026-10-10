@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ConsultationType;
 use App\Models\Department;
+use Illuminate\Support\Collection;
 
 class ConsultationTypeService
 {
@@ -15,6 +16,14 @@ class ConsultationTypeService
     public function departments()
     {
         return Department::orderBy('name')->get();
+    }
+
+    public function activeForDepartment(Department $department): Collection
+    {
+        return ConsultationType::where('department_id', $department->id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
     }
 
     public function create(array $data): ConsultationType

@@ -18,9 +18,19 @@ use Illuminate\Validation\ValidationException;
 
 class AppointmentBookingService
 {
+    public function doctorsForDepartment(?int $departmentId = null): Collection
+    {
+        return User::ofRole(Role::Doctor)
+            ->where('is_active', true)
+            ->when($departmentId, fn ($query) => $query->where('department_id', $departmentId))
+            ->with('department:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'department_id']);
+    }
+
     public function appointmentDetails(Appointment $appointment): Appointment
     {
-        return $appointment->load(['patient', 'doctor', 'labTests']);
+        return $appointment->load(['patient', 'doctor.department', 'labTests']);
     }
 
     public function indexData(Carbon $date, User $user): array
@@ -36,7 +46,7 @@ class AppointmentBookingService
 
     public function formData(array $query): array
     {
-        $doctors = User::ofRole(Role::Doctor)->where('is_active', true)->with('department')->orderBy('name')->get();
+        $doctors = $this->doctorsForDepartment();
         $availabilityByDoctor = DoctorAvailability::query()
             ->whereIn('doctor_id', $doctors->pluck('id'))
             ->whereBetween('date', [today()->toDateString(), today()->addDays(config('hms.booking.max_days_ahead'))->toDateString()])
@@ -71,6 +81,14 @@ class AppointmentBookingService
         ];
     }
 
+    public function portalAppointments(Patient $patient)
+    {
+        return $patient->appointments()
+            ->with(['doctor.department', 'labTests'])
+            ->latest('scheduled_at')
+            ->paginate(10);
+    }
+
     public function portalFormData(array $query): array
     {
         $type = ($query['type'] ?? null) === 'lab' ? 'lab' : 'consultation';
@@ -94,8 +112,22 @@ class AppointmentBookingService
             'doctors' => $doctors,
             'departments' => $departments,
             'availabilityByDoctor' => $availability,
-            'tests' => LabTest::active()->orderBy('name')->get(),
+            'tests' => $this->activeLabTests(),
             'maxDate' => now()->addDays(config('hms.booking.max_days_ahead'))->toDateString(),
+        ];
+    }
+
+    public function activeLabTests(): Collection
+    {
+        return LabTest::active()->orderBy('name')->get();
+    }
+
+    /** @return array{tests: Collection, slots: Collection<int, Carbon>} */
+    public function labBookingOptions(Carbon $date): array
+    {
+        return [
+            'tests' => $this->activeLabTests(),
+            'slots' => $this->availableSlots('lab', $date->copy()->startOfDay(), null),
         ];
     }
 

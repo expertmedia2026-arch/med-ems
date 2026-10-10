@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\VisitStatus;
 use App\Models\User;
 use App\Models\Visit;
+use Illuminate\Support\Facades\DB;
 
 class TriageService
 {
@@ -46,14 +47,19 @@ class TriageService
         $complaint = $data['complaint'] ?? null;
         unset($data['complaint']);
 
-        $visit->vitals()->updateOrCreate(
-            ['visit_id' => $visit->id],
-            $data + ['recorded_by' => $nurse->id]
-        );
+        DB::transaction(function () use ($visit, $data, $complaint, $nurse) {
+            $visit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
+            $this->assertVitalsEditable($visit);
 
-        $visit->update(array_filter([
-            'status' => VisitStatus::WaitingDoctor,
-            'complaint' => $complaint,
-        ]));
+            $visit->vitals()->updateOrCreate(
+                ['visit_id' => $visit->id],
+                $data + ['recorded_by' => $nurse->id]
+            );
+
+            $visit->update(array_filter([
+                'status' => VisitStatus::WaitingDoctor,
+                'complaint' => $complaint,
+            ]));
+        });
     }
 }

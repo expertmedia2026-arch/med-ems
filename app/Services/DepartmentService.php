@@ -4,9 +4,15 @@ namespace App\Services;
 
 use App\Enums\Role;
 use App\Models\Department;
+use Illuminate\Support\Collection;
 
 class DepartmentService
 {
+    public function allForSelection(): Collection
+    {
+        return Department::orderBy('name')->get();
+    }
+
     public function index()
     {
         return Department::withCount([

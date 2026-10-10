@@ -2,13 +2,22 @@
 
 namespace App\Services;
 
+use App\Enums\Role;
 use App\Models\DoctorAvailability;
 use App\Models\User;
+use Illuminate\Support\Collection;
 
 class DoctorAvailabilityService
 {
     public function forDoctor(User $doctor)
     {
+        return $doctor->doctorAvailabilities()->whereDate('date', '>=', today())->orderBy('date')->get();
+    }
+
+    public function forBooking(User $doctor): Collection
+    {
+        abort_unless($doctor->role === Role::Doctor && $doctor->is_active, 404);
+
         return $doctor->doctorAvailabilities()->whereDate('date', '>=', today())->orderBy('date')->get();
     }
 
