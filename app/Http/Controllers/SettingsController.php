@@ -25,6 +25,7 @@ class SettingsController extends Controller
             'receipt_footer' => ['nullable', 'string', 'max:255'],
             // SVG is deliberately not allowed (it can carry scripts)
             'logo'           => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            'registration_fee' => ['required', 'numeric', 'min:0', 'max:99999999'],
         ]);
 
         $settings = HospitalSetting::current();

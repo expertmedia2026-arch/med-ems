@@ -7,6 +7,8 @@ use App\Models\InvoiceItem;
 use App\Models\Visit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use App\Models\HospitalSetting;
+use App\Models\Patient;
 
 class BillingService
 {
@@ -120,5 +122,37 @@ class BillingService
         $invoice = $this->invoiceFor($visit);
 
         return $invoice->items()->where('category', 'consultation')->get()->every(fn ($item) => $item->is_paid);
+    }
+
+    /** Bill the one-time registration fee. Returns null when the fee is 0 (patient is marked registered). */
+    public function registrationInvoiceFor(Patient $patient): ?Invoice
+    {
+        $existing = Invoice::where('patient_id', $patient->id)
+            ->whereNull('visit_id')
+            ->whereHas('items', fn ($q) => $q->where('category', 'registration'))
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $fee = (float) HospitalSetting::current()->registration_fee;
+
+        if ($fee <= 0) {
+            $patient->update(['registration_paid_at' => $patient->registration_paid_at ?? now()]);
+
+            return null;
+        }
+
+        $invoice = Invoice::create(['patient_id' => $patient->id]);
+
+        $invoice->items()->create([
+            'category'    => 'registration',
+            'description' => 'Registration fee',
+            'quantity'    => 1,
+            'unit_price'  => $fee,
+        ]);
+
+        return $invoice->fresh();
     }
 }

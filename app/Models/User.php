@@ -9,9 +9,10 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Enums\Role;
 
-#[Fillable(['name', 'email','role','is_active', 'email_verified_at','password'])]
+#[Fillable(['name', 'email','role','is_active', 'email_verified_at','password', 'patient_id'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -51,4 +52,11 @@ class User extends Authenticatable
     {
         return $query->where('role', $role->value);
     }
+
+    public function patient(): BelongsTo
+    {
+        return $this->belongsTo(Patient::class);
+    }
+
+
 }

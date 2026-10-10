@@ -49,6 +49,14 @@
                        value="{{ old('receipt_footer', $settings->receipt_footer) }}" placeholder="Thank you. Get well soon." class="{{ $input }}">
             </div>
 
+            <div>
+                <label for="registration_fee" class="{{ $label }}">Registration fee (₦)</label>
+                <input id="registration_fee" name="registration_fee" type="number" step="0.01" min="0" required
+                    value="{{ old('registration_fee', $settings->registration_fee) }}" class="{{ $input }}">
+                <p class="mt-1 text-xs text-slate-500">Charged once to each newly registered patient. Use 0 for no fee.</p>
+                @error('registration_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+            </div>
+
             <div class="sm:col-span-2">
                 <label for="logo" class="{{ $label }}">Logo</label>
 

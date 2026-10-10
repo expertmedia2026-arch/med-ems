@@ -6,6 +6,9 @@ use App\Enums\Role;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Services\BillingService;
+use App\Services\PortalInvitationService;
+
 
 class PatientController extends Controller
 {
@@ -24,13 +27,34 @@ class PatientController extends Controller
         return view('patients.create');
     }
 
-    public function store(Request $request)
+    public function store(Request $request, BillingService $billing, PortalInvitationService $portal)
     {
         $patient = Patient::create($this->validated($request));
 
-        return redirect()
-            ->route('patients.show', $patient)
-            ->with('success', "Patient registered: {$patient->hospital_number}");
+        // Registration fee goes to the cashier
+        $invoice = $billing->registrationInvoiceFor($patient);
+
+        $message = "Patient registered: {$patient->hospital_number}.";
+
+        if ($invoice) {
+            $message .= ' Registration fee of ₦' . number_format((float) $invoice->total) . ' is waiting at the cashier.';
+        }
+
+        $flash = [];
+
+        // Patients with an email get a verify-and-set-password invitation straight away
+        if (filled($patient->email)) {
+            $result = $portal->send($patient);
+
+            if ($result['ok']) {
+                $message .= ' ' . $result['message'];
+                $flash['invite_link'] = $result['link'];
+            } else {
+                $flash['error'] = $result['message'];
+            }
+        }
+
+        return redirect()->route('patients.show', $patient)->with(['success' => $message] + $flash);
     }
 
     public function show(Patient $patient)
@@ -41,11 +65,36 @@ class PatientController extends Controller
         ]);
 
         return view('patients.show', [
-            'patient'     => $patient,
-            'activeVisit' => $patient->currentVisit(),
-            'doctors'     => User::ofRole(Role::Doctor)->orderBy('name')->get(),
+            'patient'       => $patient,
+            'activeVisit'   => $patient->currentVisit(),
+            'doctors'       => User::ofRole(Role::Doctor)->orderBy('name')->get(),
+            'portalUser'    => User::where('patient_id', $patient->id)->first(),
+            'pendingInvite' => $patient->invitations()->pending()->latest()->first(),
         ]);
     }
+
+    // public function store(Request $request)
+    // {
+    //     $patient = Patient::create($this->validated($request));
+
+    //     return redirect()
+    //         ->route('patients.show', $patient)
+    //         ->with('success', "Patient registered: {$patient->hospital_number}");
+    // }
+
+    // public function show(Patient $patient)
+    // {
+    //     $patient->load([
+    //         'visits'       => fn ($q) => $q->latest('checked_in_at')->with('doctor'),
+    //         'appointments' => fn ($q) => $q->latest('scheduled_at')->with('doctor'),
+    //     ]);
+
+    //     return view('patients.show', [
+    //         'patient'     => $patient,
+    //         'activeVisit' => $patient->currentVisit(),
+    //         'doctors'     => User::ofRole(Role::Doctor)->orderBy('name')->get(),
+    //     ]);
+    // }
 
     public function edit(Patient $patient)
     {
@@ -54,8 +103,8 @@ class PatientController extends Controller
 
     public function update(Request $request, Patient $patient)
     {
-        $patient->update($this->validated($request));
-
+        // $patient->update($this->validated($request));
+        $patient->update($this->validated($request) + ['dob_estimated' => false]);
         return redirect()->route('patients.show', $patient)->with('success', 'Patient updated.');
     }
 

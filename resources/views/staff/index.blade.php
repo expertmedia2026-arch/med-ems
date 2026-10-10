@@ -23,7 +23,7 @@
 
             <select name="role" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                 <option value="">All roles</option>
-                @foreach (\App\Enums\Role::cases() as $role)
+                @foreach (\App\Enums\Role::staff() as $role)
                     <option value="{{ $role->value }}" @selected(request('role') === $role->value)>{{ $role->label() }}</option>
                 @endforeach
             </select>

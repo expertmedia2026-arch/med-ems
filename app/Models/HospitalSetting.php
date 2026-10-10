@@ -11,6 +11,15 @@ class HospitalSetting extends Model
 
     private static ?self $current = null;
 
+    protected function casts(): array
+    {
+        return [
+            
+            'registration_fee' => 'decimal:2'
+        
+        ];
+    }
+
     public static function current(): self
     {
         return self::$current ??= static::first()

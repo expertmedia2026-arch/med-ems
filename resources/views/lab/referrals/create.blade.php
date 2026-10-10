@@ -2,56 +2,125 @@
     <x-slot name="header">External Lab Request</x-slot>
 
     @php
-        $input = 'mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-teal-600 focus:ring-teal-600';
-        $label = 'block text-sm font-medium text-slate-700';
+        $input      = 'mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-teal-600 focus:ring-teal-600';
+        $label      = 'block text-sm font-medium text-slate-700';
         $byCategory = $tests->groupBy(fn ($t) => $t->category ?: 'Other');
+        $matches    = session('possible_matches', []);
     @endphp
 
     <form method="POST" action="{{ route('lab.referrals.store') }}" class="max-w-3xl space-y-6"
           x-data="{
+              mode: @js(old('mode', 'existing')),
+              hospitalNumber: @js(old('hospital_number', $selected ?? '')),
+              confirmNew: '',
               tests: @js($tests->map(fn ($t) => ['id' => (string) $t->id, 'price' => (float) $t->price])->values()),
               selected: @js(array_map('strval', old('lab_test_ids', []))),
               get total() { return this.tests.filter(t => this.selected.includes(t.id)).reduce((s, t) => s + t.price, 0) },
-              money(n) { return '₦' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
+              money(n) { return '₦' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+              useExisting(hn) { this.hospitalNumber = hn; this.mode = 'existing'; window.scrollTo({ top: 0, behavior: 'smooth' }); }
           }">
         @csrf
+        <input type="hidden" name="mode" :value="mode">
+        <input type="hidden" name="confirm_new" :value="confirmNew">
 
         <p class="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-900">
-            For patients referred from another hospital who only need a lab test. There is no consultation or triage,
-            and the patient pays for the tests only.
+            For patients who only need a lab test: referred from another hospital, or walking in on their own.
+            There is no consultation or triage, and they pay for the tests only.
         </p>
 
-        <div class="space-y-5 rounded-xl border bg-white p-6 shadow-sm">
-            <div>
-                <!-- <label for="hospital_number" class="{{ $label }}">Patient (hospital number or name)</label> -->
-                <label for="hospital_number" class="{{ $label }}">Patient (name, hospital number or phone)</label>
-                <input id="hospital_number" name="hospital_number" list="patient-list" required autocomplete="off"
-                       value="{{ old('hospital_number', $selected) }}" placeholder="Start typing…" class="{{ $input }}">
-                <!-- <datalist id="patient-list">
-                    @foreach ($patients as $p)
-                        <option value="{{ $p->hospital_number }}">{{ $p->full_name }}</option>
+        {{-- Possible duplicate --}}
+        @if ($matches)
+            <div class="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
+                <p class="font-semibold">This patient may already be registered</p>
+                <ul class="mt-3 divide-y divide-amber-200">
+                    @foreach ($matches as $m)
+                        <li class="flex items-center justify-between gap-3 py-2">
+                            <div>
+                                <span class="font-medium">{{ $m['name'] }}</span>
+                                <span class="ml-1 font-mono text-xs">{{ $m['hospital_number'] }}</span>
+                                <span class="block text-xs">{{ $m['gender'] }}, {{ $m['age'] }} yrs{{ $m['phone'] ? ' · ' . $m['phone'] : '' }}</span>
+                            </div>
+                            <button type="button" @click="useExisting(@js($m['hospital_number']))"
+                                    class="rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800">
+                                Use this patient
+                            </button>
+                        </li>
                     @endforeach
-                </datalist> -->
+                </ul>
+                <button type="button"
+                        @click="confirmNew = '1'; $nextTick(() => $el.closest('form').requestSubmit())"
+                        class="mt-3 underline hover:text-amber-950">
+                    None of these: create as a new patient record
+                </button>
+            </div>
+        @endif
+
+        {{-- Who is the patient --}}
+        <div class="space-y-5 rounded-xl border bg-white p-6 shadow-sm">
+            <div class="inline-flex rounded-lg border bg-slate-50 p-1 text-sm">
+                <button type="button" @click="mode = 'existing'"
+                        :class="mode === 'existing' ? 'bg-teal-700 text-white shadow' : 'text-slate-600'"
+                        class="rounded-md px-4 py-1.5 font-medium">Existing patient</button>
+                <button type="button" @click="mode = 'new'"
+                        :class="mode === 'new' ? 'bg-teal-700 text-white shadow' : 'text-slate-600'"
+                        class="rounded-md px-4 py-1.5 font-medium">New patient</button>
+            </div>
+
+            {{-- Existing --}}
+            <div x-show="mode === 'existing'" x-cloak>
+                <label for="hospital_number" class="{{ $label }}">Patient (name, hospital number or phone)</label>
+                <input id="hospital_number" name="hospital_number" list="patient-list" autocomplete="off"
+                       x-model="hospitalNumber" :required="mode === 'existing'" placeholder="Start typing…" class="{{ $input }}">
                 <datalist id="patient-list">
                     @foreach ($patients as $p)
                         <option value="{{ $p->hospital_number }}" label="{{ $p->full_name }}">{{ $p->full_name }}</option>
                     @endforeach
                 </datalist>
                 @error('hospital_number')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-
-                @if (auth()->user()->hasRole('admin', 'receptionist'))
-                    <p class="mt-1 text-xs text-slate-500">
-                        Not registered yet? <a href="{{ route('patients.create') }}" class="text-teal-700 hover:underline">Register the patient first</a>.
-                    </p>
-                @else
-                    <p class="mt-1 text-xs text-slate-500">New patients must be registered by the front desk first.</p>
-                @endif
             </div>
 
+            {{-- New patient --}}
+            <div x-show="mode === 'new'" x-cloak class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <label for="first_name" class="{{ $label }}">First name</label>
+                    <input id="first_name" name="first_name" type="text" value="{{ old('first_name') }}" :required="mode === 'new'" class="{{ $input }}">
+                    @error('first_name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label for="last_name" class="{{ $label }}">Last name</label>
+                    <input id="last_name" name="last_name" type="text" value="{{ old('last_name') }}" :required="mode === 'new'" class="{{ $input }}">
+                    @error('last_name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label for="gender" class="{{ $label }}">Sex</label>
+                    <select id="gender" name="gender" :required="mode === 'new'" class="{{ $input }}">
+                        <option value="">Select…</option>
+                        <option value="male" @selected(old('gender') === 'male')>Male</option>
+                        <option value="female" @selected(old('gender') === 'female')>Female</option>
+                    </select>
+                    @error('gender')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label for="age" class="{{ $label }}">Age (years)</label>
+                    <input id="age" name="age" type="number" min="0" max="120" value="{{ old('age') }}" :required="mode === 'new'" class="{{ $input }}">
+                    @error('age')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div class="sm:col-span-2">
+                    <label for="phone" class="{{ $label }}">Phone (recommended)</label>
+                    <input id="phone" name="phone" type="tel" value="{{ old('phone') }}" class="{{ $input }}">
+                    <p class="mt-1 text-xs text-slate-500">It helps find this patient next time and avoids duplicate records.</p>
+                    @error('phone')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
+            </div>
+        </div>
+
+        {{-- Source and note --}}
+        <div class="space-y-5 rounded-xl border bg-white p-6 shadow-sm">
             <div class="grid gap-5 sm:grid-cols-2">
                 <div>
                     <label for="referred_from" class="{{ $label }}">Referred from (hospital / clinic)</label>
-                    <input id="referred_from" name="referred_from" type="text" required value="{{ old('referred_from') }}" class="{{ $input }}">
+                    <input id="referred_from" name="referred_from" type="text" value="{{ old('referred_from') }}" class="{{ $input }}">
+                    <p class="mt-1 text-xs text-slate-500">Leave blank if the patient came on their own.</p>
                     @error('referred_from')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div>
@@ -66,6 +135,7 @@
             </div>
         </div>
 
+        {{-- Tests --}}
         <div class="rounded-xl border bg-white p-6 shadow-sm">
             <h3 class="mb-4 font-semibold">Tests requested</h3>
 

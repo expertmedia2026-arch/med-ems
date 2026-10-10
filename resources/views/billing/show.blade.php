@@ -14,9 +14,15 @@
             <div>
                 <p class="font-mono text-sm text-teal-700">{{ $patient->hospital_number }}</p>
                 <h2 class="text-xl font-semibold">{{ $patient->full_name }}</h2>
+               
                 <p class="text-sm text-slate-500">
-                    {{ $invoice->visit->doctor ? 'Doctor: ' . $invoice->visit->doctor->name . ' · ' : '' }}Visit {{ $invoice->visit->checked_in_at->format('d M Y') }}
+                    @if ($invoice->visit)
+                        {{ $invoice->visit->doctor ? 'Doctor: ' . $invoice->visit->doctor->name . ' · ' : '' }}Visit {{ $invoice->visit->checked_in_at->format('d M Y') }}
+                    @else
+                        Registration
+                    @endif
                 </p>
+
             </div>
             <x-badge :color="$invoice->status->color()">{{ $invoice->status->label() }}</x-badge>
         </div>

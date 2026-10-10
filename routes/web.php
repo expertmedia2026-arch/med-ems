@@ -12,7 +12,10 @@ use App\Http\Controllers\LabReferralController;
 use App\Http\Controllers\LabRequestController;
 use App\Http\Controllers\LabTestController;
 use App\Http\Controllers\PatientController;
+use App\Http\Controllers\PatientPortalController;
 use App\Http\Controllers\PharmacyController;
+use App\Http\Controllers\PortalController;
+use App\Http\Controllers\PortalInvitationAcceptController;
 use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
@@ -20,17 +23,50 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\StaffInvitationController;
 use App\Http\Controllers\TriageController;
 use App\Http\Controllers\VisitController;
+use App\Http\Controllers\PortalVisitController;
+use App\Http\Controllers\PortalAppointmentController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
 
-// Staff invitation links (opened by people who are not logged in)
-Route::middleware('guest')->prefix('invitations')->name('invitations.')->group(function () {
-    Route::get('{token}', [InvitationAcceptController::class, 'show'])->name('accept');
-    Route::post('{token}', [InvitationAcceptController::class, 'store'])->name('accept.store');
+// Invitation links (opened by people who are not logged in)
+Route::middleware('guest')->group(function () {
+    Route::prefix('invitations')->name('invitations.')->group(function () {
+        Route::get('{token}', [InvitationAcceptController::class, 'show'])->name('accept');
+        Route::post('{token}', [InvitationAcceptController::class, 'store'])->name('accept.store');
+    });
+
+    Route::prefix('portal/invitations')->name('portal.invitations.')->group(function () {
+        Route::get('{token}', [PortalInvitationAcceptController::class, 'show'])->name('accept');
+        Route::post('{token}', [PortalInvitationAcceptController::class, 'store'])->name('accept.store');
+    });
 });
 
-Route::middleware(['auth', 'active'])->group(function () {
+
+
+// ---------------- Patient portal ----------------
+Route::middleware(['auth', 'active', 'role:patient'])->prefix('portal')->name('portal.')->group(function () {
+    Route::get('/', [PortalController::class, 'home'])->name('home');
+
+    Route::get('visits', [PortalVisitController::class, 'index'])->name('visits.index');
+    Route::get('visits/{visit}', [PortalVisitController::class, 'show'])->whereNumber('visit')->name('visits.show');
+    Route::get('visits/{visit}/lab-report', [PortalVisitController::class, 'labReport'])->whereNumber('visit')->name('visits.lab-report');
+    Route::get('attachments/{attachment}', [PortalVisitController::class, 'attachment'])->whereNumber('attachment')->name('attachments.show');
+
+    Route::get('appointments', [PortalAppointmentController::class, 'index'])->name('appointments.index');
+    Route::get('appointments/create', [PortalAppointmentController::class, 'create'])->name('appointments.create');
+    Route::post('appointments', [PortalAppointmentController::class, 'store'])->name('appointments.store');
+    Route::patch('appointments/{appointment}/cancel', [PortalAppointmentController::class, 'cancel'])->whereNumber('appointment')->name('appointments.cancel');
+
+
+
+
+});
+
+
+
+// ---------------- Staff ----------------
+Route::middleware(['auth', 'active', 'staff'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -66,6 +102,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('patients/{patient}/edit', [PatientController::class, 'edit'])->name('patients.edit');
         Route::put('patients/{patient}', [PatientController::class, 'update'])->name('patients.update');
         Route::post('patients/{patient}/check-in', [VisitController::class, 'walkIn'])->name('patients.check-in');
+        Route::post('patients/{patient}/portal-invite', [PatientPortalController::class, 'invite'])->name('patients.portal-invite');
 
         Route::get('appointments/create', [AppointmentController::class, 'create'])->name('appointments.create');
         Route::post('appointments', [AppointmentController::class, 'store'])->name('appointments.store');
@@ -82,7 +119,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('appointments', [AppointmentController::class, 'index'])
         ->middleware('role:admin,receptionist,doctor')
         ->name('appointments.index');
-    Route::get('appointments/{appointment}', [AppointmentController::class, 'show'])
+    
+        //just added this based on error i am getting on patinet show blade line 195
+        Route::get('appointments/{appointment}', [AppointmentController::class, 'show'])
         ->middleware('role:doctor')
         ->name('appointments.show');
 
@@ -122,7 +161,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::patch('{labTest}/toggle', [LabTestController::class, 'toggle'])->name('toggle');
     });
 
-    // External lab requests (patients referred from other hospitals)
+    // External lab requests (patients referred from other hospitals, or walk-in lab clients)
     Route::middleware('role:admin,receptionist,lab')->prefix('lab/referrals')->name('lab.referrals.')->group(function () {
         Route::get('create', [LabReferralController::class, 'create'])->name('create');
         Route::post('/', [LabReferralController::class, 'store'])->name('store');

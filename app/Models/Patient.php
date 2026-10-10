@@ -8,6 +8,7 @@ use App\Models\Visit;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Patient extends Model
 {
@@ -15,7 +16,13 @@ class Patient extends Model
 
     protected function casts(): array
     {
-        return ['date_of_birth' => 'date'];
+        return [
+            'date_of_birth' => 'date',
+            'dob_estimated' => 'boolean',
+            'registration_paid_at' => 'datetime',
+
+
+        ];
     }
 
     protected static function booted(): void
@@ -62,13 +69,7 @@ class Patient extends Model
         return $this->hasMany(Visit::class);
     }
 
-    // public function currentVisit(): ?Visit
-    // {
-    //     return $this->visits()
-    //         ->where('status', '!=', VisitStatus::Completed->value)
-    //         ->latest('checked_in_at')
-    //         ->first();
-    // }
+   
     public function currentVisit(): ?Visit
     {
         return $this->visits()
@@ -77,4 +78,16 @@ class Patient extends Model
             ->latest('checked_in_at')
             ->first();
     }
+
+    public function user(): HasOne
+    {
+        return $this->hasOne(User::class);
+    }
+
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(PatientInvitation::class);
+    }
+
+    
 }

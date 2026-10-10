@@ -22,7 +22,7 @@ class StaffInvitationController extends Controller
     {
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role'  => ['required', Rule::enum(Role::class)],
+            'role' => ['required', Rule::enum(Role::class)->except([Role::Patient])],
         ], ['email.unique' => 'A staff member with this email already exists.']);
 
         return $this->issue($data['email'], Role::from($data['role']), $request);

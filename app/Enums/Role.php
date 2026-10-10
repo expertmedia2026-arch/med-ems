@@ -11,6 +11,7 @@ enum Role: string
     case Lab          = 'lab';
     case Pharmacist   = 'pharmacist';
     case Cashier      = 'cashier';
+    case Patient      = 'patient';
 
     public function label(): string
     {
@@ -18,5 +19,11 @@ enum Role: string
             self::Lab => 'Lab Scientist',
             default   => ucfirst($this->value),
         };
+    }
+
+    /** Roles that staff can be given (everything except Patient). */
+    public static function staff(): array
+    {
+        return array_values(array_filter(self::cases(), fn (self $role) => $role !== self::Patient));
     }
 }

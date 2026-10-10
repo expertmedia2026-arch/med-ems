@@ -34,12 +34,16 @@
         <dl class="mt-6 grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
             <div class="flex justify-between"><dt class="text-slate-500">Patient</dt><dd class="font-medium">{{ $patient->full_name }}</dd></div>
             <div class="flex justify-between"><dt class="text-slate-500">Hospital no.</dt><dd class="font-mono">{{ $patient->hospital_number }}</dd></div>
-            <div class="flex justify-between"><dt class="text-slate-500">Sex / Age</dt><dd>{{ ucfirst($patient->gender) }}, {{ $patient->age }} yrs</dd></div>
+            <div class="flex justify-between"><dt class="text-slate-500">Sex / Age</dt><dd>{{ ucfirst($patient->gender) }}, {{ $patient->dob_estimated ? '~' : '' }}{{ $patient->age }} yrs</dd></div>
             <div class="flex justify-between"><dt class="text-slate-500">Date</dt><dd>{{ $visit->checked_in_at->format('d M Y') }}</dd></div>
 
             @if ($visit->isLabOnly())
-                <div class="flex justify-between"><dt class="text-slate-500">Referred from</dt><dd class="font-medium">{{ $visit->referred_from }}</dd></div>
-                <div class="flex justify-between"><dt class="text-slate-500">Referring doctor</dt><dd>{{ $visit->referred_by ?: '—' }}</dd></div>
+                @if ($visit->referred_from)
+                    <div class="flex justify-between"><dt class="text-slate-500">Referred from</dt><dd class="font-medium">{{ $visit->referred_from }}</dd></div>
+                    <div class="flex justify-between"><dt class="text-slate-500">Referring doctor</dt><dd>{{ $visit->referred_by ?: '—' }}</dd></div>
+                @else
+                    <div class="flex justify-between"><dt class="text-slate-500">Source</dt><dd>Walk-in client</dd></div>
+                @endif
             @else
                 <div class="flex justify-between"><dt class="text-slate-500">Requesting doctor</dt><dd>{{ $requests->first()->requester?->name ?? $visit->doctor?->name ?? '—' }}</dd></div>
             @endif

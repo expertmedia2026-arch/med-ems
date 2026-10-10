@@ -7,7 +7,9 @@ use App\Enums\VisitStatus;
 use App\Enums\WorkStatus;
 use App\Models\LabRequest;
 use App\Models\Visit;
+use App\Enums\AppointmentStatus;
 use Illuminate\Http\Request;
+
 
 class LabController extends Controller
 {
@@ -52,11 +54,13 @@ class LabController extends Controller
 
     public function update(Request $request, LabRequest $labRequest)
     {
-        if ($labRequest->visit->status === VisitStatus::Completed) {
+
+        if ($labRequest->status === WorkStatus::Completed && $labRequest->visit->status === VisitStatus::Completed) {
             return redirect()
                 ->route('lab.show', $labRequest)
-                ->with('error', 'This visit has been completed. Lab results can no longer be updated.');
+                ->with('error', 'This result is locked because the visit is completed.');
         }
+       
 
         $labRequest->loadMissing('invoiceItem');
 
@@ -98,11 +102,12 @@ class LabController extends Controller
             'completed_at' => $labRequest->completed_at ?? now(),
         ]);
 
-        // Referral visits have no doctor to close them: finish when the last test is done
+       // Referral visits have no doctor to close them: finish when the last test is done
         $visit = $labRequest->visit;
-        if ($visit->isLabOnly() && ! $visit->labRequests()->pending()->exists()) {
+            if ($visit->isLabOnly() && ! $visit->labRequests()->pending()->exists()) {
             $visit->update(['status' => VisitStatus::Completed, 'closed_at' => now()]);
-        }
+            $visit->appointment?->update(['status' => AppointmentStatus::Completed]);
+        }                               
 
         return redirect()
             ->route('lab.index')

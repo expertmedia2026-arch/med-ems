@@ -1,71 +1,96 @@
 <x-app-layout>
     <x-slot name="header">{{ $labRequest->test->name }}</x-slot>
 
-    @php $patient = $labRequest->visit->patient; @endphp
+    @php
+        $visit   = $labRequest->visit;
+        $patient = $visit->patient;
 
+        // Locked only when this result is already entered AND the visit is closed
+        $locked  = $labRequest->status->value === 'completed' && $visit->status->value === 'completed';
+    @endphp
+
+    {{-- Patient --}}
     <div class="mb-6 rounded-xl border bg-white p-5 shadow-sm">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="font-mono text-sm text-teal-700">{{ $patient->hospital_number }}</p>
-
-                @if ($labRequest->visit->isLabOnly())
-                    <x-badge color="blue" class="mt-1">Referral</x-badge>
-                    <span class="block text-xs text-slate-400">From {{ $labRequest->visit->referred_from }}</span>
-                @endif
-
                 <h2 class="text-xl font-semibold">{{ $patient->full_name }}</h2>
                 <p class="text-sm text-slate-500">
-                    {{ ucfirst($patient->gender) }} · {{ $patient->age }} yrs
+                    {{ ucfirst($patient->gender) }} · {{ $patient->dob_estimated ? '~' : '' }}{{ $patient->age }} yrs
                     · Requested by {{ $labRequest->requester->name }}, {{ $labRequest->created_at->format('d M, g:i A') }}
                 </p>
             </div>
             <x-badge :color="$labRequest->status->value === 'pending' ? 'amber' : 'green'">{{ $labRequest->status->label() }}</x-badge>
         </div>
 
-        @if ($labRequest->visit->complaint)
-            <p class="mt-3 text-sm text-slate-600">Clinical note: “{{ $labRequest->visit->complaint }}”</p>
+        @if ($visit->complaint && ! $visit->isLabOnly())
+            <p class="mt-3 text-sm text-slate-600">Clinical note: “{{ $visit->complaint }}”</p>
         @endif
     </div>
-    
 
-    @if ($labRequest->visit->isLabOnly())
+    {{-- Referral / walk-in info --}}
+    @if ($visit->isLabOnly())
         <div class="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-900">
-            <p class="font-semibold">External referral</p>
-            <p class="mt-1">
-                Referred from <strong>{{ $labRequest->visit->referred_from }}</strong>
-                @if ($labRequest->visit->referred_by) by {{ $labRequest->visit->referred_by }}@endif.
-            </p>
-            @if ($labRequest->visit->complaint)
-                <p class="mt-1">Reason: {{ $labRequest->visit->complaint }}</p>
+            <p class="font-semibold">{{ $visit->referred_from ? 'External referral' : 'Walk-in lab client' }}</p>
+
+            @if ($visit->referred_from)
+                <p class="mt-1">
+                    Referred from <strong>{{ $visit->referred_from }}</strong>
+                    @if ($visit->referred_by) by {{ $visit->referred_by }}@endif.
+                </p>
+            @endif
+
+            @if ($visit->complaint)
+                <p class="mt-1">Reason: {{ $visit->complaint }}</p>
             @endif
 
             @if ($canCancel)
-                <form method="POST" action="{{ route('lab.referrals.destroy', $labRequest->visit) }}" class="mt-3"
-                    onsubmit="return confirm('Cancel this whole referral request? This removes its tests and invoice.')">
+                <form method="POST" action="{{ route('lab.referrals.destroy', $visit) }}" class="mt-3"
+                      onsubmit="return confirm('Cancel this whole request? This removes its tests and invoice.')">
                     @csrf @method('DELETE')
-                    <button class="text-red-600 hover:underline">Cancel this referral request</button>
+                    <button class="text-red-600 hover:underline">Cancel this request</button>
                 </form>
             @endif
         </div>
     @endif
 
+    {{-- Print report --}}
     @if ($labRequest->status->value === 'completed')
         <div class="mb-6">
-            <a href="{{ route('lab.report', $labRequest->visit) }}" target="_blank"
-            class="inline-block rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">
+            <a href="{{ route('lab.report', $visit) }}" target="_blank"
+               class="inline-block rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">
                 Print report
             </a>
             <span class="ml-2 text-xs text-slate-500">Includes every completed test on this visit.</span>
         </div>
     @endif
 
+    {{-- Result --}}
     <div class="max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
-        @if ($canProcess && $labRequest->visit->status->value === 'completed')
-            <div class="rounded-lg border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-700">
+
+        @if ($canProcess && $locked)
+            {{-- Result entered and visit closed: read-only --}}
+            <div class="mb-5 rounded-lg border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-700">
                 <p class="font-semibold">Visit completed</p>
-                <p class="mt-1">Lab results are read-only and can no longer be updated.</p>
+                <p class="mt-1">This result is read-only and can no longer be updated.</p>
             </div>
+
+            <h3 class="mb-2 text-sm font-medium text-slate-700">Result</h3>
+
+            @if ($labRequest->result)
+                <p class="whitespace-pre-line rounded-lg bg-slate-50 px-4 py-3 text-sm">{{ $labRequest->result }}</p>
+            @endif
+
+            @include('lab._attachments', ['attachments' => $labRequest->attachments, 'canManage' => false])
+
+            <p class="mt-3 text-xs text-slate-500">
+                Processed by {{ $labRequest->processor?->name }} on {{ $labRequest->completed_at->format('d M Y, g:i A') }}
+            </p>
+
+            <a href="{{ route('lab.index') }}" class="mt-5 inline-block text-sm text-teal-700 hover:underline">Back</a>
+
         @elseif ($canProcess && $labRequest->is_paid)
+            {{-- Paid: lab can enter or update the result --}}
             @if ($labRequest->attachments->isNotEmpty())
                 <h3 class="text-sm font-medium text-slate-700">Attached files ({{ $labRequest->attachments->count() }})</h3>
                 @include('lab._attachments', ['attachments' => $labRequest->attachments, 'canManage' => true])
@@ -102,7 +127,9 @@
                     <a href="{{ route('lab.index') }}" class="text-sm text-slate-500 hover:underline">Back</a>
                 </div>
             </form>
+
         @elseif ($canProcess)
+            {{-- Not paid yet --}}
             <div class="rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
                 <p class="font-semibold">Payment required</p>
                 <p class="mt-1">
@@ -112,8 +139,8 @@
                 <a href="{{ route('lab.index') }}" class="mt-3 inline-block text-teal-700 hover:underline">Back</a>
             </div>
 
-
         @else
+            {{-- Doctors: read-only --}}
             <h3 class="mb-2 text-sm font-medium text-slate-700">Result</h3>
 
             @if ($labRequest->result)

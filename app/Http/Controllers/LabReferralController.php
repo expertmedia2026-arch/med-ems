@@ -9,6 +9,7 @@ use App\Models\Patient;
 use App\Models\Visit;
 use App\Services\BillingService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -27,26 +28,66 @@ class LabReferralController extends Controller
 
     public function store(Request $request, BillingService $billing)
     {
-        $data = $request->validate([
-            'hospital_number' => ['required', 'string', 'max:100'],
-            'referred_from'   => ['required', 'string', 'max:150'],
-            'referred_by'     => ['nullable', 'string', 'max:150'],
-            'complaint'       => ['nullable', 'string', 'max:500'],
-            'lab_test_ids'    => ['required', 'array', 'min:1'],
-            'lab_test_ids.*'  => [Rule::exists('lab_tests', 'id')->where('is_active', true)],
-        ], [
-            'referred_from.required' => 'Enter the hospital the patient was referred from.',
-            'lab_test_ids.required'  => 'Select at least one test.',
+        $mode = $request->input('mode') === 'new' ? 'new' : 'existing';
+
+        $rules = [
+            'referred_from'  => ['nullable', 'string', 'max:150'],
+            'referred_by'    => ['nullable', 'string', 'max:150'],
+            'complaint'      => ['nullable', 'string', 'max:500'],
+            'lab_test_ids'   => ['required', 'array', 'min:1'],
+            'lab_test_ids.*' => [Rule::exists('lab_tests', 'id')->where('is_active', true)],
+        ];
+
+        $rules += $mode === 'new'
+            ? [
+                'first_name' => ['required', 'string', 'max:100'],
+                'last_name'  => ['required', 'string', 'max:100'],
+                'gender'     => ['required', 'in:male,female'],
+                'age'        => ['required', 'integer', 'min:0', 'max:120'],
+                'phone'      => ['nullable', 'string', 'max:20'],
+            ]
+            : ['hospital_number' => ['required', 'string', 'max:100']];
+
+        $data = $request->validate($rules, [
+            'hospital_number.required' => "Enter the patient's name, hospital number or phone.",
+            'lab_test_ids.required'    => 'Select at least one test.',
         ]);
 
-        $patient = $this->findPatient($data['hospital_number']);
+        $patient = null;
+
+        if ($mode === 'existing') {
+            $patient = $this->findPatient($data['hospital_number']);
+        } else {
+            $matches = $this->possibleDuplicates($data);
+
+            // Ask before creating a second record for someone who may already exist
+            if ($matches->isNotEmpty() && ! $request->boolean('confirm_new')) {
+                return back()->withInput()->with('possible_matches', $matches->map(fn ($p) => [
+                    'hospital_number' => $p->hospital_number,
+                    'name'            => $p->full_name,
+                    'gender'          => ucfirst($p->gender),
+                    'age'             => $p->age,
+                    'phone'           => $p->phone,
+                ])->values()->all());
+            }
+        }
 
         $visit = DB::transaction(function () use ($data, $patient, $request, $billing) {
+            // New client: create a minimal record. Age becomes an estimated date of birth.
+            $patient ??= Patient::create([
+                'first_name'    => trim($data['first_name']),
+                'last_name'     => trim($data['last_name']),
+                'gender'        => $data['gender'],
+                'date_of_birth' => now()->subYears((int) $data['age'])->toDateString(),
+                'dob_estimated' => true,
+                'phone'         => $data['phone'] ?? null,
+            ]);
+
             $visit = $patient->visits()->create([
                 'type'          => 'lab_only',
                 'status'        => VisitStatus::LabOnly,
                 'complaint'     => $data['complaint'] ?? null,
-                'referred_from' => $data['referred_from'],
+                'referred_from' => $data['referred_from'] ?? null,
                 'referred_by'   => $data['referred_by'] ?? null,
             ]);
 
@@ -62,13 +103,49 @@ class LabReferralController extends Controller
             return $visit;
         });
 
+        $patient = $visit->patient;
         $total   = number_format((float) $visit->invoice()->value('total'), 2);
-        $message = "Request created for {$patient->full_name}. Send them to the cashier to pay ₦{$total}.";
+        $message = "Request created for {$patient->full_name}"
+            . ($mode === 'new' ? " (lab number {$patient->hospital_number})" : '')
+            . ". Send them to the cashier to pay ₦{$total}.";
 
         // Front desk has no access to the lab pages, so send them back to the patient
         return $request->user()->hasRole(Role::Receptionist)
             ? redirect()->route('patients.show', $patient)->with('success', $message)
             : redirect()->route('lab.index')->with('success', $message);
+    }
+
+    public function destroy(Visit $visit)
+    {
+        abort_unless($visit->isLabOnly(), 404);
+
+        $hasPayment = $visit->invoice?->payments()->exists();
+        $hasResults = $visit->labRequests()->completed()->exists();
+
+        if ($hasPayment || $hasResults) {
+            return back()->with('error', 'This request cannot be cancelled after payment has been taken or a result entered.');
+        }
+
+        $visit->delete(); // invoice and lab requests are removed with it
+
+        return redirect()->route('lab.index')->with('success', 'Referral request cancelled.');
+    }
+
+    /** Existing patients who may be the same person as a new client. */
+    private function possibleDuplicates(array $data): Collection
+    {
+        return Patient::query()
+            ->where(function ($q) use ($data) {
+                $q->where(fn ($n) => $n
+                    ->whereRaw('LOWER(first_name) = ?', [strtolower(trim($data['first_name']))])
+                    ->whereRaw('LOWER(last_name) = ?', [strtolower(trim($data['last_name']))]));
+
+                if (! empty($data['phone'])) {
+                    $q->orWhere('phone', $data['phone']);
+                }
+            })
+            ->limit(5)
+            ->get();
     }
 
     /** Find a patient by hospital number, or by name / phone when the match is unambiguous. */
@@ -86,9 +163,9 @@ class LabReferralController extends Controller
             ->where(function ($q) use ($term) {
                 foreach (preg_split('/\s+/', $term) as $part) {
                     $q->where(fn ($w) => $w->where('first_name', 'like', "%{$part}%")
-                                        ->orWhere('last_name', 'like', "%{$part}%")
-                                        ->orWhere('hospital_number', 'like', "%{$part}%")
-                                        ->orWhere('phone', 'like', "%{$part}%"));
+                                           ->orWhere('last_name', 'like', "%{$part}%")
+                                           ->orWhere('hospital_number', 'like', "%{$part}%")
+                                           ->orWhere('phone', 'like', "%{$part}%"));
                 }
             })
             ->orderBy('last_name')
@@ -101,7 +178,7 @@ class LabReferralController extends Controller
 
         if ($matches->isEmpty()) {
             throw ValidationException::withMessages([
-                'hospital_number' => "No patient found for \"{$term}\". Check the spelling or hospital number, or register the patient first.",
+                'hospital_number' => "No patient found for \"{$term}\". Check the spelling, or switch to New client.",
             ]);
         }
 
@@ -110,21 +187,5 @@ class LabReferralController extends Controller
                 . $matches->map(fn ($p) => "{$p->full_name} ({$p->hospital_number})")->join('; ')
                 . '. Enter the exact hospital number.',
         ]);
-    }
-
-    public function destroy(Visit $visit)
-    {
-        abort_unless($visit->isLabOnly(), 404);
-
-        $hasPayment = $visit->invoice?->payments()->exists();
-        $hasResults = $visit->labRequests()->completed()->exists();
-
-        if ($hasPayment || $hasResults) {
-            return back()->with('error', 'This request cannot be cancelled after payment has been taken or a result entered.');
-        }
-
-        $visit->delete(); // invoice and lab requests are removed with it
-
-        return redirect()->route('lab.index')->with('success', 'Referral request cancelled.');
     }
 }

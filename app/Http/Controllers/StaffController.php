@@ -14,6 +14,7 @@ class StaffController extends Controller
     public function index(Request $request)
     {
         $staff = User::query()
+            ->where('role', '!=', Role::Patient->value)
             ->when($request->filled('q'), function ($q) use ($request) {
                 $term = $request->query('q');
                 $q->where(fn ($q) => $q->where('name', 'like', "%{$term}%")->orWhere('email', 'like', "%{$term}%"));
@@ -41,7 +42,7 @@ class StaffController extends Controller
         $data = $request->validate([
             'name'     => ['required', 'string', 'max:150'],
             'email'    => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role'     => ['required', Rule::enum(Role::class)],
+            'role'     => ['required', Rule::enum(Role::class)->except([Role::Patient])],
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
@@ -55,15 +56,17 @@ class StaffController extends Controller
 
     public function edit(User $staff)
     {
+        abort_if($staff->role === Role::Patient, 404);
         return view('staff.edit', ['staff' => $staff]);
     }
 
     public function update(Request $request, User $staff)
     {
+        abort_if($staff->role === Role::Patient, 404);
         $data = $request->validate([
             'name'     => ['required', 'string', 'max:150'],
             'email'    => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($staff->id)],
-            'role'     => ['required', Rule::enum(Role::class)],
+            'role'     => ['required', Rule::enum(Role::class)->except([Role::Patient])],
             'password' => ['nullable', 'confirmed', Password::defaults()],
         ]);
 
@@ -83,6 +86,7 @@ class StaffController extends Controller
 
     public function toggle(Request $request, User $staff)
     {
+        abort_if($staff->role === Role::Patient, 404);
         abort_if($staff->is($request->user()), 403, 'You cannot deactivate your own account.');
 
         $staff->update(['is_active' => ! $staff->is_active]);

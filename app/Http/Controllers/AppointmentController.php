@@ -20,20 +20,13 @@ class AppointmentController extends Controller
         $date = $request->filled('date') ? Carbon::parse($request->query('date')) : today();
         $user = $request->user();
 
-        $appointments = Appointment::with(['patient', 'doctor'])
+        $appointments = Appointment::with(['patient', 'doctor', 'labTests'])
             ->whereDate('scheduled_at', $date)
             ->when($user->hasRole(Role::Doctor), fn ($q) => $q->where('doctor_id', $user->id))
             ->orderBy('scheduled_at')
             ->get();
 
         return view('appointments.index', compact('appointments', 'date'));
-    }
-
-    public function show(Appointment $appointment)
-    {
-        $appointment->load(['patient', 'doctor']);
-
-        return view('appointments.show', compact('appointment'));
     }
 
     public function create(Request $request)
@@ -72,6 +65,7 @@ class AppointmentController extends Controller
         Appointment::create([
             'patient_id'   => $patient->id,
             'doctor_id'    => $data['doctor_id'],
+            'type'         => 'consultation',
             'scheduled_at' => $when,
             'reason'       => $data['reason'] ?? null,
             'created_by'   => $request->user()->id,

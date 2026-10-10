@@ -72,6 +72,12 @@ class BillingController extends Controller
             ]);
 
             InvoiceItem::whereIn('id', $items->pluck('id'))->update(['payment_id' => $payment->id]);
+
+            // Paying the registration fee activates the patient's portal login
+            if ($items->contains('category', 'registration')) {
+                $invoice->patient()->whereNull('registration_paid_at')->update(['registration_paid_at' => now()]);
+            }
+
         });
 
         if (! $payment) {

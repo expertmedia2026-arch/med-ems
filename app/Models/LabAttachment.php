@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Role;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,9 +17,12 @@ class LabAttachment extends Model
         return Attribute::get(fn () => str_starts_with($this->mime, 'image/'));
     }
 
+    /** Patients are served through the portal route; staff through the lab route. */
     protected function url(): Attribute
     {
-        return Attribute::get(fn () => route('lab.attachments.show', $this));
+        return Attribute::get(fn () => auth()->user()?->role === Role::Patient
+            ? route('portal.attachments.show', $this)
+            : route('lab.attachments.show', $this));
     }
 
     protected function humanSize(): Attribute

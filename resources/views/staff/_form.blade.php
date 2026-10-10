@@ -21,7 +21,7 @@
         <label for="role" class="{{ $label }}">Role</label>
         <select id="role" name="role" required @disabled($isSelf) class="{{ $input }} {{ $isSelf ? 'bg-slate-100' : '' }}">
             <option value="">Select role…</option>
-            @foreach (\App\Enums\Role::cases() as $role)
+            @foreach (\App\Enums\Role::staff() as $role)
                 <option value="{{ $role->value }}" @selected(old('role', $staff?->role?->value) === $role->value)>{{ $role->label() }}</option>
             @endforeach
         </select>
