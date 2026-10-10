@@ -115,15 +115,26 @@
                         const type = document.getElementById('consultation_type_id');
                         const doctor = document.getElementById('doctor_id');
                         const price = document.getElementById('consultation_price');
+                        const typeOptions = [...type.options].slice(1).map((option) => option.cloneNode(true));
+                        const doctorOptions = [...doctor.options].slice(1).map((option) => option.cloneNode(true));
                         const selectedType = @js(old('consultation_type_id'));
                         const selectedDoctor = @js(old('doctor_id'));
 
-                        const filterOptions = (select, selected = '') => {
-                            [...select.options].slice(1).forEach((option) => {
-                                option.hidden = option.dataset.department !== department.value;
-                            });
-                            const valid = [...select.options].find((option) => option.value === String(selected) && !option.hidden);
-                            select.value = valid ? selected : '';
+                        const populateOptions = (select, options, placeholder, selected = '') => {
+                            const filtered = department.value
+                                ? options.filter((option) => option.dataset.department === department.value)
+                                : [];
+                            const emptyLabel = !department.value
+                                ? 'Select a department first…'
+                                : filtered.length
+                                    ? placeholder
+                                    : 'No options configured for this department';
+
+                            select.replaceChildren(new Option(emptyLabel, ''));
+                            filtered.forEach((option) => select.add(option));
+
+                            const valid = filtered.find((option) => option.value === String(selected));
+                            select.value = valid ? valid.value : '';
                         };
 
                         const updatePrice = () => {
@@ -134,8 +145,8 @@
                         };
 
                         const updateDepartment = (oldType = '', oldDoctor = '') => {
-                            filterOptions(type, oldType);
-                            filterOptions(doctor, oldDoctor);
+                            populateOptions(type, typeOptions, 'Select a consultation type…', oldType);
+                            populateOptions(doctor, doctorOptions, 'Any available doctor in this department', oldDoctor);
                             updatePrice();
                         };
 
