@@ -16,15 +16,33 @@ class LabController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+        $term = trim($data['q'] ?? '');
 
         // Doctors only see requests they made themselves
         $base = LabRequest::with(['visit.patient', 'test', 'requester'])
-            ->when($user->hasRole(Role::Doctor), fn ($q) => $q->where('requested_by', $user->id));
+            ->when($user->hasRole(Role::Doctor), fn ($q) => $q->where('requested_by', $user->id))
+            ->when($term !== '', function ($query) use ($term) {
+                $query->whereHas('visit.patient', function ($patientQuery) use ($term) {
+                    foreach (preg_split('/\s+/', $term) as $word) {
+                        $patientQuery->where(function ($identityQuery) use ($word) {
+                            $identityQuery
+                                ->where('hospital_number', 'like', "%{$word}%")
+                                ->orWhere('phone', 'like', "%{$word}%")
+                                ->orWhere('first_name', 'like', "%{$word}%")
+                                ->orWhere('last_name', 'like', "%{$word}%");
+                        });
+                    }
+                });
+            });
 
         return view('lab.index', [
-            'pending'    => (clone $base)->pending()->with('invoiceItem')->oldest()->get(),
-            'completed'  => (clone $base)->completed()->with('processor')->withCount('attachments')->latest('completed_at')->limit(20)->get(),
+            'pending'    => (clone $base)->pending()->with('invoiceItem')->oldest()->paginate(10, ['*'], 'pending_page')->withQueryString(),
+            'completed'  => (clone $base)->completed()->with('processor')->withCount('attachments')->latest('completed_at')->paginate(10, ['*'], 'completed_page')->withQueryString(),
             'canProcess' => $user->hasRole(Role::Admin, Role::Lab),
+            'search' => $term,
         ]);
     }
 

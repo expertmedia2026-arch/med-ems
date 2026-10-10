@@ -3,6 +3,24 @@
 
     @include('lab._tabs')
 
+    <form method="GET" action="{{ route('lab.index') }}" class="mb-6 rounded-xl border bg-white p-4 shadow-sm">
+        <label for="patient-search" class="mb-2 block text-sm font-medium text-slate-700">Find patient</label>
+        <div class="flex flex-col gap-2 sm:flex-row">
+            <input id="patient-search" name="q" type="search" value="{{ $search }}"
+                   placeholder="Name, phone number, or hospital number"
+                   class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600"
+                   autocomplete="off">
+            <button type="submit" class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">
+                Search
+            </button>
+            @if ($search !== '')
+                <a href="{{ route('lab.index') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    Clear
+                </a>
+            @endif
+        </div>
+    </form>
+
     @if (auth()->user()->hasRole('admin', 'lab'))
         <div class="mb-6">
             <a href="{{ route('lab.referrals.create') }}"
@@ -13,7 +31,7 @@
     @endif
 
     {{-- Pending --}}
-    <h2 class="mb-3 font-semibold">Pending requests ({{ $pending->count() }})</h2>
+    <h2 class="mb-3 font-semibold">Pending requests ({{ $pending->total() }})</h2>
     <div class="mb-10 overflow-x-auto rounded-xl border bg-white shadow-sm">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -54,14 +72,15 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">No pending lab requests.</td></tr>
+                    <tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">{{ $search !== '' ? 'No pending requests match this patient search.' : 'No pending lab requests.' }}</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
+    <div class="mb-10">{{ $pending->links() }}</div>
 
     {{-- Recent results --}}
-    <h2 class="mb-3 font-semibold">Recent results</h2>
+    <h2 class="mb-3 font-semibold">Recent results ({{ $completed->total() }})</h2>
     <div class="overflow-x-auto rounded-xl border bg-white shadow-sm">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -102,9 +121,10 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No results yet.</td></tr>
+                    <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">{{ $search !== '' ? 'No completed results match this patient search.' : 'No results yet.' }}</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
+    <div class="mt-4">{{ $completed->links() }}</div>
 </x-app-layout>
