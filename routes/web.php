@@ -126,10 +126,9 @@ Route::middleware(['auth', 'active', 'staff'])->group(function () {
         ->middleware('role:admin,receptionist,doctor')
         ->name('appointments.index');
 
-     //just added this based on error i am getting on patinet show blade line 195
-    // Route::get('appointments/{appointment}', [AppointmentController::class, 'show'])
-    //     ->middleware('role:doctor')
-    //     ->name('appointments.show');
+    Route::get('appointments/{appointment}', [AppointmentController::class, 'show'])
+        ->middleware('role:doctor')
+        ->name('appointments.show');
 
     // Nurse: triage
     Route::middleware('role:admin,nurse')->prefix('triage')->name('triage.')->group(function () {

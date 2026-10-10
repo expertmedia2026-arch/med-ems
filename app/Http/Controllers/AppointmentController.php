@@ -29,6 +29,13 @@ class AppointmentController extends Controller
         return view('appointments.index', compact('appointments', 'date'));
     }
 
+    public function show(Appointment $appointment)
+    {
+        $appointment->load(['patient', 'doctor', 'labTests']);
+
+        return view('appointments.show', compact('appointment'));
+    }
+
     public function create(Request $request)
     {
         return view('appointments.create', [

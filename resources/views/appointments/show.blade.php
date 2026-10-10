@@ -18,9 +18,21 @@
                     <dd class="font-medium">{{ $appointment->scheduled_at->format('d M Y, g:i A') }}</dd>
                 </div>
                 <div>
-                    <dt class="text-slate-500">Doctor</dt>
-                    <dd class="font-medium">{{ $appointment->doctor->name }}</dd>
+                    <dt class="text-slate-500">{{ $appointment->isLab() ? 'Appointment type' : 'Doctor' }}</dt>
+                    <dd class="font-medium">
+                        @if ($appointment->isLab())
+                            Lab test
+                        @else
+                            {{ $appointment->doctor?->name ?? 'Not assigned' }}
+                        @endif
+                    </dd>
                 </div>
+                @if ($appointment->isLab())
+                    <div class="sm:col-span-2">
+                        <dt class="text-slate-500">Tests</dt>
+                        <dd class="font-medium">{{ $appointment->labTests->pluck('name')->join(', ') ?: 'No tests listed' }}</dd>
+                    </div>
+                @endif
                 <div class="sm:col-span-2">
                     <dt class="text-slate-500">Reason</dt>
                     <dd class="whitespace-pre-line font-medium">{{ $appointment->reason ?: '—' }}</dd>
