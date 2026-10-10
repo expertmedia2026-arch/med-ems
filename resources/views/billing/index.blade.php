@@ -1,6 +1,24 @@
 <x-app-layout>
     <x-slot name="header">Billing</x-slot>
-
+    @if ($review->isNotEmpty())
+        <div class="mb-8 rounded-xl border border-red-200 bg-white shadow-sm">
+            <h3 class="border-b border-red-200 bg-red-50 px-5 py-3 font-semibold text-red-900">
+                Online payments needing review ({{ $review->count() }})
+            </h3>
+            <ul class="divide-y text-sm">
+                @foreach ($review as $item)
+                    <li class="px-5 py-3">
+                        <p class="font-medium">{{ $item->patient->full_name }}
+                            <span class="ml-1 text-slate-500">₦{{ number_format($item->amount, 2) }}</span>
+                        </p>
+                        <p class="font-mono text-xs text-slate-400">{{ $item->reference }} · {{ $item->created_at->format('d M, g:i A') }}</p>
+                        <p class="mt-1 text-xs text-red-800">{{ $item->note }}</p>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+    
     {{-- Summary --}}
     <div class="mb-8 grid gap-4 sm:grid-cols-2">
         <div class="rounded-xl border bg-white p-5 shadow-sm">

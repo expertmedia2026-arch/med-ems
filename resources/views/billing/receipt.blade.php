@@ -8,7 +8,11 @@
     <style>@media print { .no-print { display: none !important; } body { background: #fff !important; } }</style>
 </head>
 <body class="bg-slate-100 py-8 font-sans text-slate-800">
-    @php $invoice = $payment->invoice; @endphp
+    @php
+        $invoice   = $payment->invoice;
+        $isPatient = auth()->user()?->role === \App\Enums\Role::Patient;
+        $backUrl   = $isPatient ? route('portal.invoices.show', $invoice) : route('billing.show', $invoice);
+    @endphp
 
     <div class="mx-auto max-w-md rounded-xl bg-white p-8 shadow">
 
@@ -62,18 +66,20 @@
                 </tr>
                 <tr>
                     <td class="text-slate-500">Method</td>
-                    <td class="text-right">{{ strtoupper($payment->method) }}{{ $payment->reference ? ' · ' . $payment->reference : '' }}</td>
+                    <td class="text-right">{{ $payment->method === 'online' ? 'ONLINE' : strtoupper($payment->method) }}{{ $payment->reference ? ' · ' . $payment->reference : '' }}</td>
                 </tr>
             </tfoot>
         </table>
 
-        <p class="mt-6 text-xs text-slate-500">Received by {{ $payment->receiver?->name }}</p>
+        <p class="mt-6 text-xs text-slate-500">
+            {{ $payment->receiver ? 'Received by ' . $payment->receiver->name : 'Paid online' }}
+        </p>
 
         <p class="mt-6 text-center text-xs text-slate-400">{{ $hospital->receipt_footer ?: 'Thank you. Get well soon.' }}</p>
 
         <div class="no-print mt-6 flex justify-center gap-3">
             <button onclick="window.print()" class="rounded-lg bg-teal-700 px-5 py-2 text-sm font-medium text-white hover:bg-teal-800">Print</button>
-            <a href="{{ route('billing.show', $invoice) }}" class="px-3 py-2 text-sm text-slate-500 hover:underline">Back to invoice</a>
+            <a href="{{ $backUrl }}" class="px-3 py-2 text-sm text-slate-500 hover:underline">Back to invoice</a>
         </div>
     </div>
 </body>

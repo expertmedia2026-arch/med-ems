@@ -13,9 +13,13 @@ use App\Http\Controllers\LabRequestController;
 use App\Http\Controllers\LabTestController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PatientPortalController;
+use App\Http\Controllers\PaystackWebhookController;
 use App\Http\Controllers\PharmacyController;
+use App\Http\Controllers\PortalAppointmentController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\PortalInvitationAcceptController;
+use App\Http\Controllers\PortalInvoiceController;
+use App\Http\Controllers\PortalVisitController;
 use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
@@ -23,11 +27,12 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\StaffInvitationController;
 use App\Http\Controllers\TriageController;
 use App\Http\Controllers\VisitController;
-use App\Http\Controllers\PortalVisitController;
-use App\Http\Controllers\PortalAppointmentController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
+
+// Payment gateway notifications (no login, no CSRF; protected by the gateway's signature)
+Route::post('webhooks/paystack', PaystackWebhookController::class)->name('webhooks.paystack');
 
 // Invitation links (opened by people who are not logged in)
 Route::middleware('guest')->group(function () {
@@ -42,28 +47,29 @@ Route::middleware('guest')->group(function () {
     });
 });
 
-
-
 // ---------------- Patient portal ----------------
 Route::middleware(['auth', 'active', 'role:patient'])->prefix('portal')->name('portal.')->group(function () {
     Route::get('/', [PortalController::class, 'home'])->name('home');
 
+    // Visit history
     Route::get('visits', [PortalVisitController::class, 'index'])->name('visits.index');
     Route::get('visits/{visit}', [PortalVisitController::class, 'show'])->whereNumber('visit')->name('visits.show');
     Route::get('visits/{visit}/lab-report', [PortalVisitController::class, 'labReport'])->whereNumber('visit')->name('visits.lab-report');
     Route::get('attachments/{attachment}', [PortalVisitController::class, 'attachment'])->whereNumber('attachment')->name('attachments.show');
 
+    // Appointments
     Route::get('appointments', [PortalAppointmentController::class, 'index'])->name('appointments.index');
     Route::get('appointments/create', [PortalAppointmentController::class, 'create'])->name('appointments.create');
     Route::post('appointments', [PortalAppointmentController::class, 'store'])->name('appointments.store');
     Route::patch('appointments/{appointment}/cancel', [PortalAppointmentController::class, 'cancel'])->whereNumber('appointment')->name('appointments.cancel');
 
-
-
-
+    // Invoices and online payment
+    Route::get('invoices', [PortalInvoiceController::class, 'index'])->name('invoices.index');
+    Route::get('invoices/{invoice}', [PortalInvoiceController::class, 'show'])->whereNumber('invoice')->name('invoices.show');
+    Route::post('invoices/{invoice}/pay', [PortalInvoiceController::class, 'pay'])->whereNumber('invoice')->name('invoices.pay');
+    Route::get('payments/callback', [PortalInvoiceController::class, 'callback'])->name('payments.callback');
+    Route::get('payments/{payment}/receipt', [PortalInvoiceController::class, 'receipt'])->whereNumber('payment')->name('payments.receipt');
 });
-
-
 
 // ---------------- Staff ----------------
 Route::middleware(['auth', 'active', 'staff'])->group(function () {
@@ -119,11 +125,11 @@ Route::middleware(['auth', 'active', 'staff'])->group(function () {
     Route::get('appointments', [AppointmentController::class, 'index'])
         ->middleware('role:admin,receptionist,doctor')
         ->name('appointments.index');
-    
-        //just added this based on error i am getting on patinet show blade line 195
-        Route::get('appointments/{appointment}', [AppointmentController::class, 'show'])
-        ->middleware('role:doctor')
-        ->name('appointments.show');
+
+     //just added this based on error i am getting on patinet show blade line 195
+    // Route::get('appointments/{appointment}', [AppointmentController::class, 'show'])
+    //     ->middleware('role:doctor')
+    //     ->name('appointments.show');
 
     // Nurse: triage
     Route::middleware('role:admin,nurse')->prefix('triage')->name('triage.')->group(function () {

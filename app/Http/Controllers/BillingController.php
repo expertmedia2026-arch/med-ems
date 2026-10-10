@@ -7,6 +7,7 @@ use App\Models\InvoiceItem;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\OnlinePayment;
 
 class BillingController extends Controller
 {
@@ -27,6 +28,7 @@ class BillingController extends Controller
             'status'         => $status,
             'collectedToday' => Payment::whereDate('created_at', today())->sum('amount'),
             'outstanding'    => Invoice::whereIn('status', ['unpaid', 'partial'])->sum(DB::raw('total - amount_paid')),
+            'review' => OnlinePayment::where('status', 'review')->with('patient')->latest()->get(),
         ]);
     }
 

@@ -179,6 +179,9 @@
                 <div class="flex items-center justify-between border-b px-6 py-3">
                     <h3 class="font-semibold">Bill for this visit</h3>
                     <x-badge :color="$invoice->status->color()">{{ $invoice->status->label() }}</x-badge>
+                    @if ($invoice->balance > 0)
+                        <a href="{{ route('portal.invoices.show', $invoice) }}" class="mr-3 text-sm font-medium text-teal-700 hover:underline">Pay online</a>
+                    @endif
                 </div>
 
                 <ul class="divide-y text-sm">
