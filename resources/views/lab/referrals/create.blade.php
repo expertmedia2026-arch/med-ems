@@ -9,10 +9,12 @@
     @endphp
 
     <form method="POST" action="{{ route('lab.referrals.store') }}" class="max-w-3xl space-y-6"
+          @submit="submitting = true"
           x-data="{
               mode: @js(old('mode', 'existing')),
               hospitalNumber: @js(old('hospital_number', $selected ?? '')),
-              confirmNew: '',
+              confirmNew: '0',
+              submitting: false,
               tests: @js($tests->map(fn ($t) => ['id' => (string) $t->id, 'price' => (float) $t->price])->values()),
               selected: @js(array_map('strval', old('lab_test_ids', []))),
               get total() { return this.tests.filter(t => this.selected.includes(t.id)).reduce((s, t) => s + t.price, 0) },
@@ -27,6 +29,17 @@
             For patients who only need a lab test: referred from another hospital, or walking in on their own.
             There is no consultation or triage, and they pay for the tests only.
         </p>
+
+        @if ($errors->any())
+            <div role="alert" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                <p class="font-semibold">The request could not be submitted. Please check:</p>
+                <ul class="mt-2 list-inside list-disc space-y-1">
+                    @foreach ($errors->all() as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         {{-- Possible duplicate --}}
         @if ($matches)
@@ -139,7 +152,7 @@
         <div class="rounded-xl border bg-white p-6 shadow-sm">
             <h3 class="mb-4 font-semibold">Tests requested</h3>
 
-            @foreach ($byCategory as $category => $group)
+            @forelse ($byCategory as $category => $group)
                 <p class="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400 first:mt-0">{{ $category }}</p>
                 <div class="grid gap-2 sm:grid-cols-2">
                     @foreach ($group as $test)
@@ -150,7 +163,9 @@
                         </label>
                     @endforeach
                 </div>
-            @endforeach
+            @empty
+                <p class="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">No active lab tests are available. Ask an administrator to check the lab test catalogue.</p>
+            @endforelse
 
             @error('lab_test_ids')<p class="mt-3 text-sm text-red-600">{{ $message }}</p>@enderror
             @error('lab_test_ids.*')<p class="mt-3 text-sm text-red-600">{{ $message }}</p>@enderror
@@ -163,9 +178,9 @@
             </div>
             <div class="flex items-center gap-3">
                 <a href="{{ url()->previous() }}" class="text-sm text-slate-500 hover:underline">Cancel</a>
-                <button :disabled="selected.length === 0"
-                        class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">
-                    Create request
+                <button type="submit" :disabled="submitting"
+                        class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:cursor-wait disabled:opacity-60">
+                    <span x-text="submitting ? 'Creating request…' : 'Create request'">Create request</span>
                 </button>
             </div>
         </div>

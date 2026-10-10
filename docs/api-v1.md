@@ -61,6 +61,7 @@ Accept: application/json
 
 Consultation appointment body: `type=consultation`, `department_id`, `doctor_id`, `appointment_date` (`YYYY-MM-DD`), optional `reason`. Lab body: `type=lab`, `slot` (use the exact returned `slot` string), `lab_test_ids[]`, optional `reason`.
 
+
 ## Reception, patient registration, and staff appointments
 
 Access is role-limited to the same roles as the web workflows.

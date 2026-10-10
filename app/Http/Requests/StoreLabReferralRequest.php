@@ -29,7 +29,7 @@ class StoreLabReferralRequest extends FormRequest
             'age' => [$newPatient ? 'required' : 'nullable', 'integer', 'min:0', 'max:120'],
             'phone' => ['nullable', 'string', 'max:20'],
             'hospital_number' => [$newPatient ? 'nullable' : 'required', 'string', 'max:100'],
-            'confirm_new' => ['sometimes', 'boolean'],
+            'confirm_new' => ['sometimes', 'nullable', 'boolean'],
         ];
     }
 
