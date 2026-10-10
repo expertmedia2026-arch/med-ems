@@ -57,7 +57,16 @@
 </head>
 <body>
     <main>
-        @php $hospitalDetails = array_filter([$hospital->address, $hospital->phone, $hospital->email, $hospital->website]); @endphp
+        @php
+            $hospitalDetails = array_filter([$hospital->address, $hospital->phone, $hospital->email, $hospital->website]);
+            $addressParts = collect(preg_split('/[,;|]/', (string) $patient->address))
+                ->map(fn ($part) => trim($part))
+                ->filter()
+                ->values();
+            $patientArea = $addressParts->count() >= 2
+                ? $addressParts->get($addressParts->count() - 2)
+                : null;
+        @endphp
         <article class="patient-card" aria-label="Patient identification card">
             <div class="accent"></div>
             <div class="card-content">
@@ -81,16 +90,16 @@
 
                 <dl class="patient-details">
                     <div>
-                        <dt class="detail-label">Date of birth</dt>
-                        <dd class="detail-value">{{ $patient->date_of_birth->format('d M Y') }}</dd>
+                        <dt class="detail-label">Age</dt>
+                        <dd class="detail-value">{{ $patient->age !== null ? $patient->age.' years' : '—' }}</dd>
                     </div>
                     <div>
                         <dt class="detail-label">Sex</dt>
                         <dd class="detail-value">{{ ucfirst($patient->gender) }}</dd>
                     </div>
                     <div>
-                        <dt class="detail-label">Phone</dt>
-                        <dd class="detail-value">{{ $patient->phone ?: '—' }}</dd>
+                        <dt class="detail-label">Area</dt>
+                        <dd class="detail-value">{{ $patientArea ?: '—' }}</dd>
                     </div>
                     @if ($patient->is_nhis && $patient->nhis_number)
                         <div>
