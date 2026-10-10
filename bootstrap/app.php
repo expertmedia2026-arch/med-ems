@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role'   => \App\Http\Middleware\RoleMiddleware::class,
             'active' => \App\Http\Middleware\EnsureUserIsActive::class,
             'staff'  => \App\Http\Middleware\EnsureNotPatient::class,
+            'auth.session' => \Illuminate\Session\Middleware\AuthenticateSession::class,
 
         ]);
         // The payment gateway calls this URL itself, so it cannot carry a CSRF token

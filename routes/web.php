@@ -48,8 +48,9 @@ Route::middleware('guest')->group(function () {
 });
 
 // ---------------- Patient portal ----------------
-Route::middleware(['auth', 'active', 'role:patient'])->prefix('portal')->name('portal.')->group(function () {
+Route::middleware(['auth', 'auth.session', 'active', 'role:patient'])->prefix('portal')->name('portal.')->group(function () {
     Route::get('/', [PortalController::class, 'home'])->name('home');
+    Route::view('settings', 'portal.settings')->name('settings');
 
     // Visit history
     Route::get('visits', [PortalVisitController::class, 'index'])->name('visits.index');
@@ -72,7 +73,7 @@ Route::middleware(['auth', 'active', 'role:patient'])->prefix('portal')->name('p
 });
 
 // ---------------- Staff ----------------
-Route::middleware(['auth', 'active', 'staff'])->group(function () {
+Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

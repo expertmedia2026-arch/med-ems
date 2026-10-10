@@ -80,6 +80,9 @@
 
                 <div x-show="menu" x-cloak @click.outside="menu = false"
                      class="absolute right-0 mt-2 w-44 rounded-lg border bg-white py-1 shadow-lg">
+                    <a href="{{ route('portal.settings') }}" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                        Settings
+                    </a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button class="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-slate-50">
