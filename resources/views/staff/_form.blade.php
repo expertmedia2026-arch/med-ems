@@ -17,7 +17,7 @@
         @error('email')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
 
-    <div class="sm:col-span-2">
+    <div>
         <label for="role" class="{{ $label }}">Role</label>
         <select id="role" name="role" required @disabled($isSelf) class="{{ $input }} {{ $isSelf ? 'bg-slate-100' : '' }}">
             <option value="">Select role…</option>
@@ -30,6 +30,20 @@
             <input type="hidden" name="role" value="{{ $staff->role->value }}">
         @endif
         @error('role')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+    </div>
+
+    <div>
+        <label for="department_id" class="{{ $label }}">Department</label>
+        <select id="department_id" name="department_id" class="{{ $input }}">
+            <option value="">No department assigned</option>
+            @foreach ($departments as $department)
+                <option value="{{ $department->id }}" @selected((string) old('department_id', $staff?->department_id) === (string) $department->id)>{{ $department->name }}</option>
+            @endforeach
+        </select>
+        @error('department_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+        @if ($departments->isEmpty())
+            <p class="mt-1 text-xs text-slate-500">Add a department before assigning staff.</p>
+        @endif
     </div>
 
     <div>

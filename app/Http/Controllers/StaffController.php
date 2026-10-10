@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Role;
+use App\Models\Department;
 use App\Models\StaffInvitation;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -14,12 +15,14 @@ class StaffController extends Controller
     public function index(Request $request)
     {
         $staff = User::query()
+            ->with('department')
             ->where('role', '!=', Role::Patient->value)
             ->when($request->filled('q'), function ($q) use ($request) {
                 $term = $request->query('q');
                 $q->where(fn ($q) => $q->where('name', 'like', "%{$term}%")->orWhere('email', 'like', "%{$term}%"));
             })
             ->when($request->filled('role'), fn ($q) => $q->where('role', $request->query('role')))
+            ->when($request->filled('department_id'), fn ($q) => $q->where('department_id', $request->query('department_id')))
             ->when($request->query('status') === 'active', fn ($q) => $q->where('is_active', true))
             ->when($request->query('status') === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderBy('name')
@@ -27,22 +30,24 @@ class StaffController extends Controller
             ->withQueryString();
 
         return view('staff.index', [
-            'staff'       => $staff,
-            'invitations' => StaffInvitation::pending()->with('inviter')->latest()->get(),
+            'staff' => $staff,
+            'departments' => Department::orderBy('name')->get(),
+            'invitations' => StaffInvitation::pending()->with(['inviter', 'department'])->latest()->get(),
         ]);
     }
 
     public function create()
     {
-        return view('staff.create');
+        return view('staff.create', ['departments' => Department::orderBy('name')->get()]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'     => ['required', 'string', 'max:150'],
-            'email'    => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role'     => ['required', Rule::enum(Role::class)->except([Role::Patient])],
+            'name' => ['required', 'string', 'max:150'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'role' => ['required', Rule::enum(Role::class)->except([Role::Patient])],
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
@@ -57,16 +62,21 @@ class StaffController extends Controller
     public function edit(User $staff)
     {
         abort_if($staff->role === Role::Patient, 404);
-        return view('staff.edit', ['staff' => $staff]);
+
+        return view('staff.edit', [
+            'staff' => $staff,
+            'departments' => Department::orderBy('name')->get(),
+        ]);
     }
 
     public function update(Request $request, User $staff)
     {
         abort_if($staff->role === Role::Patient, 404);
         $data = $request->validate([
-            'name'     => ['required', 'string', 'max:150'],
-            'email'    => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($staff->id)],
-            'role'     => ['required', Rule::enum(Role::class)->except([Role::Patient])],
+            'name' => ['required', 'string', 'max:150'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($staff->id)],
+            'role' => ['required', Rule::enum(Role::class)->except([Role::Patient])],
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'password' => ['nullable', 'confirmed', Password::defaults()],
         ]);
 
@@ -91,6 +101,6 @@ class StaffController extends Controller
 
         $staff->update(['is_active' => ! $staff->is_active]);
 
-        return back()->with('success', $staff->name . ($staff->is_active ? ' reactivated.' : ' deactivated. They can no longer log in.'));
+        return back()->with('success', $staff->name.($staff->is_active ? ' reactivated.' : ' deactivated. They can no longer log in.'));
     }
 }

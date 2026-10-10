@@ -28,6 +28,13 @@
                 @endforeach
             </select>
 
+            <select name="department_id" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
+                <option value="">All departments</option>
+                @foreach ($departments as $department)
+                    <option value="{{ $department->id }}" @selected((string) request('department_id') === (string) $department->id)>{{ $department->name }}</option>
+                @endforeach
+            </select>
+
             <select name="status" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                 <option value="">Active and inactive</option>
                 <option value="active" @selected(request('status') === 'active')>Active</option>
@@ -55,6 +62,9 @@
                         <div>
                             <p class="font-medium">{{ $invite->email }}
                                 <x-badge color="blue" class="ml-2">{{ $invite->role->label() }}</x-badge>
+                                @if ($invite->department)
+                                    <x-badge color="slate" class="ml-1">{{ $invite->department->name }}</x-badge>
+                                @endif
                             </p>
                             <p class="text-xs text-slate-400">
                                 Invited by {{ $invite->inviter?->name }} · expires {{ $invite->expires_at->diffForHumans() }}
@@ -84,6 +94,7 @@
                 <tr>
                     <th class="px-4 py-3">Name</th>
                     <th class="px-4 py-3">Role</th>
+                    <th class="px-4 py-3">Department</th>
                     <th class="px-4 py-3">Status</th>
                     <th class="px-4 py-3">Joined</th>
                     <th class="px-4 py-3"></th>
@@ -98,6 +109,7 @@
                             <span class="block text-xs text-slate-400">{{ $member->email }}</span>
                         </td>
                         <td class="px-4 py-3"><x-badge color="blue">{{ $member->role->label() }}</x-badge></td>
+                        <td class="px-4 py-3">{{ $member->department?->name ?? '—' }}</td>
                         <td class="px-4 py-3"><x-badge :color="$member->is_active ? 'green' : 'slate'">{{ $member->is_active ? 'Active' : 'Inactive' }}</x-badge></td>
                         <td class="px-4 py-3">{{ $member->created_at->format('d M Y') }}</td>
                         <td class="px-4 py-3">
@@ -115,7 +127,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">No staff found.</td></tr>
+                    <tr><td colspan="6" class="px-4 py-10 text-center text-slate-500">No staff found.</td></tr>
                 @endforelse
             </tbody>
         </table>

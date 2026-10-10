@@ -32,6 +32,8 @@
                 @foreach ([
                     'Phone' => $patient->phone, 'Email' => $patient->email,
                     'Address' => $patient->address, 'Blood group' => $patient->blood_group,
+                    'NHIS enrolled' => $patient->is_nhis ? 'Yes' : 'No',
+                    'NHIS number' => $patient->nhis_number,
                     'Genotype' => $patient->genotype, 'Allergies' => $patient->allergies,
                     'Next of kin' => $patient->next_of_kin_name, 'Next of kin phone' => $patient->next_of_kin_phone,
                 ] as $label => $value)
@@ -85,6 +87,15 @@
             @endif
 
             @if ($frontDesk)
+                @if ($patient->registration_paid_at)
+                    <a href="{{ route('patients.card', $patient) }}" class="block rounded-xl bg-teal-700 p-4 text-center text-sm font-medium text-white shadow-sm hover:bg-teal-800">
+                        Print patient card
+                    </a>
+                @else
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                        Patient card printing will be available after the registration fee is paid.
+                    </div>
+                @endif
                 <a href="{{ route('appointments.create', ['patient' => $patient->hospital_number]) }}"
                    class="block rounded-xl border bg-white p-4 text-center text-sm font-medium text-teal-700 shadow-sm hover:bg-slate-50">
                     Book appointment

@@ -3,16 +3,16 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\Role;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Enums\Role;
 
-#[Fillable(['name', 'email','role','is_active', 'email_verified_at','password', 'patient_id'])]
+#[Fillable(['name', 'email', 'role', 'is_active', 'email_verified_at', 'password', 'patient_id', 'department_id'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -47,7 +47,7 @@ class User extends Authenticatable
 
         return false;
     }
-    
+
     public function scopeOfRole($query, Role $role)
     {
         return $query->where('role', $role->value);
@@ -58,5 +58,8 @@ class User extends Authenticatable
         return $this->belongsTo(Patient::class);
     }
 
-
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
 }

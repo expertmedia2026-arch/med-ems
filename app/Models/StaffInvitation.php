@@ -13,8 +13,8 @@ class StaffInvitation extends Model
     protected function casts(): array
     {
         return [
-            'role'        => Role::class,
-            'expires_at'  => 'datetime',
+            'role' => Role::class,
+            'expires_at' => 'datetime',
             'accepted_at' => 'datetime',
         ];
     }
@@ -42,5 +42,10 @@ class StaffInvitation extends Model
     public function inviter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'invited_by');
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 }

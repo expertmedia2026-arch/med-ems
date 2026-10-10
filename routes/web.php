@@ -4,6 +4,7 @@ use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DrugController;
 use App\Http\Controllers\InvitationAcceptController;
 use App\Http\Controllers\LabAttachmentController;
@@ -82,6 +83,8 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
 
     // Admin: staff management and hospital settings
     Route::middleware('role:admin')->group(function () {
+        Route::resource('departments', DepartmentController::class)->except('show');
+
         Route::prefix('staff')->name('staff.')->group(function () {
             Route::get('/', [StaffController::class, 'index'])->name('index');
             Route::get('create', [StaffController::class, 'create'])->name('create');
@@ -108,6 +111,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         Route::post('patients', [PatientController::class, 'store'])->name('patients.store');
         Route::get('patients/{patient}/edit', [PatientController::class, 'edit'])->name('patients.edit');
         Route::put('patients/{patient}', [PatientController::class, 'update'])->name('patients.update');
+        Route::get('patients/{patient}/card', [PatientController::class, 'card'])->name('patients.card');
         Route::post('patients/{patient}/check-in', [VisitController::class, 'walkIn'])->name('patients.check-in');
         Route::post('patients/{patient}/portal-invite', [PatientPortalController::class, 'invite'])->name('patients.portal-invite');
 

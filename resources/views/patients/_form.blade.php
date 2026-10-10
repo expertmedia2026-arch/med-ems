@@ -31,6 +31,21 @@
         @error('date_of_birth')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
 
+    <div class="sm:col-span-2">
+        <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <input name="is_nhis" type="hidden" value="0">
+            <input id="is_nhis" name="is_nhis" type="checkbox" value="1" @checked((bool) old('is_nhis', $patient?->is_nhis)) class="rounded border-slate-300 text-teal-700 focus:ring-teal-600">
+            Patient is enrolled with NHIS
+        </label>
+        @error('is_nhis')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+
+        <div id="nhis_number_field" class="mt-4" @if (!old('is_nhis', $patient?->is_nhis)) hidden @endif>
+            <label for="nhis_number" class="{{ $label }}">NHIS number</label>
+            <input id="nhis_number" name="nhis_number" type="text" value="{{ $val('nhis_number') }}" maxlength="50" class="{{ $input }}">
+            @error('nhis_number')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+        </div>
+    </div>
+
     @foreach ([['phone', 'Phone', 'tel'], ['email', 'Email', 'email']] as [$name, $text, $type])
         <div>
             <label for="{{ $name }}" class="{{ $label }}">{{ $text }}</label>
@@ -77,3 +92,19 @@
         </div>
     @endforeach
 </div>
+
+<script>
+    (() => {
+        const enrolled = document.getElementById('is_nhis');
+        const numberField = document.getElementById('nhis_number_field');
+        const numberInput = document.getElementById('nhis_number');
+
+        const updateNhisField = () => {
+            numberField.hidden = !enrolled.checked;
+            numberInput.required = enrolled.checked;
+        };
+
+        enrolled.addEventListener('change', updateNhisField);
+        updateNhisField();
+    })();
+</script>

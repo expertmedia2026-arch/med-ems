@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\Role;
 use App\Mail\StaffInvitationMail;
+use App\Models\Department;
 use App\Models\HospitalSetting;
 use App\Models\StaffInvitation;
 use Illuminate\Http\Request;
@@ -15,7 +16,7 @@ class StaffInvitationController extends Controller
 {
     public function create()
     {
-        return view('staff.invite');
+        return view('staff.invite', ['departments' => Department::orderBy('name')->get()]);
     }
 
     public function store(Request $request)
@@ -23,16 +24,17 @@ class StaffInvitationController extends Controller
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'role' => ['required', Rule::enum(Role::class)->except([Role::Patient])],
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
         ], ['email.unique' => 'A staff member with this email already exists.']);
 
-        return $this->issue($data['email'], Role::from($data['role']), $request);
+        return $this->issue($data['email'], Role::from($data['role']), $request, $data['department_id'] ?? null);
     }
 
     public function resend(Request $request, StaffInvitation $invitation)
     {
         abort_if($invitation->accepted_at, 422, 'This invitation was already accepted.');
 
-        return $this->issue($invitation->email, $invitation->role, $request);
+        return $this->issue($invitation->email, $invitation->role, $request, $invitation->department_id);
     }
 
     public function destroy(StaffInvitation $invitation)
@@ -43,7 +45,7 @@ class StaffInvitationController extends Controller
     }
 
     /** Create a fresh invitation (replacing any open one for this email) and email the link. */
-    private function issue(string $email, Role $role, Request $request)
+    private function issue(string $email, Role $role, Request $request, ?int $departmentId = null)
     {
         StaffInvitation::where('email', $email)->whereNull('accepted_at')->delete();
 
@@ -51,8 +53,9 @@ class StaffInvitationController extends Controller
         $token = Str::random(48);
 
         $invitation = StaffInvitation::create([
-            'email'      => $email,
-            'role'       => $role,
+            'email' => $email,
+            'role' => $role,
+            'department_id' => $departmentId,
             'token_hash' => StaffInvitation::hashToken($token),
             'invited_by' => $request->user()->id,
             'expires_at' => now()->addDays(7),

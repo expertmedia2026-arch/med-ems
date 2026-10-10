@@ -31,17 +31,18 @@ class InvitationAcceptController extends Controller
         }
 
         $data = $request->validate([
-            'name'     => ['required', 'string', 'max:150'],
+            'name' => ['required', 'string', 'max:150'],
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
         $user = DB::transaction(function () use ($invitation, $data) {
             $user = User::create([
-                'name'              => $data['name'],
-                'email'             => $invitation->email,
-                'password'          => $data['password'],
-                'role'              => $invitation->role,
-                'is_active'         => true,
+                'name' => $data['name'],
+                'email' => $invitation->email,
+                'password' => $data['password'],
+                'role' => $invitation->role,
+                'department_id' => $invitation->department_id,
+                'is_active' => true,
                 'email_verified_at' => now(),
             ]);
 
