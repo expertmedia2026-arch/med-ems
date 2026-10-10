@@ -25,13 +25,13 @@
                                 <span class="mt-1 block text-xs text-slate-500">{{ $department->description }}</span>
                             @endif
                         </td>
-                        <td class="px-4 py-3">{{ $department->consultation_types_count }}</td>
                         <td class="px-4 py-3">
                             <span>{{ $department->users_count }} assigned</span>
                             @if ($department->staff_invitations_count)
                                 <span class="block text-xs text-slate-500">{{ $department->staff_invitations_count }} pending {{ \Illuminate\Support\Str::plural('invitation', $department->staff_invitations_count) }}</span>
                             @endif
                         </td>
+                        <td class="px-4 py-3">{{ $department->consultation_types_count }}</td>
                         <td class="px-4 py-3">
                             <div class="flex justify-end gap-4">
                                 <a href="{{ route('departments.edit', $department) }}" class="text-teal-700 hover:underline">Edit</a>
