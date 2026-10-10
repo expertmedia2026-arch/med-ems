@@ -20,8 +20,8 @@ class LabTestController extends Controller
         $tests = LabTest::query()
             ->when($request->filled('q'), function ($q) use ($request) {
                 $term = $request->query('q');
-                $q->where(fn ($q) => $q->where('name', 'like', "%{$term}%")
-                                       ->orWhere('code', 'like', "%{$term}%"));
+                $q->where(fn ($q) => $q->whereLike('name', "%{$term}%")
+                                       ->orWhereLike('code', "%{$term}%"));
             })
             ->when($request->filled('category'), fn ($q) => $q->where('category', $request->query('category')))
             ->when($request->query('status') === 'inactive', fn ($q) => $q->where('is_active', false))

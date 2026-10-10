@@ -31,7 +31,9 @@ class DatabaseSeeder extends Seeder
                 ]
             );
         }
+        $this->call(DepartmentStaffSeeder::class);
         $this->call(PatientSeeder::class);
+        $this->call(AdditionalDemoDataSeeder::class);
         $this->call(ClinicalSeeder::class);
     }
 }

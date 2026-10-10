@@ -162,10 +162,10 @@ class LabReferralController extends Controller
         $matches = Patient::query()
             ->where(function ($q) use ($term) {
                 foreach (preg_split('/\s+/', $term) as $part) {
-                    $q->where(fn ($w) => $w->where('first_name', 'like', "%{$part}%")
-                                           ->orWhere('last_name', 'like', "%{$part}%")
-                                           ->orWhere('hospital_number', 'like', "%{$part}%")
-                                           ->orWhere('phone', 'like', "%{$part}%"));
+                    $q->where(fn ($w) => $w->whereLike('first_name', "%{$part}%")
+                                           ->orWhereLike('last_name', "%{$part}%")
+                                           ->orWhereLike('hospital_number', "%{$part}%")
+                                           ->orWhereLike('phone', "%{$part}%"));
                 }
             })
             ->orderBy('last_name')

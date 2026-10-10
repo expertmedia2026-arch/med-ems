@@ -50,10 +50,10 @@ class Patient extends Model
     public function scopeSearch($query, ?string $term)
     {
         return $query->when($term, fn ($q) => $q->where(function ($q) use ($term) {
-            $q->where('first_name', 'like', "%{$term}%")
-                ->orWhere('last_name', 'like', "%{$term}%")
-                ->orWhere('hospital_number', 'like', "%{$term}%")
-                ->orWhere('phone', 'like', "%{$term}%");
+            $q->whereLike('first_name', "%{$term}%")
+                ->orWhereLike('last_name', "%{$term}%")
+                ->orWhereLike('hospital_number', "%{$term}%")
+                ->orWhereLike('phone', "%{$term}%");
         }));
     }
 

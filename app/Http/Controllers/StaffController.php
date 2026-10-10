@@ -19,7 +19,7 @@ class StaffController extends Controller
             ->where('role', '!=', Role::Patient->value)
             ->when($request->filled('q'), function ($q) use ($request) {
                 $term = $request->query('q');
-                $q->where(fn ($q) => $q->where('name', 'like', "%{$term}%")->orWhere('email', 'like', "%{$term}%"));
+                $q->where(fn ($q) => $q->whereLike('name', "%{$term}%")->orWhereLike('email', "%{$term}%"));
             })
             ->when($request->filled('role'), fn ($q) => $q->where('role', $request->query('role')))
             ->when($request->filled('department_id'), fn ($q) => $q->where('department_id', $request->query('department_id')))

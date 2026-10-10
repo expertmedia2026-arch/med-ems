@@ -105,8 +105,8 @@ class PharmacyController extends Controller
         $drugs = Drug::query()
             ->when($request->filled('q'), function ($q) use ($request) {
                 $term = $request->query('q');
-                $q->where(fn ($q) => $q->where('name', 'like', "%{$term}%")
-                                       ->orWhere('generic_name', 'like', "%{$term}%"));
+                $q->where(fn ($q) => $q->whereLike('name', "%{$term}%")
+                                       ->orWhereLike('generic_name', "%{$term}%"));
             })
             ->when($request->boolean('low'), fn ($q) => $q->lowStock())
             ->orderBy('name')

@@ -29,10 +29,10 @@ class LabController extends Controller
                     foreach (preg_split('/\s+/', $term) as $word) {
                         $patientQuery->where(function ($identityQuery) use ($word) {
                             $identityQuery
-                                ->where('hospital_number', 'like', "%{$word}%")
-                                ->orWhere('phone', 'like', "%{$word}%")
-                                ->orWhere('first_name', 'like', "%{$word}%")
-                                ->orWhere('last_name', 'like', "%{$word}%");
+                                ->whereLike('hospital_number', "%{$word}%")
+                                ->orWhereLike('phone', "%{$word}%")
+                                ->orWhereLike('first_name', "%{$word}%")
+                                ->orWhereLike('last_name', "%{$word}%");
                         });
                     }
                 });
