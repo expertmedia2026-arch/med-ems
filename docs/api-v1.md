@@ -13,7 +13,18 @@ Authorization: Bearer <token>
 Accept: application/json
 ```
 
-`device_name` is a token label only. If omitted, it defaults to `mobile-app`. Validation errors use Laravel's JSON `message` and `errors` response. Unauthenticated requests return 401; users without the required role return 403. Paginated endpoints return Laravel pagination metadata and use a default page size of 10 or the existing feature pagination size.
+`device_name` is a token label only. If omitted, it defaults to `mobile-app`. All JSON responses use this envelope:
+
+```json
+{
+  "success": true,
+  "message": "Request completed successfully.",
+  "data": {},
+  "errors": null
+}
+```
+
+On errors, `success` is `false` and `data` is `null`; validation details are returned in `errors` by field. HTTP status codes remain meaningful (for example, 401 unauthenticated, 403 forbidden, 404 not found, and 422 validation/business-rule errors). Successful deletes return HTTP 200 with the envelope. Paginated endpoints include their items and pagination links/metadata under `data`; page sizes remain 10 or the existing feature pagination size. Attachment endpoints return the requested file directly.
 
 ## Public authentication and account access
 
