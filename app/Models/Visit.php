@@ -3,12 +3,11 @@
 namespace App\Models;
 
 use App\Enums\VisitStatus;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use App\Models\User;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Visit extends Model
 {
@@ -17,10 +16,10 @@ class Visit extends Model
     protected function casts(): array
     {
         return [
-            'status'        => VisitStatus::class,
+            'status' => VisitStatus::class,
             'checked_in_at' => 'datetime',
-            'consulted_at'  => 'datetime',
-            'closed_at'     => 'datetime',
+            'consulted_at' => 'datetime',
+            'closed_at' => 'datetime',
         ];
     }
 
@@ -47,6 +46,16 @@ class Visit extends Model
     public function doctor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'doctor_id');
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function consultationType(): BelongsTo
+    {
+        return $this->belongsTo(ConsultationType::class);
     }
 
     public function vitals(): HasOne
@@ -84,10 +93,8 @@ class Visit extends Model
         });
     }
 
-
     public function isLabOnly(): bool
     {
         return $this->type === 'lab_only';
     }
-
 }

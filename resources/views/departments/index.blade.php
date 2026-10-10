@@ -12,6 +12,7 @@
                 <tr>
                     <th class="px-4 py-3">Department</th>
                     <th class="px-4 py-3">Staff</th>
+                    <th class="px-4 py-3">Consultation types</th>
                     <th class="px-4 py-3"></th>
                 </tr>
             </thead>
@@ -24,6 +25,7 @@
                                 <span class="mt-1 block text-xs text-slate-500">{{ $department->description }}</span>
                             @endif
                         </td>
+                        <td class="px-4 py-3">{{ $department->consultation_types_count }}</td>
                         <td class="px-4 py-3">
                             <span>{{ $department->users_count }} assigned</span>
                             @if ($department->staff_invitations_count)
@@ -33,20 +35,20 @@
                         <td class="px-4 py-3">
                             <div class="flex justify-end gap-4">
                                 <a href="{{ route('departments.edit', $department) }}" class="text-teal-700 hover:underline">Edit</a>
-                                @if ($department->users_count === 0 && $department->staff_invitations_count === 0)
+                                @if ($department->users_count === 0 && $department->staff_invitations_count === 0 && $department->consultation_types_count === 0)
                                     <form method="POST" action="{{ route('departments.destroy', $department) }}" onsubmit="return confirm('Delete this department?')">
                                         @csrf
                                         @method('DELETE')
                                         <button class="text-red-600 hover:underline">Delete</button>
                                     </form>
                                 @else
-                                    <span class="cursor-not-allowed text-slate-300" title="Remove staff and pending invitations first">Delete</span>
+                                    <span class="cursor-not-allowed text-slate-300" title="Remove staff assignments, pending invitations, and consultation types first">Delete</span>
                                 @endif
                             </div>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="3" class="px-4 py-10 text-center text-slate-500">No departments added yet.</td></tr>
+                    <tr><td colspan="4" class="px-4 py-10 text-center text-slate-500">No departments added yet.</td></tr>
                 @endforelse
             </tbody>
         </table>

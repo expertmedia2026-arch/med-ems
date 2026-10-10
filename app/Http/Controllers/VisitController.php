@@ -6,6 +6,7 @@ use App\Enums\AppointmentStatus;
 use App\Enums\Role;
 use App\Enums\VisitStatus;
 use App\Models\Appointment;
+use App\Models\ConsultationType;
 use App\Models\Patient;
 use App\Services\BillingService;
 use Illuminate\Http\Request;
@@ -23,15 +24,28 @@ class VisitController extends Controller
 
         $data = $request->validate([
             'complaint' => ['nullable', 'string', 'max:500'],
-            'doctor_id' => ['nullable', Rule::exists('users', 'id')->where('role', Role::Doctor->value)],
+            'department_id' => ['required', 'integer', 'exists:departments,id'],
+            'consultation_type_id' => [
+                'required', 'integer',
+                Rule::exists('consultation_types', 'id')
+                    ->where('department_id', $request->input('department_id'))
+                    ->where('is_active', true),
+            ],
+            'doctor_id' => [
+                'nullable',
+                Rule::exists('users', 'id')->where('role', Role::Doctor->value)
+                    ->where('is_active', true)
+                    ->where('department_id', $request->input('department_id')),
+            ],
         ]);
 
+        $consultationType = ConsultationType::findOrFail($data['consultation_type_id']);
         $visit = $patient->visits()->create($data);
         $billing->invoiceFor($visit);
 
         return redirect()
             ->route('patients.show', $patient)
-            ->with('success', 'Patient checked in. Send them to the cashier to pay the consultation fee (₦' . number_format(config('hms.consultation_fee')) . '), then to triage.');
+            ->with('success', 'Patient checked in for '.$consultationType->name.'. Send them to the cashier to pay ₦'.number_format((float) $consultationType->price, 2).', then to triage.');
     }
 
     /** Appointment: check in and link the visit to the booking. */
@@ -50,14 +64,14 @@ class VisitController extends Controller
             DB::transaction(function () use ($appointment, $tests, $request, $billing) {
                 $visit = $appointment->patient->visits()->create([
                     'appointment_id' => $appointment->id,
-                    'type'           => 'lab_only',
-                    'status'         => VisitStatus::LabOnly,
-                    'complaint'      => $appointment->reason,
+                    'type' => 'lab_only',
+                    'status' => VisitStatus::LabOnly,
+                    'complaint' => $appointment->reason,
                 ]);
 
                 foreach ($tests as $test) {
                     $visit->labRequests()->create([
-                        'lab_test_id'  => $test->id,
+                        'lab_test_id' => $test->id,
                         'requested_by' => $request->user()->id,
                     ]);
                 }
@@ -75,11 +89,31 @@ class VisitController extends Controller
             return back()->with('error', 'This patient already has an active visit.');
         }
 
-        DB::transaction(function () use ($appointment, $billing) {
+        $appointment->loadMissing('doctor');
+        $departmentId = $appointment->doctor?->department_id;
+
+        if (! $departmentId) {
+            return back()->with('error', 'Assign this doctor to a department before checking in the appointment.');
+        }
+
+        $data = $request->validate([
+            'consultation_type_id' => [
+                'required', 'integer',
+                Rule::exists('consultation_types', 'id')
+                    ->where('department_id', $departmentId)
+                    ->where('is_active', true),
+            ],
+        ]);
+
+        $consultationType = ConsultationType::findOrFail($data['consultation_type_id']);
+
+        DB::transaction(function () use ($appointment, $billing, $consultationType, $departmentId) {
             $visit = $appointment->patient->visits()->create([
                 'appointment_id' => $appointment->id,
-                'doctor_id'      => $appointment->doctor_id,
-                'complaint'      => $appointment->reason,
+                'doctor_id' => $appointment->doctor_id,
+                'department_id' => $departmentId,
+                'consultation_type_id' => $consultationType->id,
+                'complaint' => $appointment->reason,
             ]);
 
             $appointment->update(['status' => AppointmentStatus::CheckedIn]);
@@ -87,6 +121,6 @@ class VisitController extends Controller
             $billing->invoiceFor($visit);
         });
 
-        return back()->with('success', "{$appointment->patient->full_name} checked in. Send them to the cashier to pay the consultation fee, then to triage.");
+        return back()->with('success', "{$appointment->patient->full_name} checked in for {$consultationType->name}. Send them to the cashier to pay ₦".number_format((float) $consultationType->price, 2).', then to triage.');
     }
 }

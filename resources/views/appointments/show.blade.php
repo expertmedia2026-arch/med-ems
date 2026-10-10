@@ -14,8 +14,11 @@
 
             <dl class="mt-6 grid gap-4 text-sm sm:grid-cols-2">
                 <div>
-                    <dt class="text-slate-500">Date and time</dt>
-                    <dd class="font-medium">{{ $appointment->scheduled_at->format('d M Y, g:i A') }}</dd>
+                    <dt class="text-slate-500">{{ $appointment->isLab() ? 'Date and time' : 'Appointment date' }}</dt>
+                    <dd class="font-medium">
+                        {{ $appointment->isLab() ? $appointment->scheduled_at->format('d M Y, g:i A') : $appointment->scheduled_at->format('d M Y') }}
+                        @unless ($appointment->isLab())<span class="block text-xs font-normal text-slate-500">Patients are seen in the order they arrive.</span>@endunless
+                    </dd>
                 </div>
                 <div>
                     <dt class="text-slate-500">{{ $appointment->isLab() ? 'Appointment type' : 'Doctor' }}</dt>

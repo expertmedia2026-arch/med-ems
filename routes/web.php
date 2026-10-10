@@ -3,8 +3,10 @@
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ConsultationController;
+use App\Http\Controllers\ConsultationTypeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DoctorAvailabilityController;
 use App\Http\Controllers\DrugController;
 use App\Http\Controllers\InvitationAcceptController;
 use App\Http\Controllers\LabAttachmentController;
@@ -81,9 +83,16 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    Route::middleware('role:doctor')->prefix('doctor')->name('doctor.')->group(function () {
+        Route::get('availability', [DoctorAvailabilityController::class, 'index'])->name('availability.index');
+        Route::post('availability', [DoctorAvailabilityController::class, 'store'])->name('availability.store');
+        Route::delete('availability/{doctorAvailability}', [DoctorAvailabilityController::class, 'destroy'])->name('availability.destroy');
+    });
+
     // Admin: staff management and hospital settings
     Route::middleware('role:admin')->group(function () {
         Route::resource('departments', DepartmentController::class)->except('show');
+        Route::resource('consultation-types', ConsultationTypeController::class)->except(['show', 'destroy']);
 
         Route::prefix('staff')->name('staff.')->group(function () {
             Route::get('/', [StaffController::class, 'index'])->name('index');

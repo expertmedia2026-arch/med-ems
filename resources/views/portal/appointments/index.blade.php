@@ -14,13 +14,13 @@
             <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-5 shadow-sm">
                 <div>
                     <p class="font-semibold">{{ $appt->scheduled_at->format('l, d M Y') }}
-                        <span class="font-normal text-teal-700">· {{ $appt->scheduled_at->format('g:i A') }}</span>
+                        @if ($appt->isLab())<span class="font-normal text-teal-700">· {{ $appt->scheduled_at->format('g:i A') }}</span>@endif
                     </p>
                     <p class="mt-1 text-sm text-slate-500">
                         @if ($appt->isLab())
                             Lab test: {{ $appt->labTests->pluck('name')->join(', ') ?: '—' }}
                         @else
-                            {{ $appt->doctor?->name }}{{ $appt->reason ? ' · ' . $appt->reason : '' }}
+                            {{ $appt->doctor?->name }} · First come, first served{{ $appt->reason ? ' · ' . $appt->reason : '' }}
                         @endif
                     </p>
                 </div>
@@ -36,7 +36,7 @@
         @endforelse
 
         @if ($upcoming->isNotEmpty())
-            <p class="text-xs text-slate-400">Please arrive a few minutes early and check in at the front desk. Fees are paid at the cashier.</p>
+            <p class="text-xs text-slate-400">For doctor appointments, arrive early and check in at the front desk; patients are seen in arrival order. Lab appointments have a reserved time. Fees are paid at the cashier.</p>
         @endif
     </div>
 
@@ -46,7 +46,7 @@
             @forelse ($past as $appt)
                 <li class="flex items-center justify-between px-5 py-3">
                     <div>
-                        <p class="font-medium">{{ $appt->scheduled_at->format('d M Y, g:i A') }}</p>
+                        <p class="font-medium">{{ $appt->isLab() ? $appt->scheduled_at->format('d M Y, g:i A') : $appt->scheduled_at->format('d M Y') }}</p>
                         <p class="text-slate-500">
                             {{ $appt->isLab() ? 'Lab test: ' . $appt->labTests->pluck('name')->join(', ') : ($appt->doctor?->name ?? '') }}
                         </p>

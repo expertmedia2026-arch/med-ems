@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Role;
+use App\Models\ConsultationType;
+use App\Models\Department;
 use App\Models\HospitalSetting;
 use App\Models\Patient;
 use App\Models\User;
@@ -60,14 +62,17 @@ class PatientController extends Controller
     public function show(Patient $patient)
     {
         $patient->load([
-            'visits' => fn ($q) => $q->latest('checked_in_at')->with('doctor'),
+            'visits' => fn ($q) => $q->latest('checked_in_at')->with(['doctor', 'consultationType.department']),
             'appointments' => fn ($q) => $q->latest('scheduled_at')->with('doctor'),
         ]);
 
         return view('patients.show', [
             'patient' => $patient,
             'activeVisit' => $patient->currentVisit(),
-            'doctors' => User::ofRole(Role::Doctor)->orderBy('name')->get(),
+            'doctors' => User::ofRole(Role::Doctor)->where('is_active', true)->with('department')->orderBy('name')->get(),
+            'departments' => Department::whereHas('consultationTypes', fn ($query) => $query->active())
+                ->orderBy('name')->get(),
+            'consultationTypes' => ConsultationType::active()->orderBy('name')->get(),
             'portalUser' => User::where('patient_id', $patient->id)->first(),
             'pendingInvite' => $patient->invitations()->pending()->latest()->first(),
         ]);

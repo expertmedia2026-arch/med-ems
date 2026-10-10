@@ -16,6 +16,7 @@ class DepartmentController extends Controller
         $departments = Department::withCount([
             'users' => fn ($query) => $query->where('role', '!=', Role::Patient->value),
             'staffInvitations' => fn ($query) => $query->pending(),
+            'consultationTypes',
         ])->orderBy('name')->paginate(15);
 
         return view('departments.index', compact('departments'));
@@ -57,8 +58,8 @@ class DepartmentController extends Controller
 
     public function destroy(Department $department): RedirectResponse
     {
-        if ($department->users()->exists() || $department->staffInvitations()->pending()->exists()) {
-            return back()->with('error', 'Remove staff assignments and pending invitations before deleting this department.');
+        if ($department->users()->exists() || $department->staffInvitations()->pending()->exists() || $department->consultationTypes()->exists()) {
+            return back()->with('error', 'Remove staff assignments, pending invitations, and consultation types before deleting this department.');
         }
 
         $department->delete();

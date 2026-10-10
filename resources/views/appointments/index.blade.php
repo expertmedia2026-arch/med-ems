@@ -35,7 +35,7 @@
         <table class="min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                    <th class="px-4 py-3">Time</th>
+                    <th class="px-4 py-3">Schedule</th>
                     <th class="px-4 py-3">Patient</th>
                     <th class="px-4 py-3">Doctor / Service</th>
                     <th class="px-4 py-3">Reason / Tests</th>
@@ -46,7 +46,14 @@
             <tbody class="divide-y divide-slate-100">
                 @forelse ($appointments as $appt)
                     <tr>
-                        <td class="px-4 py-3 font-medium">{{ $appt->scheduled_at->format('g:i A') }}</td>
+                        <td class="px-4 py-3 font-medium">
+                            @if ($appt->isLab())
+                                {{ $appt->scheduled_at->format('g:i A') }}
+                            @else
+                                <span class="text-slate-600">Date only</span>
+                                <span class="block text-xs font-normal text-slate-400">Served in arrival order</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3">
                             <a href="{{ route('patients.show', $appt->patient) }}" class="font-medium text-teal-800 hover:underline">
                                 {{ $appt->patient->full_name }}
@@ -72,10 +79,27 @@
                         <td class="px-4 py-3">
                             @if ($frontDesk && $appt->status->value === 'scheduled')
                                 <div class="flex justify-end gap-3">
-                                    <form method="POST" action="{{ route('appointments.check-in', $appt) }}">
-                                        @csrf
-                                        <button class="rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-800">Check in</button>
-                                    </form>
+                                    @php($departmentTypes = $consultationTypesByDepartment->get($appt->doctor?->department_id, collect()))
+                                    @if ($appt->isLab())
+                                        <form method="POST" action="{{ route('appointments.check-in', $appt) }}">
+                                            @csrf
+                                            <button class="rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-800">Check in</button>
+                                        </form>
+                                    @elseif ($departmentTypes->isNotEmpty())
+                                        <form method="POST" action="{{ route('appointments.check-in', $appt) }}" class="flex items-center gap-2">
+                                            @csrf
+                                            <label class="sr-only" for="consultation_type_{{ $appt->id }}">Consultation type</label>
+                                            <select id="consultation_type_{{ $appt->id }}" name="consultation_type_id" required class="rounded-lg border-slate-300 py-1.5 text-xs shadow-sm focus:border-teal-600 focus:ring-teal-600">
+                                                <option value="">Select charge…</option>
+                                                @foreach ($departmentTypes as $consultationType)
+                                                    <option value="{{ $consultationType->id }}">{{ $consultationType->name }} · ₦{{ number_format((float) $consultationType->price, 2) }}</option>
+                                                @endforeach
+                                            </select>
+                                            <button class="rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-800">Check in</button>
+                                        </form>
+                                    @else
+                                        <span class="text-xs text-amber-700" title="Add an active consultation type in admin pricing">No consultation price set</span>
+                                    @endif
                                     <form method="POST" action="{{ route('appointments.cancel', $appt) }}"
                                           onsubmit="return confirm('Cancel this appointment?')">
                                         @csrf

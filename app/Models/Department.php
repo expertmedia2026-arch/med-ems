@@ -14,6 +14,11 @@ class Department extends Model
         return $this->hasMany(User::class);
     }
 
+    public function consultationTypes(): HasMany
+    {
+        return $this->hasMany(ConsultationType::class);
+    }
+
     public function staffInvitations(): HasMany
     {
         return $this->hasMany(StaffInvitation::class);

@@ -54,10 +54,13 @@
                     
                     @if ($activeVisit->status->value === 'waiting_triage' && ! $activeVisit->consultation_paid)
                         <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                            Consultation fee not paid yet. Send the patient to the cashier.
+                            Consultation charge not paid yet. Send the patient to the cashier.
                         </p>
                     @endif
 
+                    @if ($activeVisit->consultationType)
+                        <p class="mt-2 text-sm text-slate-600">{{ $activeVisit->consultationType->department->name }} · {{ $activeVisit->consultationType->name }}</p>
+                    @endif
 
                     <p class="mt-3 text-sm">Checked in {{ $activeVisit->checked_in_at->diffForHumans() }}</p>
                     @if ($activeVisit->complaint)
@@ -69,21 +72,78 @@
                     @csrf
                     <p class="font-semibold">Walk-in check-in</p>
 
-                    <label class="mt-3 block text-sm text-slate-600">Complaint</label>
-                    <input name="complaint" type="text" placeholder="e.g. Fever, headache" class="{{ $input }}">
-
-                    <label class="mt-3 block text-sm text-slate-600">Doctor (optional)</label>
-                    <select name="doctor_id" class="{{ $input }}">
-                        <option value="">Any available doctor</option>
-                        @foreach ($doctors as $doctor)
-                            <option value="{{ $doctor->id }}">{{ $doctor->name }}</option>
+                    <label for="department_id" class="mt-3 block text-sm text-slate-600">Department</label>
+                    <select id="department_id" name="department_id" required class="{{ $input }}">
+                        <option value="">Select department…</option>
+                        @foreach ($departments as $department)
+                            <option value="{{ $department->id }}" @selected(old('department_id') == $department->id)>{{ $department->name }}</option>
                         @endforeach
                     </select>
+                    @error('department_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+
+                    <label for="consultation_type_id" class="mt-3 block text-sm text-slate-600">Consultation type</label>
+                    <select id="consultation_type_id" name="consultation_type_id" required class="{{ $input }}">
+                        <option value="">Select a department first…</option>
+                        @foreach ($consultationTypes as $consultationType)
+                            <option value="{{ $consultationType->id }}" data-department="{{ $consultationType->department_id }}" data-price="{{ $consultationType->price }}" @selected(old('consultation_type_id') == $consultationType->id)>
+                                {{ $consultationType->name }} · ₦{{ number_format((float) $consultationType->price, 2) }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <p id="consultation_price" class="mt-1 text-xs text-slate-500">Choose the consultation type to see its price.</p>
+                    @error('consultation_type_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+
+                    <label class="mt-3 block text-sm text-slate-600">Complaint</label>
+                    <input name="complaint" type="text" value="{{ old('complaint') }}" placeholder="e.g. Fever, headache" class="{{ $input }}">
+
+                    <label for="doctor_id" class="mt-3 block text-sm text-slate-600">Doctor (optional)</label>
+                    <select id="doctor_id" name="doctor_id" class="{{ $input }}">
+                        <option value="">Any available doctor in this department</option>
+                        @foreach ($doctors as $doctor)
+                            <option value="{{ $doctor->id }}" data-department="{{ $doctor->department_id }}" @selected(old('doctor_id') == $doctor->id)>{{ $doctor->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('doctor_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
 
                     <button class="mt-4 w-full rounded-lg bg-teal-700 py-2.5 text-sm font-medium text-white hover:bg-teal-800">
                         Check in patient
                     </button>
                 </form>
+                <script>
+                    (() => {
+                        const department = document.getElementById('department_id');
+                        const type = document.getElementById('consultation_type_id');
+                        const doctor = document.getElementById('doctor_id');
+                        const price = document.getElementById('consultation_price');
+                        const selectedType = @js(old('consultation_type_id'));
+                        const selectedDoctor = @js(old('doctor_id'));
+
+                        const filterOptions = (select, selected = '') => {
+                            [...select.options].slice(1).forEach((option) => {
+                                option.hidden = option.dataset.department !== department.value;
+                            });
+                            const valid = [...select.options].find((option) => option.value === String(selected) && !option.hidden);
+                            select.value = valid ? selected : '';
+                        };
+
+                        const updatePrice = () => {
+                            const option = type.selectedOptions[0];
+                            price.textContent = option?.dataset.price
+                                ? `Consultation charge: ₦${Number(option.dataset.price).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+                                : 'Choose the consultation type to see its price.';
+                        };
+
+                        const updateDepartment = (oldType = '', oldDoctor = '') => {
+                            filterOptions(type, oldType);
+                            filterOptions(doctor, oldDoctor);
+                            updatePrice();
+                        };
+
+                        department.addEventListener('change', () => updateDepartment());
+                        type.addEventListener('change', updatePrice);
+                        updateDepartment(selectedType, selectedDoctor);
+                    })();
+                </script>
             @endif
 
             @if ($frontDesk)
@@ -176,7 +236,14 @@
                     <li class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                         <div>
                             <p class="font-medium">{{ $visit->checked_in_at->format('d M Y, g:i A') }}</p>
-                            <p class="text-slate-500">{{ $visit->doctor?->name ?? 'No doctor assigned' }}{{ $visit->diagnosis ? ' · ' . $visit->diagnosis : '' }}</p>
+                            <p class="text-slate-500">
+                                @if ($visit->consultationType)
+                                    {{ $visit->consultationType->department->name }} · {{ $visit->consultationType->name }}
+                                @else
+                                    {{ $visit->doctor?->name ?? 'No doctor assigned' }}
+                                @endif
+                                {{ $visit->diagnosis ? ' · ' . $visit->diagnosis : '' }}
+                            </p>
                         </div>
                         <div class="flex items-center gap-3">
                             <x-badge :color="$visit->status->color()">{{ $visit->status->label() }}</x-badge>
@@ -197,7 +264,7 @@
                 @forelse ($patient->appointments as $appt)
                     <li class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                         <div>
-                            <p class="font-medium">{{ $appt->scheduled_at->format('d M Y, g:i A') }}</p>
+                            <p class="font-medium">{{ $appt->isLab() ? $appt->scheduled_at->format('d M Y, g:i A') : $appt->scheduled_at->format('d M Y') }}</p>
                             <p class="text-slate-500">{{ $appt->isLab() ? 'Lab test' : $appt->doctor?->name }}{{ $appt->reason ? ' · ' . $appt->reason : '' }}</p>
                         </div>
                         <div class="flex items-center gap-3">

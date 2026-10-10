@@ -96,6 +96,6 @@ class TriageController extends Controller
     {
         return redirect()
             ->route('triage.index')
-            ->with('error', 'The consultation fee has not been paid. Please send the patient to the cashier first.');
+            ->with('error', 'The selected consultation charge has not been paid. Please send the patient to the cashier first.');
     }
 }

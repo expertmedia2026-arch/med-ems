@@ -19,7 +19,7 @@
         <div class="rounded-xl border bg-white p-5 shadow-sm">
             <p class="text-sm text-slate-500">Next appointment</p>
             @if ($nextAppointment)
-                <p class="mt-2 text-xl font-bold text-teal-800">{{ $nextAppointment->scheduled_at->format('D, d M · g:i A') }}</p>
+                <p class="mt-2 text-xl font-bold text-teal-800">{{ $nextAppointment->isLab() ? $nextAppointment->scheduled_at->format('D, d M · g:i A') : $nextAppointment->scheduled_at->format('D, d M') }}</p>
                 <p class="mt-1 text-xs text-slate-500">{{ $nextAppointment->doctor?->name ?? 'Laboratory visit' }}</p>
             @else
                 <p class="mt-2 text-sm text-slate-500">Nothing booked.</p>

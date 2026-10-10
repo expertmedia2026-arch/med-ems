@@ -23,16 +23,25 @@
         <form method="GET" action="{{ route('portal.appointments.create') }}" class="rounded-xl border bg-white p-6 shadow-sm">
             <input type="hidden" name="type" value="{{ $type }}">
 
-            <h2 class="font-semibold">1. Choose {{ $isLab ? 'a date' : 'a doctor and a date' }}</h2>
+            <h2 class="font-semibold">1. Choose {{ $isLab ? 'a date' : 'a department, doctor and date' }}</h2>
 
-            <div class="mt-4 grid gap-5 {{ $isLab ? '' : 'sm:grid-cols-2' }}">
+            <div class="mt-4 grid gap-5 {{ $isLab ? '' : 'sm:grid-cols-3' }}">
                 @unless ($isLab)
+                    <div>
+                        <label for="department_id" class="{{ $label }}">Department</label>
+                        <select id="department_id" name="department_id" required class="{{ $input }}">
+                            <option value="">Select department…</option>
+                            @foreach ($departments as $department)
+                                <option value="{{ $department->id }}" @selected($departmentId === $department->id)>{{ $department->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <div>
                         <label for="doctor_id" class="{{ $label }}">Doctor</label>
                         <select id="doctor_id" name="doctor_id" required class="{{ $input }}">
-                            <option value="">Select doctor…</option>
+                            <option value="">Select a department first…</option>
                             @foreach ($doctors as $doctor)
-                                <option value="{{ $doctor->id }}" @selected($doctorId === $doctor->id)>{{ $doctor->name }}</option>
+                                <option value="{{ $doctor->id }}" data-department="{{ $doctor->department_id }}" @selected($doctorId === $doctor->id)>{{ $doctor->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -40,19 +49,94 @@
 
                 <div>
                     <label for="date" class="{{ $label }}">Date</label>
-                    <input id="date" name="date" type="date" required value="{{ $date?->toDateString() }}"
-                           min="{{ now()->toDateString() }}" max="{{ $maxDate }}" class="{{ $input }}">
+                    @if ($isLab)
+                        <input id="date" name="date" type="date" required value="{{ $date?->toDateString() }}"
+                               min="{{ now()->toDateString() }}" max="{{ $maxDate }}" class="{{ $input }}">
+                    @else
+                        <select id="date" name="date" required class="{{ $input }}">
+                            <option value="">Choose a doctor first…</option>
+                        </select>
+                        <p id="availability_note" class="mt-1 text-xs text-slate-500">Choose a doctor to see available dates.</p>
+                    @endif
                 </div>
             </div>
 
             @error('date')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
 
             <button class="mt-5 rounded-lg border border-teal-700 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">
-                Show available times
+                {{ $isLab ? 'Show available times' : 'Continue' }}
             </button>
         </form>
 
-        {{-- Step 2 --}}
+        @unless ($isLab)
+            <script>
+                (() => {
+                    const datesByDoctor = @js($availabilityByDoctor);
+                    const departmentSelect = document.getElementById('department_id');
+                    const doctorSelect = document.getElementById('doctor_id');
+                    const dateSelect = document.getElementById('date');
+                    const note = document.getElementById('availability_note');
+                    const previousDate = @js($date?->toDateString());
+
+                    const previousDoctor = @js($doctorId);
+                    const populateDoctors = (selectedDoctor = '') => {
+                        [...doctorSelect.options].slice(1).forEach((option) => {
+                            option.hidden = option.dataset.department !== departmentSelect.value;
+                        });
+                        const selectedOption = [...doctorSelect.options].find((option) => option.value === String(selectedDoctor) && !option.hidden);
+                        doctorSelect.value = selectedOption ? selectedDoctor : '';
+                        populateDates();
+                    };
+
+                    const populateDates = (selectedDate = '') => {
+                        const dates = datesByDoctor[doctorSelect.value] ?? [];
+                        dateSelect.replaceChildren(new Option(dates.length ? 'Choose an available date…' : 'No available dates', ''));
+
+                        dates.forEach((date) => {
+                            const label = new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
+                                weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
+                            });
+                            dateSelect.add(new Option(label, date, false, date === selectedDate));
+                        });
+
+                        note.textContent = dates.length
+                            ? 'Choose a date the doctor has marked as available.'
+                            : 'This doctor has not marked any upcoming dates as available.';
+                    };
+
+                    departmentSelect.addEventListener('change', () => populateDoctors());
+                    doctorSelect.addEventListener('change', () => populateDates());
+                    populateDoctors(previousDoctor);
+                    populateDates(previousDate);
+                })();
+            </script>
+        @endunless
+
+        @if (! $isLab && $date && $doctorId && $departmentId)
+            <form method="POST" action="{{ route('portal.appointments.store') }}" class="rounded-xl border bg-white p-6 shadow-sm">
+                @csrf
+                <input type="hidden" name="type" value="consultation">
+                <input type="hidden" name="department_id" value="{{ $departmentId }}">
+                <input type="hidden" name="doctor_id" value="{{ $doctorId }}">
+                <input type="hidden" name="appointment_date" value="{{ $date->toDateString() }}">
+
+                <h2 class="font-semibold">2. Confirm your booking</h2>
+                <p class="mt-3 text-sm text-slate-600">{{ $doctors->firstWhere('id', $doctorId)?->name }} · {{ $departments->firstWhere('id', $departmentId)?->name }} · {{ $date->format('l, d F Y') }}</p>
+                <p class="mt-4 rounded-lg bg-teal-50 px-4 py-3 text-sm text-teal-900">This booking reserves a date only. There is no appointment time; patients are seen in the order they arrive at the hospital.</p>
+
+                <div class="mt-4">
+                    <label for="reason" class="{{ $label }}">Reason for the visit (optional)</label>
+                    <input id="reason" name="reason" type="text" value="{{ old('reason') }}" class="{{ $input }}">
+                </div>
+
+                @error('appointment_date')<p class="mt-3 text-sm text-red-600">{{ $message }}</p>@enderror
+                @error('doctor_id')<p class="mt-3 text-sm text-red-600">{{ $message }}</p>@enderror
+
+                <button class="mt-6 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800">Book appointment</button>
+            </form>
+        @endif
+
+        {{-- Lab bookings keep their timed slot flow. --}}
         @if ($slots !== null)
             <form method="POST" action="{{ route('portal.appointments.store') }}"
                   x-data="{

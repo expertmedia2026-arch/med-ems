@@ -2,36 +2,17 @@
 
 namespace App\Services;
 
+use App\Models\HospitalSetting;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\Patient;
 use App\Models\Visit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use App\Models\HospitalSetting;
-use App\Models\Patient;
 
 class BillingService
 {
-    /** Create the visit's invoice with the consultation fee (safe to call repeatedly). */
-    // public function invoiceFor(Visit $visit): Invoice
-    // {
-    //     $invoice = Invoice::firstOrCreate(
-    //         ['visit_id' => $visit->id],
-    //         ['patient_id' => $visit->patient_id]
-    //     );
-
-    //     if (! $invoice->items()->where('category', 'consultation')->exists()) {
-    //         $invoice->items()->create([
-    //             'category'    => 'consultation',
-    //             'description' => 'Doctor consultation',
-    //             'quantity'    => 1,
-    //             'unit_price'  => config('hms.consultation_fee'),
-    //         ]);
-    //     }
-
-    //     return $invoice;
-    // }
-
+    /** Create the visit's invoice with its selected consultation type, safely and only once. */
     public function invoiceFor(Visit $visit): Invoice
     {
         $invoice = Invoice::firstOrCreate(
@@ -40,12 +21,14 @@ class BillingService
         );
 
         // Referral (lab-only) patients pay for their tests only
-        if (! $visit->isLabOnly() && ! $invoice->items()->where('category', 'consultation')->exists()) {
+        if (! $visit->isLabOnly()
+            && $visit->consultationType
+            && ! $invoice->items()->where('category', 'consultation')->exists()) {
             $invoice->items()->create([
-                'category'    => 'consultation',
-                'description' => 'Doctor consultation',
-                'quantity'    => 1,
-                'unit_price'  => config('hms.consultation_fee'),
+                'category' => 'consultation',
+                'description' => $visit->consultationType->name,
+                'quantity' => 1,
+                'unit_price' => $visit->consultationType->price,
             ]);
         }
 
@@ -68,12 +51,12 @@ class BillingService
                 }
 
                 $invoice->items()->create([
-                    'category'      => 'lab',
-                    'description'   => $req->test->name,
-                    'quantity'      => 1,
-                    'unit_price'    => $req->test->price,
+                    'category' => 'lab',
+                    'description' => $req->test->name,
+                    'quantity' => 1,
+                    'unit_price' => $req->test->price,
                     'billable_type' => $req->getMorphClass(),
-                    'billable_id'   => $req->id,
+                    'billable_id' => $req->id,
                 ]);
             }
 
@@ -83,12 +66,12 @@ class BillingService
                 }
 
                 $invoice->items()->create([
-                    'category'      => 'drug',
-                    'description'   => $rx->drug->display_name,
-                    'quantity'      => $rx->quantity,
-                    'unit_price'    => $rx->drug->unit_price,
+                    'category' => 'drug',
+                    'description' => $rx->drug->display_name,
+                    'quantity' => $rx->quantity,
+                    'unit_price' => $rx->drug->unit_price,
                     'billable_type' => $rx->getMorphClass(),
-                    'billable_id'   => $rx->id,
+                    'billable_id' => $rx->id,
                 ]);
             }
 
@@ -119,9 +102,14 @@ class BillingService
     /** Authoritative check used by the triage gate. */
     public function consultationPaid(Visit $visit): bool
     {
-        $invoice = $this->invoiceFor($visit);
+        if ($visit->isLabOnly()) {
+            return true;
+        }
 
-        return $invoice->items()->where('category', 'consultation')->get()->every(fn ($item) => $item->is_paid);
+        $invoice = $this->invoiceFor($visit);
+        $items = $invoice->items()->where('category', 'consultation')->get();
+
+        return $items->isNotEmpty() && $items->every(fn ($item) => $item->is_paid);
     }
 
     /** Bill the one-time registration fee. Returns null when the fee is 0 (patient is marked registered). */
@@ -147,10 +135,10 @@ class BillingService
         $invoice = Invoice::create(['patient_id' => $patient->id]);
 
         $invoice->items()->create([
-            'category'    => 'registration',
+            'category' => 'registration',
             'description' => 'Registration fee',
-            'quantity'    => 1,
-            'unit_price'  => $fee,
+            'quantity' => 1,
+            'unit_price' => $fee,
         ]);
 
         return $invoice->fresh();
