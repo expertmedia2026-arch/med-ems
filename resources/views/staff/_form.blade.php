@@ -33,15 +33,15 @@
     </div>
 
     <div>
-        <label for="password" class="{{ $label }}">
+        <!-- <label for="password" class="{{ $label }}">
             {{ $staff ? 'New password (leave blank to keep current)' : 'Password' }}
-        </label>
-        <input  id="password" name="password" type="password" value="password" autocomplete="new-password" @required(! $staff) class="{{ $input }}">
+        </label> -->
+        <input  id="password" name="password" type="hidden" value="password" autocomplete="new-password" @required(! $staff) class="{{ $input }}">
         @error('password')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
 
     <div>
-        <label for="password_confirmation" class="{{ $label }}">Confirm password</label>
-        <input id="password_confirmation" name="password_confirmation" type="password"  value="password" autocomplete="new-password" @required(! $staff) class="{{ $input }}">
+        <!-- <label for="password_confirmation" class="{{ $label }}">Confirm password</label> -->
+        <input id="password_confirmation" name="password_confirmation" type="hidden"  value="password" autocomplete="new-password" @required(! $staff) class="{{ $input }}">
     </div>
 </div>

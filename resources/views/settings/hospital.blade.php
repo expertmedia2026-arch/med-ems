@@ -57,6 +57,32 @@
                 @error('registration_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
             </div>
 
+            <div class="sm:col-span-2 border-t pt-5">
+                <h2 class="font-semibold text-slate-800">Paystack payment gateway</h2>
+                <p class="mt-1 text-sm text-slate-500">Saved credentials are used for patient online payments. The secret key is encrypted and never displayed after saving.</p>
+            </div>
+
+            <div class="sm:col-span-2">
+                <label for="paystack_public_key" class="{{ $label }}">Paystack public key</label>
+                <input id="paystack_public_key" name="paystack_public_key" type="text" autocomplete="off"
+                       value="{{ old('paystack_public_key', $settings->paystack_public_key) }}" placeholder="pk_live_..." class="{{ $input }}">
+                @error('paystack_public_key')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div class="sm:col-span-2">
+                <label for="paystack_secret_key" class="{{ $label }}">Paystack secret key</label>
+                <input id="paystack_secret_key" name="paystack_secret_key" type="password" autocomplete="new-password"
+                       value="" placeholder="{{ filled($settings->paystack_secret_key) ? 'Saved securely; leave blank to keep current key' : 'sk_live_...' }}" class="{{ $input }}">
+                <p class="mt-1 text-xs text-slate-500">Leave blank to keep the saved key. The environment key remains a fallback if no key is saved here.</p>
+                @error('paystack_secret_key')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                @if (filled($settings->paystack_secret_key))
+                    <label class="mt-3 inline-flex items-center gap-2 text-sm text-red-700">
+                        <input type="checkbox" name="clear_paystack_secret_key" value="1" class="rounded border-slate-300 text-red-600 focus:ring-red-500">
+                        Clear saved secret key
+                    </label>
+                @endif
+            </div>
+
             <div class="sm:col-span-2">
                 <label for="logo" class="{{ $label }}">Logo</label>
 

@@ -14,9 +14,8 @@ class HospitalSetting extends Model
     protected function casts(): array
     {
         return [
-            
-            'registration_fee' => 'decimal:2'
-        
+            'registration_fee' => 'decimal:2',
+            'paystack_secret_key' => 'encrypted',
         ];
     }
 
@@ -28,6 +27,6 @@ class HospitalSetting extends Model
 
     protected function logoUrl(): Attribute
     {
-        return Attribute::get(fn () => $this->logo_path ? asset('storage/' . $this->logo_path) : null);
+        return Attribute::get(fn () => $this->logo_path ? asset('storage/'.$this->logo_path) : null);
     }
 }
