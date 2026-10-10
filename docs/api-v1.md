@@ -2,6 +2,8 @@
 
 Base path: `/api/v1`. Existing browser routes are unchanged.
 
+For role-based Postman requests covering every registered API endpoint, import the files in [docs/postman](postman/README.md).
+
 ## Authentication and response format
 
 Sign in with `POST /auth/login` using `email`, `password`, and optional `device_name`. The API returns a Sanctum bearer token. Send it on protected requests as:

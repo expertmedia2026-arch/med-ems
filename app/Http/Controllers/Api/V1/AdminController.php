@@ -107,7 +107,7 @@ class AdminController extends Controller
             'email' => $result['invitation']->email,
             'sent' => $result['sent'],
             'message' => $result['message'],
-            'invitation_url' => $result['link'],
+
         ];
     }
 
@@ -115,7 +115,7 @@ class AdminController extends Controller
     {
         $result = $invitations->resend($invitation, $request->user());
 
-        return ['sent' => $result['sent'], 'message' => $result['message'], 'invitation_url' => $result['link']];
+        return ['sent' => $result['sent'], 'message' => $result['message'], ];
     }
 
     public function revokeStaffInvitation(StaffInvitation $invitation, StaffInvitationService $invitations)

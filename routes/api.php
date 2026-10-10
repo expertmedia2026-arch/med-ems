@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\ReferenceDataController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function () {
+    // Public identity endpoints: login, password reset, and staff/patient invitation acceptance.
     Route::post('auth/login', [AuthController::class, 'store'])->middleware('throttle:api-login')->name('auth.login');
     Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:api-login')->name('auth.forgot-password');
     Route::post('auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:api-login')->name('auth.reset-password');
@@ -21,6 +22,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::post('auth/patient-invitations/{token}/accept', [AuthController::class, 'acceptPatientInvitation'])->name('auth.patient-invitations.accept');
 
     Route::middleware(['auth:sanctum', 'active'])->group(function () {
+        // Shared authenticated identity endpoints; logout revokes the current Sanctum token.
         Route::get('auth/me', [AuthController::class, 'show'])->name('auth.me');
         Route::delete('auth/logout', [AuthController::class, 'destroy'])->name('auth.logout');
 
@@ -30,6 +32,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::put('profile/password', [AccountController::class, 'updatePassword'])->name('profile.password');
         Route::delete('profile', [AccountController::class, 'destroy'])->name('profile.destroy');
 
+        // Patient-owned appointment booking and cancellation; staff use the /staff/appointments endpoints below.
         Route::get('appointments', [AppointmentController::class, 'index'])->name('appointments.index');
         Route::get('appointments/lab-options', [AppointmentController::class, 'labOptions'])->name('appointments.lab-options');
         Route::post('appointments', [AppointmentController::class, 'store'])->name('appointments.store');
@@ -37,6 +40,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             ->whereNumber('appointment')
             ->name('appointments.cancel');
 
+        // Patient portal reads are scoped to the authenticated patient's own record and files.
         Route::get('patient/profile', [PatientController::class, 'profile'])->name('patient.profile');
         Route::get('patient/visits', [PatientController::class, 'visits'])->name('patient.visits.index');
         Route::get('patient/visits/{visit}', [PatientController::class, 'showVisit'])
@@ -46,6 +50,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             ->whereNumber('attachment')
             ->name('patient.attachments.show');
 
+        // Shared lookup data used by registration, appointment booking, and clinical workflows.
         Route::get('departments', [ReferenceDataController::class, 'departments'])->name('departments.index');
         Route::get('departments/{department}/consultation-types', [ReferenceDataController::class, 'consultationTypes'])
             ->whereNumber('department')
@@ -55,17 +60,20 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             ->whereNumber('doctor')
             ->name('doctors.availability.index');
 
+        // Doctor-owned availability calendar management.
         Route::middleware('role:doctor')->prefix('doctor')->name('doctor.')->group(function () {
             Route::get('availability', [ReferenceDataController::class, 'myAvailability'])->name('availability.index');
             Route::post('availability', [ReferenceDataController::class, 'addAvailability'])->name('availability.store');
             Route::delete('availability/{doctorAvailability}', [ReferenceDataController::class, 'removeAvailability'])->whereNumber('doctorAvailability')->name('availability.destroy');
         });
 
+        // Staff patient directory: lookup/detail access for admin, reception, nursing, and doctors.
         Route::middleware('role:admin,receptionist,nurse,doctor')->prefix('staff')->name('staff.')->group(function () {
             Route::get('patients', [PatientController::class, 'index'])->name('patients.index');
             Route::get('patients/{patient}', [PatientController::class, 'staffShow'])->whereNumber('patient')->name('patients.show');
         });
 
+        // Reception and admin mutations: registration, walk-ins, patient cards, and appointment check-in.
         Route::middleware('role:admin,receptionist')->prefix('staff')->name('staff.')->group(function () {
             Route::post('patients', [PatientController::class, 'store'])->name('patients.store');
             Route::put('patients/{patient}', [PatientController::class, 'update'])->whereNumber('patient')->name('patients.update');
@@ -82,6 +90,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::middleware('role:doctor')->get('staff/appointments/{appointment}', [AppointmentController::class, 'staffShow'])
             ->whereNumber('appointment')->name('staff.appointments.show');
 
+        // Admin configuration: departments, consultation prices, staff accounts/invitations, and hospital settings.
         Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
             Route::get('departments', [AdminController::class, 'departments'])->name('departments.index');
             Route::post('departments', [AdminController::class, 'createDepartment'])->name('departments.store');
@@ -101,12 +110,14 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::put('hospital-settings', [AdminController::class, 'updateHospitalSettings'])->name('hospital-settings.update');
         });
 
+        // Triage queue and vitals capture; service rules lock vitals after consultation begins.
         Route::middleware('role:admin,nurse')->prefix('triage')->name('triage.')->group(function () {
             Route::get('queue', [ClinicalController::class, 'triageIndex'])->name('queue');
             Route::get('{visit}', [ClinicalController::class, 'triageShow'])->whereNumber('visit')->name('show');
             Route::put('{visit}/vitals', [ClinicalController::class, 'triageStore'])->whereNumber('visit')->name('vitals.update');
         });
 
+        // Doctor consultation workspace, including prescriptions and linked lab requests.
         Route::middleware('role:doctor')->prefix('consultations')->name('consultations.')->scopeBindings()->group(function () {
             Route::get('queue', [ClinicalController::class, 'consultationIndex'])->name('queue');
             Route::get('options', [ClinicalController::class, 'options'])->name('options');
@@ -121,6 +132,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::delete('{visit}/prescriptions/{prescription}', [ClinicalController::class, 'removePrescription'])->whereNumber('visit')->whereNumber('prescription')->name('prescriptions.destroy');
         });
 
+        // Lab reads and result reporting; doctors may read only results they are allowed to see.
         Route::middleware('role:admin,lab,doctor')->prefix('lab')->name('lab.')->group(function () {
             Route::get('requests', [LabOperationsController::class, 'index'])->name('requests.index');
             Route::get('requests/{labRequest}', [LabOperationsController::class, 'show'])->whereNumber('labRequest')->name('requests.show');
@@ -128,6 +140,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('attachments/{attachment}', [LabOperationsController::class, 'showAttachment'])->whereNumber('attachment')->name('attachments.show');
             Route::get('tests', [LabOperationsController::class, 'tests'])->name('tests.index');
         });
+        // Lab processing and catalogue mutations are restricted to lab staff and admins.
         Route::middleware('role:admin,lab')->prefix('lab')->name('lab.')->group(function () {
             Route::put('requests/{labRequest}', [LabOperationsController::class, 'update'])->whereNumber('labRequest')->name('requests.update');
             Route::post('requests/{labRequest}/result', [LabOperationsController::class, 'update'])->whereNumber('labRequest')->name('requests.result');
@@ -136,12 +149,14 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::put('tests/{labTest}', [LabOperationsController::class, 'updateTest'])->whereNumber('labTest')->name('tests.update');
             Route::patch('tests/{labTest}/toggle', [LabOperationsController::class, 'toggleTest'])->whereNumber('labTest')->name('tests.toggle');
         });
+        // Standalone external/walk-in lab orders: existing or new patient, without a consultation.
         Route::middleware('role:admin,receptionist,lab')->prefix('lab/referrals')->name('lab.referrals.')->group(function () {
             Route::get('form-options', [LabOperationsController::class, 'createReferralForm'])->name('options');
             Route::post('/', [LabOperationsController::class, 'createReferral'])->name('store');
             Route::delete('{visit}', [LabOperationsController::class, 'cancelReferral'])->whereNumber('visit')->name('destroy');
         });
 
+        // Pharmacy dispensing, inventory, restocking, and drug catalogue operations.
         Route::middleware('role:admin,pharmacist')->prefix('pharmacy')->name('pharmacy.')->group(function () {
             Route::get('dashboard', [PharmacyOperationsController::class, 'dashboard'])->name('dashboard');
             Route::get('inventory', [PharmacyOperationsController::class, 'inventory'])->name('inventory');
@@ -153,6 +168,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::patch('drugs/{drug}/toggle', [PharmacyOperationsController::class, 'toggleDrug'])->whereNumber('drug')->name('drugs.toggle');
         });
 
+        // Cashier/admin invoice browsing, payment collection, and receipts.
         Route::middleware('role:admin,cashier')->prefix('billing')->name('billing.')->group(function () {
             Route::get('invoices', [BillingOperationsController::class, 'index'])->name('invoices.index');
             Route::get('invoices/{invoice}', [BillingOperationsController::class, 'show'])->whereNumber('invoice')->name('invoices.show');
@@ -160,6 +176,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('payments/{payment}/receipt', [BillingOperationsController::class, 'receipt'])->whereNumber('payment')->name('payments.receipt');
         });
 
+        // Patient portal dashboard and own invoices, online payment confirmation, and receipts.
         Route::middleware('role:patient')->prefix('patient')->name('patient.')->group(function () {
             Route::get('dashboard', [PatientController::class, 'dashboard'])->name('dashboard');
             Route::get('invoices', [BillingOperationsController::class, 'patientInvoices'])->name('invoices.index');
