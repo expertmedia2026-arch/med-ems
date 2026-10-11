@@ -29,6 +29,10 @@ class VisitController extends Controller
     /** Appointment: check in and link the visit to the booking. */
     public function fromAppointment(AppointmentCheckInRequest $request, Appointment $appointment, VisitCheckInService $checkIn)
     {
+        if (! $appointment->scheduled_at->isToday()) {
+            return back()->with('error', 'This appointment can only be checked in on '.$appointment->scheduled_at->format('l, d F Y').'.');
+        }
+
         // Lab booking: becomes a lab-only visit with the booked tests (no consultation)
         if ($appointment->isLab()) {
             $visit = $checkIn->fromLabAppointment($appointment, $request->user()->id);

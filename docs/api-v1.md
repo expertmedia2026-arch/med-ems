@@ -88,11 +88,11 @@ Access is role-limited to the same roles as the web workflows.
 | GET | `/staff/patients/{patient}/card` | Card data; registration payment required |
 | POST | `/staff/patients/{patient}/walk-ins` | Walk-in check-in with department and consultation type |
 | POST | `/staff/patients/{patient}/portal-invitation` | Send patient portal invitation |
-| GET | `/staff/appointments?date=YYYY-MM-DD` | Staff appointment list |
+| GET | `/staff/appointments?date=YYYY-MM-DD&department_id={id}&doctor_id={id}&hospital_number={number}` | Staff appointment list filtered by date, department, doctor, and patient hospital number |
 | POST | `/staff/appointments` | Book for a patient using hospital number, department, doctor, date, reason |
 | GET | `/staff/appointments/{appointment}` | Appointment detail (doctor) |
 | PATCH | `/staff/appointments/{appointment}/cancel` | Cancel appointment |
-| POST | `/staff/appointments/{appointment}/check-in` | Check in a booked consultation or lab visit |
+| POST | `/staff/appointments/{appointment}/check-in` | Check in a booked consultation or lab visit on its scheduled date |
 
 ## Admin configuration
 

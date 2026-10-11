@@ -15,7 +15,7 @@ class AppointmentFormRequest extends FormRequest
     {
         return [
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
-            'patient' => ['nullable', 'integer', 'exists:patients,id'],
+            'patient' => ['nullable', 'string', 'max:50', 'exists:patients,hospital_number'],
         ];
     }
 }

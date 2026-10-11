@@ -3,30 +3,73 @@
 
     @php $frontDesk = auth()->user()->hasRole('admin', 'receptionist'); @endphp
 
-    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    @php
+        $appointmentFilters = array_filter([
+            'department_id' => $departmentId,
+            'doctor_id' => $doctorId,
+            'hospital_number' => $hospitalNumber,
+        ], fn ($value) => filled($value));
+    @endphp
+
+    <div class="mb-6 flex flex-col gap-4 rounded-xl border bg-white p-4 shadow-sm lg:flex-row lg:items-end lg:justify-between">
+        <form method="GET" action="{{ route('appointments.index') }}" class="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div>
+                <label for="appointment_date_filter" class="block text-xs font-medium text-slate-600">Appointment date</label>
+                <input id="appointment_date_filter" type="date" name="date" value="{{ $date->toDateString() }}"
+                       class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
+            </div>
+
+            @if ($frontDesk)
+                <div>
+                    <label for="appointment_department_filter" class="block text-xs font-medium text-slate-600">Department</label>
+                    <select id="appointment_department_filter" name="department_id" class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
+                        <option value="">All departments</option>
+                        @foreach ($appointmentDepartments as $department)
+                            <option value="{{ $department->id }}" @selected((string) $departmentId === (string) $department->id)>{{ $department->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="appointment_doctor_filter" class="block text-xs font-medium text-slate-600">Doctor</label>
+                    <select id="appointment_doctor_filter" name="doctor_id" class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
+                        <option value="">All doctors</option>
+                        @foreach ($appointmentDoctors as $doctor)
+                            <option value="{{ $doctor->id }}" @selected((string) $doctorId === (string) $doctor->id)>{{ $doctor->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="appointment_patient_filter" class="block text-xs font-medium text-slate-600">Patient hospital number</label>
+                    <input id="appointment_patient_filter" type="search" name="hospital_number" value="{{ $hospitalNumber }}"
+                           placeholder="e.g. HN-26-00001"
+                           class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
+                </div>
+            @endif
+
+            <div class="flex items-end gap-2">
+                <button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">Filter</button>
+                @if ($appointmentFilters !== [])
+                    <a href="{{ route('appointments.index', ['date' => $date->toDateString()]) }}" class="px-2 py-2 text-sm text-slate-600 hover:underline">Clear filters</a>
+                @endif
+            </div>
+        </form>
+
         <div class="flex items-center gap-2">
-            <a href="{{ route('appointments.index', ['date' => $date->copy()->subDay()->toDateString()]) }}"
-               class="rounded-lg border bg-white px-3 py-2 text-sm hover:bg-slate-50">‹</a>
-
-            <form method="GET">
-                <input type="date" name="date" value="{{ $date->toDateString() }}" onchange="this.form.submit()"
-                       class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
-            </form>
-
-            <a href="{{ route('appointments.index', ['date' => $date->copy()->addDay()->toDateString()]) }}"
-               class="rounded-lg border bg-white px-3 py-2 text-sm hover:bg-slate-50">›</a>
-
+            <a href="{{ route('appointments.index', ['date' => $date->copy()->subDay()->toDateString()] + $appointmentFilters) }}"
+               aria-label="Previous day" class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50">‹</a>
             @unless ($date->isToday())
-                <a href="{{ route('appointments.index') }}" class="text-sm text-teal-700 hover:underline">Today</a>
+                <a href="{{ route('appointments.index', ['date' => today()->toDateString()] + $appointmentFilters) }}" class="text-sm text-teal-700 hover:underline">Today</a>
             @endunless
-        </div>
+            <a href="{{ route('appointments.index', ['date' => $date->copy()->addDay()->toDateString()] + $appointmentFilters) }}"
+               aria-label="Next day" class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50">›</a>
 
-        @if ($frontDesk)
-            <a href="{{ route('appointments.create') }}"
-               class="rounded-lg bg-teal-700 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-teal-800">
-                + Book appointment
-            </a>
-        @endif
+            @if ($frontDesk)
+                <a href="{{ route('appointments.create') }}"
+                   class="ml-2 whitespace-nowrap rounded-lg bg-teal-700 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-teal-800">
+                    + Book appointment
+                </a>
+            @endif
+        </div>
     </div>
 
     <p class="mb-3 text-sm text-slate-500">{{ $date->format('l, d F Y') }} · {{ $appointments->count() }} appointment(s)</p>
@@ -80,10 +123,12 @@
                             @if ($frontDesk && $appt->status->value === 'scheduled')
                                 <div class="flex justify-end gap-3">
                                     @php($departmentTypes = $consultationTypesByDepartment->get($appt->doctor?->department_id, collect()))
-                                    @if ($appt->isLab())
+                                    @if (! $appt->scheduled_at->isToday())
+                                        <span class="self-center text-xs text-slate-500">Check-in on {{ $appt->scheduled_at->format('d M Y') }}</span>
+                                    @elseif ($appt->isLab())
                                         <form method="POST" action="{{ route('appointments.check-in', $appt) }}">
                                             @csrf
-                                            <button class="rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-800">Check in</button>
+                                            <button onclick="return confirm('Confirm this lab appointment is scheduled for today before checking in?')" class="rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-800">Check in</button>
                                         </form>
                                     @elseif ($departmentTypes->isNotEmpty())
                                         <form method="POST" action="{{ route('appointments.check-in', $appt) }}" class="flex items-center gap-2">
@@ -95,7 +140,7 @@
                                                     <option value="{{ $consultationType->id }}">{{ $consultationType->name }} · ₦{{ number_format((float) $consultationType->price, 2) }}</option>
                                                 @endforeach
                                             </select>
-                                            <button class="rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-800">Check in</button>
+                                            <button onclick="return confirm('Confirm this appointment is scheduled for today before checking in?')" class="rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-800">Check in</button>
                                         </form>
                                     @else
                                         <span class="text-xs text-amber-700" title="Add an active consultation type in admin pricing">No consultation price set</span>

@@ -33,14 +33,23 @@ class AppointmentBookingService
         return $appointment->load(['patient', 'doctor.department', 'labTests']);
     }
 
-    public function indexData(Carbon $date, User $user): array
+    public function indexData(Carbon $date, User $user, ?int $doctorId = null, ?string $hospitalNumber = null, ?int $departmentId = null): array
     {
         return [
             'appointments' => Appointment::with(['patient', 'doctor.department', 'labTests'])
                 ->whereDate('scheduled_at', $date)
                 ->when($user->hasRole(Role::Doctor), fn ($q) => $q->where('doctor_id', $user->id))
+                ->when($doctorId && ! $user->hasRole(Role::Doctor), fn ($q) => $q->where('doctor_id', $doctorId))
+                ->when($departmentId, fn ($q) => $q->whereHas('doctor', fn ($doctorQuery) => $doctorQuery->where('department_id', $departmentId)))
+                ->when(filled($hospitalNumber), fn ($q) => $q->whereHas('patient', fn ($patientQuery) => $patientQuery->whereLike('hospital_number', '%'.trim($hospitalNumber).'%')))
                 ->orderBy('scheduled_at')->get(),
             'consultationTypesByDepartment' => ConsultationType::active()->orderBy('name')->get()->groupBy('department_id'),
+            'appointmentDoctors' => $user->hasRole(Role::Admin, Role::Receptionist)
+                ? User::ofRole(Role::Doctor)->orderBy('name')->get(['id', 'name'])
+                : collect(),
+            'appointmentDepartments' => $user->hasRole(Role::Admin, Role::Receptionist)
+                ? Department::orderBy('name')->get(['id', 'name'])
+                : collect(),
         ];
     }
 

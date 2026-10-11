@@ -14,9 +14,21 @@ class AppointmentController extends Controller
     public function index(AppointmentIndexRequest $request, AppointmentBookingService $appointments)
     {
         $date = Carbon::parse($request->validated('date') ?? today()->toDateString());
-        $data = $appointments->indexData($date, $request->user());
+        $filters = $request->validated();
+        $data = $appointments->indexData(
+            $date,
+            $request->user(),
+            $filters['doctor_id'] ?? null,
+            $filters['hospital_number'] ?? null,
+            $filters['department_id'] ?? null,
+        );
 
-        return view('appointments.index', $data + compact('date'));
+        return view('appointments.index', $data + [
+            'date' => $date,
+            'departmentId' => $filters['department_id'] ?? null,
+            'doctorId' => $filters['doctor_id'] ?? null,
+            'hospitalNumber' => $filters['hospital_number'] ?? '',
+        ]);
     }
 
     public function show(Appointment $appointment, AppointmentBookingService $appointments)

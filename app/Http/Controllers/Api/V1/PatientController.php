@@ -10,6 +10,7 @@ use App\Http\Resources\Api\V1\AppointmentResource;
 use App\Http\Resources\Api\V1\PatientProfileResource;
 use App\Http\Resources\Api\V1\PatientSummaryResource;
 use App\Http\Resources\Api\V1\PatientVisitResource;
+use App\Http\Resources\Api\V1\VisitResource;
 use App\Models\LabAttachment;
 use App\Models\Patient;
 use App\Models\Visit;
@@ -79,7 +80,6 @@ class PatientController extends Controller
             'portal_invitation' => $invitation ? [
                 'sent' => $invitation['ok'],
                 'message' => $invitation['message'],
-                'invitation_url' => $invitation['link'],
             ] : null,
         ];
     }
@@ -117,7 +117,7 @@ class PatientController extends Controller
 
         abort_unless($result['ok'], 422, $result['message']);
 
-        return ['message' => $result['message'], 'invitation_url' => $result['link']];
+        return ['message' => $result['message']];
     }
 
     public function profile(Request $request): PatientProfileResource

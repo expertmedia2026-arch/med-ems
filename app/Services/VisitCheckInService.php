@@ -108,6 +108,7 @@ class VisitCheckInService
         $appointment = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
 
         abort_unless($appointment->status === AppointmentStatus::Scheduled, 422);
+        abort_unless($appointment->scheduled_at->isToday(), 422, 'An appointment can only be checked in on its scheduled date.');
 
         return $appointment;
     }

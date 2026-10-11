@@ -11,6 +11,7 @@ use App\Http\Requests\StoreAppointmentRequest;
 use App\Http\Resources\Api\V1\AppointmentResource;
 use App\Http\Resources\Api\V1\LabBookingOptionsResource;
 use App\Http\Resources\Api\V1\PatientAppointmentResource;
+use App\Http\Resources\Api\V1\VisitResource;
 use App\Models\Appointment;
 use App\Models\Patient;
 use App\Services\AppointmentBookingService;
@@ -38,9 +39,16 @@ class AppointmentController extends Controller
 
     public function staffIndex(AppointmentIndexRequest $request, AppointmentBookingService $booking): AnonymousResourceCollection
     {
-        $date = Carbon::parse($request->validated('date') ?? today()->toDateString());
+        $filters = $request->validated();
+        $date = Carbon::parse($filters['date'] ?? today()->toDateString());
 
-        return AppointmentResource::collection($booking->indexData($date, $request->user())['appointments']);
+        return AppointmentResource::collection($booking->indexData(
+            $date,
+            $request->user(),
+            $filters['doctor_id'] ?? null,
+            $filters['hospital_number'] ?? null,
+            $filters['department_id'] ?? null,
+        )['appointments']);
     }
 
     public function staffShow(Appointment $appointment, AppointmentBookingService $booking): AppointmentResource
