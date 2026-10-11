@@ -294,7 +294,7 @@ class DemoWorkflowSeeder extends Seeder
             $prescriptionsToPay = $visit->getAttribute('seed_paid_prescription_ids');
             $payConsultation = $visit->isLabOnly() || in_array($visit->status, [VisitStatus::WaitingDoctor, VisitStatus::InConsultation, VisitStatus::Completed], true);
 
-            $paidItems = $invoice->items->filter(function (InvoiceItem $item) use ($payConsultation, $completedLabIds) {
+            $paidItems = $invoice->items->filter(function (InvoiceItem $item) use ($payConsultation, $completedLabIds, $prescriptionsToPay) {
                 if ($item->category === 'consultation') {
                     return $payConsultation;
                 }
