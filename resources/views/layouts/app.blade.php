@@ -15,14 +15,14 @@
     );
 @endphp
 
-<div x-data="{ open: false }" class="min-h-screen md:flex"> 
+<div x-data="{ open: false }" class="min-h-screen lg:flex">
 
     {{-- Mobile overlay --}}
-    <div x-show="open" x-cloak @click="open = false" class="fixed inset-0 z-30 bg-black/40 md:hidden"></div>
+    <div x-show="open" x-cloak @click="open = false" class="fixed inset-0 z-30 bg-black/40 lg:hidden"></div>
 
     {{-- Sidebar --}}
     <aside
-        class="fixed inset-y-0 left-0 z-40 w-64 transform bg-teal-900 text-teal-50 transition-transform md:static md:translate-x-0"
+        class="fixed inset-y-0 left-0 z-40 w-64 shrink-0 transform bg-teal-900 text-teal-50 transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0"
         :class="open ? 'translate-x-0' : '-translate-x-full'">
         
         <div class="flex h-16 items-center gap-3 border-b border-teal-800 px-6">
@@ -34,7 +34,7 @@
             <span class="truncate text-base font-semibold tracking-wide" title="{{ $hospital->name }}">{{ $hospital->name }}</span>
         </div>
 
-        <nav class="p-4 space-y-1">
+        <nav class="max-h-[calc(100vh-4rem)] space-y-1 overflow-y-auto p-4">
 
             @foreach ($menu as $item)
                 @php
@@ -55,9 +55,9 @@
     <div class="flex min-h-screen flex-1 flex-col">
         <header class="flex h-16 items-center justify-between border-b bg-white px-4 md:px-8">
             <div class="flex items-center gap-3">
-                <button @click="open = true" class="md:hidden text-2xl leading-none">☰</button>
+                <button @click="open = true" aria-label="Open navigation menu" :aria-expanded="open.toString()" class="rounded-lg p-2 text-xl leading-none text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-600 lg:hidden">☰</button>
                 @isset($header)
-                    <h1 class="text-lg font-semibold">{{ $header }}</h1>
+                    <h1 class="truncate text-base font-semibold sm:text-lg">{{ $header }}</h1>
                 @endisset
             </div>
 
@@ -85,7 +85,7 @@
             </div>
         </header>
 
-        <main class="flex-1 p-4 md:p-8">
+        <main class="min-w-0 flex-1 p-4 sm:p-5 lg:p-8">
             @foreach (['success' => 'border-green-200 bg-green-50 text-green-800', 'error' => 'border-red-200 bg-red-50 text-red-800'] as $key => $classes)
                 @if (session($key))
                     <div class="mb-6 rounded-lg border px-4 py-3 text-sm {{ $classes }}">{{ session($key) }}</div>

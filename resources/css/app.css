@@ -2,3 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 [x-cloak] { display: none !important; }
+
+/* Keep wide clinical and financial tables usable on touch screens. */
+.overflow-x-auto {
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-color: #94a3b8 #f1f5f9;
+    scrollbar-width: thin;
+}
+
+.overflow-x-auto > table {
+    width: 100%;
+}
+
+.overflow-x-auto th,
+.overflow-x-auto td {
+    vertical-align: top;
+}
+
+@media (max-width: 767px) {
+    .overflow-x-auto > table {
+        min-width: 40rem;
+    }
+}

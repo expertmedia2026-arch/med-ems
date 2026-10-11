@@ -20,6 +20,7 @@
     
    
 
+    <div class="overflow-x-auto rounded-xl border bg-white shadow-sm">
     <table class="min-w-full divide-y divide-slate-200 text-sm">
         <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -73,6 +74,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 
     <!-- <div class="overflow-x-auto rounded-xl border bg-white shadow-sm">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
