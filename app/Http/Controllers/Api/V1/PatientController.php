@@ -41,19 +41,55 @@ class PatientController extends Controller
         ];
     }
 
+    /** Return card details with HTML rendered from the same Blade view used by web printing. */
     public function card(Patient $patient, PatientService $patients): array
     {
         $data = $patients->cardData($patient);
         $hospital = $data['hospital'];
+        $patient = $data['patient'];
+        $hospitalDetails = collect([$hospital->address, $hospital->phone, $hospital->email, $hospital->website])
+            ->filter()
+            ->implode(' · ');
 
         return [
-            'patient' => new PatientProfileResource($data['patient']),
+            'patient' => new PatientProfileResource($patient),
             'hospital' => [
                 'name' => $hospital->name,
                 'address' => $hospital->address,
                 'phone' => $hospital->phone,
                 'email' => $hospital->email,
+                'website' => $hospital->website,
                 'logo_url' => $hospital->logo_url,
+                'receipt_footer' => $hospital->receipt_footer,
+            ],
+            'card' => [
+                'title' => 'Patient identification card',
+                'hospital' => [
+                    'name' => $hospital->name,
+                    'details' => $hospitalDetails,
+                    'logo_url' => $hospital->logo_url,
+                    'logo_fallback' => '+',
+                ],
+                'patient' => [
+                    'full_name' => $patient->full_name,
+                    'hospital_number' => $patient->hospital_number,
+                    'age' => $patient->age,
+                    'age_label' => $patient->age !== null ? $patient->age.' years' : '—',
+                    'sex' => ucfirst($patient->gender),
+                    'area' => $data['area'] ?: '—',
+                    'is_nhis' => (bool) $patient->is_nhis,
+                    'nhis_number' => $patient->is_nhis && $patient->nhis_number ? $patient->nhis_number : null,
+                ],
+                'footer_message' => 'Present this card at every visit',
+                'issued_at' => $patient->registration_paid_at->toIso8601String(),
+                'issued_label' => 'Issued '.$patient->registration_paid_at->format('d M Y'),
+                'print_button_label' => 'Print patient card',
+                'back_to_patient_url' => route('patients.show', $patient),
+                'print_instructions' => 'Print at actual size (100%) and cut along the card edge.',
+            ],
+            'printable' => [
+                'content_type' => 'text/html; charset=UTF-8',
+                'html' => view('patients.card', $data)->render(),
             ],
         ];
     }

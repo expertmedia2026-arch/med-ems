@@ -59,13 +59,6 @@
     <main>
         @php
             $hospitalDetails = array_filter([$hospital->address, $hospital->phone, $hospital->email, $hospital->website]);
-            $addressParts = collect(preg_split('/[,;|]/', (string) $patient->address))
-                ->map(fn ($part) => trim($part))
-                ->filter()
-                ->values();
-            $patientArea = $addressParts->count() >= 2
-                ? $addressParts->get($addressParts->count() - 2)
-                : null;
         @endphp
         <article class="patient-card" aria-label="Patient identification card">
             <div class="accent"></div>
@@ -99,7 +92,7 @@
                     </div>
                     <div>
                         <dt class="detail-label">Area</dt>
-                        <dd class="detail-value">{{ $patientArea ?: '—' }}</dd>
+                        <dd class="detail-value">{{ $area ?: '—' }}</dd>
                     </div>
                     @if ($patient->is_nhis && $patient->nhis_number)
                         <div>

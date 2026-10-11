@@ -38,7 +38,15 @@ class PatientService
     {
         abort_unless($patient->registration_paid_at, 403, 'The patient card is available after the registration fee has been paid.');
 
-        return ['patient' => $patient, 'hospital' => HospitalSetting::current()];
+        $addressParts = collect(preg_split('/[,;|]/', (string) $patient->address))
+            ->map(fn ($part) => trim($part))
+            ->filter()
+            ->values();
+        $area = $addressParts->count() >= 2
+            ? $addressParts->get($addressParts->count() - 2)
+            : null;
+
+        return ['patient' => $patient, 'hospital' => HospitalSetting::current(), 'area' => $area];
     }
 
     public function update(Patient $patient, array $attributes): Patient

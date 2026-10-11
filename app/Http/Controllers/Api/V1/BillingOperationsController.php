@@ -8,6 +8,7 @@ use App\Http\Requests\PayInvoiceRequest;
 use App\Http\Requests\PaystackCallbackRequest;
 use App\Http\Requests\PortalInvoicePaymentRequest;
 use App\Http\Resources\Api\V1\InvoiceResource;
+use App\Http\Resources\Api\V1\PaymentReceiptResource;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\CashierService;
@@ -57,11 +58,13 @@ class BillingOperationsController extends Controller
         ];
     }
 
+    /** Return receipt data and HTML rendered from the web receipt view for mobile printing. */
     public function receipt(Payment $payment, CashierService $cashier): array
     {
         $payment = $cashier->receiptDetails($payment);
 
         return [
+            'receipt' => (new PaymentReceiptResource($payment))->resolve(request()),
             'receipt_number' => $payment->receipt_number,
             'amount' => (float) $payment->amount,
             'method' => $payment->method,
@@ -70,6 +73,10 @@ class BillingOperationsController extends Controller
             'patient' => $payment->invoice->patient?->full_name,
             'invoice_number' => $payment->invoice->invoice_number,
             'items' => $payment->items->map(fn ($item) => ['description' => $item->description, 'total' => (float) $item->total])->values(),
+            'printable' => [
+                'content_type' => 'text/html; charset=UTF-8',
+                'html' => view('billing.receipt', compact('payment'))->render(),
+            ],
         ];
     }
 
@@ -120,17 +127,24 @@ class BillingOperationsController extends Controller
         return ['status' => $attempt->status, 'invoice_id' => $attempt->invoice_id, 'amount' => (float) $attempt->amount];
     }
 
+    /** Return a patient's own receipt data and the shared web printable layout. */
     public function patientReceipt(Request $request, Payment $payment, PortalInvoiceService $invoices): array
     {
         $payment = $invoices->receiptForPatient($payment, $request->user()->patient_id);
 
         return [
+            'receipt' => (new PaymentReceiptResource($payment))->resolve($request),
             'receipt_number' => $payment->receipt_number,
             'amount' => (float) $payment->amount,
             'method' => $payment->method,
             'reference' => $payment->reference,
             'created_at' => $payment->created_at->toIso8601String(),
             'invoice_number' => $payment->invoice->invoice_number,
+            'items' => $payment->items->map(fn ($item) => ['description' => $item->description, 'total' => (float) $item->total])->values(),
+            'printable' => [
+                'content_type' => 'text/html; charset=UTF-8',
+                'html' => view('billing.receipt', compact('payment'))->render(),
+            ],
         ];
     }
 
