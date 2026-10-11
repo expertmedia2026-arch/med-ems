@@ -4,94 +4,112 @@ namespace Database\Seeders;
 
 use App\Enums\Role;
 use App\Models\Department;
+use App\Models\DoctorAvailability;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class DepartmentStaffSeeder extends Seeder
 {
+    public const DEPARTMENTS = [
+        ['General Medicine', 'Outpatient assessment and general medical care.'],
+        ['Paediatrics', 'Medical care for infants, children, and adolescents.'],
+        ['Obstetrics and Gynaecology', 'Pregnancy, childbirth, and women’s health services.'],
+        ['Dental', 'Oral health, dental assessment, and treatment.'],
+        ['Cardiology', 'Assessment and care for heart and circulatory conditions.'],
+        ['Dermatology', 'Assessment and treatment of skin conditions.'],
+        ['Ear, Nose and Throat', 'Assessment and care for ear, nose, and throat conditions.'],
+        ['Ophthalmology', 'Eye assessment and vision care.'],
+    ];
+
+    private const DOCTORS = [
+        [['Chukwudi', 'Okafor'], ['Adaeze', 'Nwankwo']],
+        [['Emeka', 'Eze'], ['Ngozi', 'Obi']],
+        [['Nnamdi', 'Okeke'], ['Ifeoma', 'Nwosu']],
+        [['Obinna', 'Madu'], ['Chiamaka', 'Umeh']],
+        [['Ifeanyi', 'Anyanwu'], ['Nneka', 'Nwachukwu']],
+        [['Kelechi', 'Onoh'], ['Amarachi', 'Ojukwu']],
+        [['Chinedu', 'Ekwueme'], ['Ugochi', 'Nnamani']],
+        [['Okechukwu', 'Nnaji'], ['Oluchi', 'Okorie']],
+    ];
+
+    private const NURSES = [
+        [['Uchenna', 'Okafor'], ['Ozioma', 'Nwankwo']],
+        [['Chisom', 'Eze'], ['Adanna', 'Obi']],
+        [['Somtochukwu', 'Okeke'], ['Ijeoma', 'Nwosu']],
+        [['Chinonso', 'Madu'], ['Ezinne', 'Umeh']],
+        [['Nonso', 'Anyanwu'], ['Adaora', 'Nwachukwu']],
+        [['Ikenna', 'Onoh'], ['Ogechi', 'Ojukwu']],
+        [['Chibuzo', 'Ekwueme'], ['Nkiru', 'Nnamani']],
+        [['Olisa', 'Nnaji'], ['Chinyere', 'Okorie']],
+    ];
+
     public function run(): void
     {
-        $departments = [
-            ['General Medicine', 'Outpatient assessment and general medical care.'],
-            ['Paediatrics', 'Medical care for infants, children, and adolescents.'],
-            ['Obstetrics and Gynaecology', 'Pregnancy, childbirth, and women’s health services.'],
-            ['Surgery', 'Pre-operative, surgical, and post-operative care.'],
-            ['Dental', 'Oral health, dental assessment, and treatment.'],
-            ['Emergency', 'Urgent assessment and stabilization.'],
-        ];
+        foreach (self::DEPARTMENTS as $departmentIndex => [$name, $description]) {
+            $department = Department::updateOrCreate(['name' => $name], ['description' => $description]);
 
-        $doctorNames = [
-            ['Chukwudi', 'Okafor'], ['Emeka', 'Nwankwo'], ['Obinna', 'Eze'],
-            ['Kelechi', 'Obi'], ['Nnamdi', 'Okeke'], ['Ifeanyi', 'Nwosu'],
-            ['Chibuzo', 'Madu'], ['Okechukwu', 'Umeh'], ['Chinedu', 'Onyeka'],
-            ['Somtochukwu', 'Ekwueme'], ['Uchenna', 'Anyanwu'], ['Chukwuemeka', 'Onoh'],
-            ['Nonso', 'Nwachukwu'], ['Olisa', 'Ojukwu'], ['Ikenna', 'Ogbuefi'],
-            ['Adaeze', 'Okorie'], ['Chiamaka', 'Nnamani'], ['Ngozi', 'Eze'],
-            ['Ifeoma', 'Okafor'], ['Nneka', 'Nwankwo'], ['Ugochi', 'Obi'],
-            ['Amarachi', 'Okeke'], ['Chika', 'Nwosu'], ['Oluchi', 'Madu'],
-            ['Chinwe', 'Umeh'], ['Chinyere', 'Onyeka'], ['Nkiru', 'Ekwueme'],
-            ['Adaora', 'Anyanwu'], ['Ebere', 'Onoh'], ['Ogechi', 'Nwachukwu'],
-        ];
+            foreach ([Role::Doctor, Role::Nurse] as $role) {
+                $nameGroups = $role === Role::Doctor ? self::DOCTORS : self::NURSES;
+                $prefix = $role === Role::Doctor ? 'Dr.' : 'Nurse';
+                $slug = $role->value;
 
-        $nurseNames = [
-            ['Ifeanyi', 'Okafor'], ['Chisom', 'Nwankwo'], ['Ugochukwu', 'Eze'],
-            ['Ozioma', 'Obi'], ['Chinonso', 'Okeke'], ['Amaka', 'Nwosu'],
-            ['Uche', 'Madu'], ['Ijeoma', 'Umeh'], ['Chiamaka', 'Onyeka'],
-            ['Nkem', 'Ekwueme'], ['Chika', 'Anyanwu'], ['Adanna', 'Onoh'],
-            ['Ihuoma', 'Nwachukwu'], ['Somto', 'Ojukwu'], ['Kamsiyochukwu', 'Ogbuefi'],
-            ['Nneka', 'Okorie'], ['Ngozi', 'Nnamani'], ['Adaeze', 'Eze'],
-            ['Ifeoma', 'Okafor'], ['Ugochi', 'Nwankwo'], ['Chinwe', 'Obi'],
-            ['Amarachi', 'Okeke'], ['Oluchi', 'Nwosu'], ['Ezinne', 'Madu'],
-            ['Nkiru', 'Umeh'], ['Chinyere', 'Onyeka'], ['Ogechi', 'Ekwueme'],
-            ['Chisara', 'Anyanwu'], ['Adaora', 'Onoh'], ['Ujunwa', 'Nwachukwu'],
-        ];
+                foreach ($nameGroups[$departmentIndex] as $slot => [$firstName, $lastName]) {
+                    $email = match ([$departmentIndex, $slot, $role]) {
+                        [0, 0, Role::Doctor] => 'doctor@hms.test',
+                        [0, 0, Role::Nurse] => 'nurse@hms.test',
+                        default => sprintf('%s.%s.%s@hms.test', $slug, Str::slug($firstName), Str::slug($lastName)),
+                    };
 
-        $staffGroups = [
-            ['role' => Role::Doctor, 'prefix' => 'Dr.', 'slug' => 'doctor', 'names' => $doctorNames],
-            ['role' => Role::Nurse, 'prefix' => 'Nurse', 'slug' => 'nurse', 'names' => $nurseNames],
-        ];
-
-        foreach ($departments as $departmentIndex => [$name, $description]) {
-            $department = Department::updateOrCreate(
-                ['name' => $name],
-                ['description' => $description],
-            );
-
-            foreach ($staffGroups as $group) {
-                for ($slot = 0; $slot < 5; $slot++) {
-                    $nameIndex = $departmentIndex * 5 + $slot;
-                    [$firstName, $lastName] = $group['names'][$nameIndex];
-                    $departmentSlug = Str::slug($name);
-                    $email = sprintf(
-                        '%s.%s.%s.%s@hms.test',
-                        $group['slug'],
-                        Str::slug($firstName),
-                        Str::slug($lastName),
-                        $departmentSlug,
-                    );
-
-                    User::updateOrCreate(
+                    $staff = User::updateOrCreate(
                         ['email' => $email],
                         [
-                            'name' => $group['prefix'].' '.$firstName.' '.$lastName,
-                            'role' => $group['role'],
+                            'name' => $prefix.' '.$firstName.' '.$lastName,
+                            'role' => $role,
                             'department_id' => $department->id,
                             'password' => 'password',
                             'email_verified_at' => now(),
                             'is_active' => true,
                         ],
                     );
+
+                    if ($role === Role::Doctor) {
+                        $daysInMonth = now()->daysInMonth;
+                        $dates = collect(range(1, $daysInMonth))->shuffle()->take(3);
+
+                        foreach ($dates as $day) {
+                            $date = Carbon::create(now()->year, now()->month, $day)->toDateString();
+                            DoctorAvailability::updateOrCreate(
+                                ['doctor_id' => $staff->id, 'date' => $date],
+                                [],
+                            );
+                        }
+                    }
                 }
             }
         }
 
-        // Keep the existing demo login accounts attached to clinical departments too.
-        User::where('email', 'doctor@hms.test')->update([
-            'department_id' => Department::where('name', 'General Medicine')->value('id'),
-        ]);
-        User::where('email', 'nurse@hms.test')->update([
-            'department_id' => Department::where('name', 'Paediatrics')->value('id'),
-        ]);
+        $supportStaff = [
+            ['Chukwudi Okafor', 'admin@hms.test', Role::Admin],
+            ['Chiamaka Nwosu', 'reception@hms.test', Role::Receptionist],
+            ['Ifeanyi Eze', 'lab@hms.test', Role::Lab],
+            ['Ngozi Madu', 'pharmacy@hms.test', Role::Pharmacist],
+            ['Emeka Nwachukwu', 'cashier@hms.test', Role::Cashier],
+        ];
+
+        foreach ($supportStaff as [$name, $email, $role]) {
+            User::updateOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $name,
+                    'role' => $role,
+                    'department_id' => null,
+                    'password' => 'password',
+                    'email_verified_at' => now(),
+                    'is_active' => true,
+                ],
+            );
+        }
     }
 }
