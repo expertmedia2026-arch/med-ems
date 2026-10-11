@@ -158,6 +158,7 @@ class AppointmentBookingService
             'doctor_id' => $data['doctor_id'],
             'type' => 'consultation',
             'scheduled_at' => $when,
+            'status' => AppointmentStatus::Scheduled,
             'reason' => $data['reason'] ?? null,
             'created_by' => $createdBy,
         ]);
@@ -235,6 +236,7 @@ class AppointmentBookingService
                 'doctor_id' => $type === 'consultation' ? $data['doctor_id'] : null,
                 'type' => $type,
                 'scheduled_at' => $when,
+                'status' => AppointmentStatus::Scheduled,
                 'reason' => $data['reason'] ?? null,
                 'created_by' => $createdBy,
             ]);

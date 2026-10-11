@@ -24,7 +24,11 @@ class VisitCheckInService
                 return null;
             }
 
-            $visit = $lockedPatient->visits()->create($attributes);
+            $visit = $lockedPatient->visits()->create(array_merge($attributes, [
+                'type' => 'consultation',
+                'status' => VisitStatus::WaitingTriage,
+                'checked_in_at' => now(),
+            ]));
             $this->billing->invoiceFor($visit);
 
             return $visit->load('consultationType');
@@ -46,6 +50,7 @@ class VisitCheckInService
                 'appointment_id' => $appointment->id,
                 'type' => 'lab_only',
                 'status' => VisitStatus::LabOnly,
+                'checked_in_at' => now(),
                 'complaint' => $appointment->reason,
             ]);
 
@@ -84,6 +89,9 @@ class VisitCheckInService
             $visit = $lockedPatient->visits()->create([
                 'appointment_id' => $appointment->id,
                 'doctor_id' => $appointment->doctor_id,
+                'type' => 'consultation',
+                'status' => VisitStatus::WaitingTriage,
+                'checked_in_at' => now(),
                 'department_id' => $departmentId,
                 'consultation_type_id' => $consultationType->id,
                 'complaint' => $appointment->reason,

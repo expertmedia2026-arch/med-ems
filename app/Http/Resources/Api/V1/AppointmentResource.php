@@ -12,7 +12,7 @@ class AppointmentResource extends JsonResource
         return [
             'id' => $this->id,
             'type' => $this->type,
-            'status' => $this->status->value,
+            'status' => $this->status?->value,
             'scheduled_at' => $this->scheduled_at?->toIso8601String(),
             'reason' => $this->reason,
             'patient' => $this->whenLoaded('patient', fn () => $this->patient ? [
