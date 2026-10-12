@@ -108,6 +108,11 @@
                                 <x-badge color="blue">Lab test</x-badge>
                             @else
                                 {{ $appt->doctor?->name }}
+                                @foreach ($appt->reassignments as $reassignment)
+                                    <span class="mt-1 block max-w-xs text-xs text-slate-500" title="{{ $reassignment->reason }}">
+                                        Reassigned from {{ $reassignment->fromDoctor?->name ?? 'a previous doctor' }} by {{ $reassignment->reassignedBy?->name ?? 'staff' }} · {{ $reassignment->reason }}
+                                    </span>
+                                @endforeach
                             @endif
                         </td>
                         <td class="px-4 py-3">
@@ -121,7 +126,8 @@
                         <td class="px-4 py-3"><x-badge :color="$appt->status->color()">{{ $appt->status->label() }}</x-badge></td>
                         <td class="px-4 py-3">
                             @if ($frontDesk && $appt->status->value === 'scheduled')
-                                <div class="flex justify-end gap-3">
+                                <div class="flex flex-col items-end gap-2">
+                                    <div class="flex items-center justify-end gap-3">
                                     @php($departmentTypes = $consultationTypesByDepartment->get($appt->doctor?->department_id, collect()))
                                     @if (! $appt->scheduled_at->isToday())
                                         <span class="self-center text-xs text-slate-500">Check-in on {{ $appt->scheduled_at->format('d M Y') }}</span>
@@ -151,6 +157,33 @@
                                         @method('PATCH')
                                         <button class="text-xs text-red-600 hover:underline">Cancel</button>
                                     </form>
+                                    </div>
+                                    @php($replacementDoctors = $reassignmentDoctors->get($appt->id, collect()))
+                                    @if (! $appt->isLab() && $appt->scheduled_at->toDateString() >= today()->toDateString())
+                                        <details class="text-left">
+                                            <summary class="cursor-pointer text-xs font-medium text-teal-700 hover:underline">Reassign doctor</summary>
+                                            @if ($replacementDoctors->isNotEmpty())
+                                                <form method="POST" action="{{ route('appointments.reassign-doctor', $appt) }}" class="mt-2 flex flex-col gap-2 rounded-lg border bg-slate-50 p-2">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <label class="sr-only" for="replacement_doctor_{{ $appt->id }}">Replacement doctor</label>
+                                                    <select id="replacement_doctor_{{ $appt->id }}" name="doctor_id" required class="rounded-lg border-slate-300 py-1.5 text-xs shadow-sm">
+                                                        <option value="">Choose available doctor…</option>
+                                                        @foreach ($replacementDoctors as $replacementDoctor)
+                                                            <option value="{{ $replacementDoctor->id }}">{{ $replacementDoctor->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <label class="sr-only" for="reassignment_reason_{{ $appt->id }}">Reason for reassignment</label>
+                                                    <input id="reassignment_reason_{{ $appt->id }}" name="reason" required maxlength="255" placeholder="Reason for change" class="rounded-lg border-slate-300 py-1.5 text-xs shadow-sm">
+                                                    <button class="rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-800">Save reassignment</button>
+                                                </form>
+                                            @else
+                                                <p class="mt-2 max-w-xs rounded-lg border bg-slate-50 p-2 text-xs text-slate-600">
+                                                    No other active doctor in this department is marked available on this date. Add that doctor's availability for {{ $appt->scheduled_at->format('d M Y') }} first.
+                                                </p>
+                                            @endif
+                                        </details>
+                                    @endif
                                 </div>
                             @endif
                         </td>

@@ -26,6 +26,13 @@ class AppointmentResource extends JsonResource
                 'name' => $this->doctor->name,
                 'department' => $this->doctor->department?->name,
             ] : null),
+            'reassignments' => $this->whenLoaded('reassignments', fn () => $this->reassignments->map(fn ($reassignment) => [
+                'from_doctor' => $reassignment->fromDoctor?->name,
+                'to_doctor' => $reassignment->toDoctor?->name,
+                'reassigned_by' => $reassignment->reassignedBy?->name,
+                'reason' => $reassignment->reason,
+                'reassigned_at' => $reassignment->created_at?->toIso8601String(),
+            ])->values()),
             'lab_tests' => LabTestResource::collection($this->whenLoaded('labTests')),
         ];
     }

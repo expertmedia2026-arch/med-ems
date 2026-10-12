@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\AppointmentFormRequest;
 use App\Http\Requests\AppointmentIndexRequest;
+use App\Http\Requests\ReassignAppointmentRequest;
 use App\Http\Requests\StoreAppointmentRequest;
 use App\Models\Appointment;
 use App\Services\AppointmentBookingService;
 use Illuminate\Support\Carbon;
+use Illuminate\Http\RedirectResponse;
 
 class AppointmentController extends Controller
 {
@@ -52,6 +54,18 @@ class AppointmentController extends Controller
         return redirect()
             ->route('appointments.index', ['date' => $when->toDateString()])
             ->with('success', "Appointment booked for {$appointment->patient->full_name}.");
+    }
+
+    public function reassignDoctor(ReassignAppointmentRequest $request, Appointment $appointment, AppointmentBookingService $appointments): RedirectResponse
+    {
+        $appointment = $appointments->reassignDoctor(
+            $appointment,
+            (int) $request->validated('doctor_id'),
+            $request->user(),
+            $request->validated('reason'),
+        );
+
+        return back()->with('success', "Appointment reassigned to {$appointment->doctor->name}.");
     }
 
     public function cancel(Appointment $appointment, AppointmentBookingService $appointments)

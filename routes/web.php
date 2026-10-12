@@ -126,6 +126,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
 
         Route::get('appointments/create', [AppointmentController::class, 'create'])->name('appointments.create');
         Route::post('appointments', [AppointmentController::class, 'store'])->name('appointments.store');
+        Route::patch('appointments/{appointment}/doctor', [AppointmentController::class, 'reassignDoctor'])->whereNumber('appointment')->name('appointments.reassign-doctor');
         Route::patch('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
         Route::post('appointments/{appointment}/check-in', [VisitController::class, 'fromAppointment'])->name('appointments.check-in');
     });

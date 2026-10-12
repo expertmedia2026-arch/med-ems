@@ -30,19 +30,46 @@ class AppointmentBookingService
 
     public function appointmentDetails(Appointment $appointment): Appointment
     {
-        return $appointment->load(['patient', 'doctor.department', 'labTests']);
+        return $appointment->load([
+            'patient', 'doctor.department', 'labTests',
+            'reassignments.fromDoctor', 'reassignments.toDoctor', 'reassignments.reassignedBy',
+        ]);
     }
 
     public function indexData(Carbon $date, User $user, ?int $doctorId = null, ?string $hospitalNumber = null, ?int $departmentId = null): array
     {
+        $appointments = Appointment::with([
+            'patient', 'doctor.department', 'labTests',
+            'reassignments.fromDoctor', 'reassignments.toDoctor', 'reassignments.reassignedBy',
+        ])
+            ->whereDate('scheduled_at', $date)
+            ->when($user->hasRole(Role::Doctor), fn ($q) => $q->where('doctor_id', $user->id))
+            ->when($doctorId && ! $user->hasRole(Role::Doctor), fn ($q) => $q->where('doctor_id', $doctorId))
+            ->when($departmentId, fn ($q) => $q->whereHas('doctor', fn ($doctorQuery) => $doctorQuery->where('department_id', $departmentId)))
+            ->when(filled($hospitalNumber), fn ($q) => $q->whereHas('patient', fn ($patientQuery) => $patientQuery->whereLike('hospital_number', '%'.trim($hospitalNumber).'%')))
+            ->orderBy('scheduled_at')->get();
+
+        $activeDoctors = User::ofRole(Role::Doctor)->where('is_active', true)->with('department:id,name')->orderBy('name')->get(['id', 'name', 'department_id']);
+        $availableDoctorIds = DoctorAvailability::query()
+            ->whereIn('doctor_id', $activeDoctors->pluck('id'))
+            ->whereDate('date', $date->toDateString())
+            ->pluck('doctor_id')->all();
+        $reassignmentDoctors = $appointments->mapWithKeys(function (Appointment $appointment) use ($activeDoctors, $availableDoctorIds, $date) {
+            $departmentId = $appointment->doctor?->department_id;
+            $isReassignable = $appointment->status === AppointmentStatus::Scheduled
+                && ! $appointment->isLab()
+                && $date->toDateString() >= today()->toDateString();
+
+            return [$appointment->id => $isReassignable && $departmentId
+                ? $activeDoctors->filter(fn (User $doctor) => $doctor->id !== $appointment->doctor_id
+                    && (int) $doctor->department_id === (int) $departmentId
+                    && in_array($doctor->id, $availableDoctorIds, true))->values()
+                : collect()];
+        });
+
         return [
-            'appointments' => Appointment::with(['patient', 'doctor.department', 'labTests'])
-                ->whereDate('scheduled_at', $date)
-                ->when($user->hasRole(Role::Doctor), fn ($q) => $q->where('doctor_id', $user->id))
-                ->when($doctorId && ! $user->hasRole(Role::Doctor), fn ($q) => $q->where('doctor_id', $doctorId))
-                ->when($departmentId, fn ($q) => $q->whereHas('doctor', fn ($doctorQuery) => $doctorQuery->where('department_id', $departmentId)))
-                ->when(filled($hospitalNumber), fn ($q) => $q->whereHas('patient', fn ($patientQuery) => $patientQuery->whereLike('hospital_number', '%'.trim($hospitalNumber).'%')))
-                ->orderBy('scheduled_at')->get(),
+            'appointments' => $appointments,
+            'reassignmentDoctors' => $reassignmentDoctors,
             'consultationTypesByDepartment' => ConsultationType::active()->orderBy('name')->get()->groupBy('department_id'),
             'appointmentDoctors' => $user->hasRole(Role::Admin, Role::Receptionist)
                 ? User::ofRole(Role::Doctor)->orderBy('name')->get(['id', 'name'])
@@ -51,6 +78,62 @@ class AppointmentBookingService
                 ? Department::orderBy('name')->get(['id', 'name'])
                 : collect(),
         ];
+    }
+
+    public function reassignDoctor(Appointment $appointment, int $doctorId, User $actor, string $reason): Appointment
+    {
+        return DB::transaction(function () use ($appointment, $doctorId, $actor, $reason) {
+            $appointment = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
+            $appointment->load('doctor');
+
+            if ($appointment->status !== AppointmentStatus::Scheduled || $appointment->isLab() || $appointment->scheduled_at->lt(today())) {
+                throw ValidationException::withMessages(['appointment' => 'Only upcoming scheduled doctor appointments can be reassigned.']);
+            }
+
+            $newDoctor = User::ofRole(Role::Doctor)->where('is_active', true)->find($doctorId);
+
+            if (! $newDoctor) {
+                throw ValidationException::withMessages(['doctor_id' => 'Choose an active doctor.']);
+            }
+
+            if (! $appointment->doctor || (int) $appointment->doctor->department_id !== (int) $newDoctor->department_id) {
+                throw ValidationException::withMessages(['doctor_id' => 'Choose an active doctor in the same department.']);
+            }
+
+            if ($appointment->doctor_id === $newDoctor->id) {
+                throw ValidationException::withMessages(['doctor_id' => 'Choose a different doctor from the current assignment.']);
+            }
+
+            if (! DoctorAvailability::where('doctor_id', $newDoctor->id)->whereDate('date', $appointment->scheduled_at->toDateString())->exists()) {
+                throw ValidationException::withMessages(['doctor_id' => 'That doctor is not available on the appointment date.']);
+            }
+
+            $alreadyBooked = Appointment::query()
+                ->where('patient_id', $appointment->patient_id)
+                ->where('doctor_id', $newDoctor->id)
+                ->whereDate('scheduled_at', $appointment->scheduled_at->toDateString())
+                ->where('status', '!=', AppointmentStatus::Cancelled->value)
+                ->where('id', '!=', $appointment->id)
+                ->exists();
+
+            if ($alreadyBooked) {
+                throw ValidationException::withMessages(['doctor_id' => 'This patient already has an appointment with that doctor on this date.']);
+            }
+
+            $oldDoctor = $appointment->doctor;
+            $appointment->update(['doctor_id' => $newDoctor->id]);
+            $appointment->reassignments()->create([
+                'from_doctor_id' => $oldDoctor->id,
+                'to_doctor_id' => $newDoctor->id,
+                'reassigned_by' => $actor->id,
+                'reason' => $reason,
+            ]);
+
+            return $appointment->refresh()->load([
+                'patient', 'doctor.department', 'labTests',
+                'reassignments.fromDoctor', 'reassignments.toDoctor', 'reassignments.reassignedBy',
+            ]);
+        });
     }
 
     public function formData(array $query): array

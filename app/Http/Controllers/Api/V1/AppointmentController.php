@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\LabBookingOptionsRequest;
+use App\Http\Requests\Api\V1\ReassignAppointmentRequest;
 use App\Http\Requests\AppointmentCheckInRequest;
 use App\Http\Requests\AppointmentIndexRequest;
 use App\Http\Requests\PortalAppointmentRequest;
@@ -68,6 +69,18 @@ class AppointmentController extends Controller
         $booking->cancel($appointment);
 
         return new AppointmentResource($booking->appointmentDetails($appointment->refresh()));
+    }
+
+    public function reassignDoctor(ReassignAppointmentRequest $request, Appointment $appointment, AppointmentBookingService $booking): AppointmentResource
+    {
+        $appointment = $booking->reassignDoctor(
+            $appointment,
+            (int) $request->validated('doctor_id'),
+            $request->user(),
+            $request->validated('reason'),
+        );
+
+        return new AppointmentResource($appointment);
     }
 
     public function checkIn(AppointmentCheckInRequest $request, Appointment $appointment, AppointmentBookingService $booking, VisitCheckInService $checkIn): VisitResource

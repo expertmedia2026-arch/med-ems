@@ -81,6 +81,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('patients/{patient}/portal-invitation', [PatientController::class, 'invite'])->whereNumber('patient')->name('patients.invite');
             Route::get('patients/{patient}/card', [PatientController::class, 'card'])->whereNumber('patient')->name('patients.card');
             Route::post('appointments', [AppointmentController::class, 'staffStore'])->name('appointments.store');
+            Route::patch('appointments/{appointment}/doctor', [AppointmentController::class, 'reassignDoctor'])->whereNumber('appointment')->name('appointments.reassign-doctor');
             Route::patch('appointments/{appointment}/cancel', [AppointmentController::class, 'staffCancel'])->whereNumber('appointment')->name('appointments.cancel');
             Route::post('appointments/{appointment}/check-in', [AppointmentController::class, 'checkIn'])->whereNumber('appointment')->name('appointments.check-in');
         });
