@@ -20,6 +20,7 @@ class Visit extends Model
             'checked_in_at' => 'datetime',
             'consulted_at' => 'datetime',
             'closed_at' => 'datetime',
+            'discharged_at' => 'datetime',
         ];
     }
 
@@ -48,6 +49,11 @@ class Visit extends Model
         return $this->belongsTo(User::class, 'doctor_id');
     }
 
+    public function dischargeActor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'discharged_by');
+    }
+
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
@@ -66,6 +72,11 @@ class Visit extends Model
     public function prescriptions(): HasMany
     {
         return $this->hasMany(Prescription::class);
+    }
+
+    public function medicationAdministrations(): HasMany
+    {
+        return $this->hasMany(MedicationAdministration::class);
     }
 
     public function labRequests(): HasMany

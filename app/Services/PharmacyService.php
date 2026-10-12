@@ -58,9 +58,10 @@ class PharmacyService
     {
         abort_unless($visit->status === VisitStatus::Completed, 403);
         $dispensed = 0;
+        $nursingReady = 0;
         $skipped = [];
 
-        DB::transaction(function () use ($visit, $prescriptionIds, $userId, &$dispensed, &$skipped) {
+        DB::transaction(function () use ($visit, $prescriptionIds, $userId, &$dispensed, &$nursingReady, &$skipped) {
             $items = $visit->prescriptions()->pending()->with(['invoiceItem', 'drug', 'stockReservation'])
                 ->whereIn('id', array_unique($prescriptionIds))->orderBy('drug_id')->get();
 
@@ -90,11 +91,13 @@ class PharmacyService
                     'dispensed_at' => now(),
                 ]);
                 $dispensed++;
+                $nursingReady += (int) $prescription->requires_in_facility_administration;
             }
         });
 
         return [
             'dispensed' => $dispensed,
+            'nursing_ready' => $nursingReady,
             'skipped' => $skipped,
             'has_pending' => $visit->prescriptions()->pending()->exists(),
             'patient_name' => $visit->patient->full_name,

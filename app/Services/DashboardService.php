@@ -33,8 +33,11 @@ class DashboardService
         };
 
         $queue = $user->hasRole(Role::Admin, Role::Receptionist, Role::Nurse, Role::Doctor)
-            ? Visit::with(['patient', 'doctor'])
+            ? Visit::with(['patient', 'doctor', 'department'])
                 ->withStatus(VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor, VisitStatus::InConsultation)
+                ->when($user->hasRole(Role::Nurse), fn ($query) => $query->where('department_id', $user->department_id ?? 0))
+                ->when($user->hasRole(Role::Doctor), fn ($query) => $query->where('department_id', $user->department_id ?? 0)
+                    ->where(fn ($q) => $q->whereNull('doctor_id')->orWhere('doctor_id', $user->id)))
                 ->oldest('checked_in_at')
                 ->limit(10)
                 ->get()
@@ -51,6 +54,10 @@ class DashboardService
             $this->card('Pending lab requests', LabRequest::pending()->count(), 'amber', 'lab.index'),
             $this->card('Revenue today', $this->money($this->revenueToday()), 'green', 'billing.index'),
             $this->card('Awaiting dispensing', $this->awaitingDispensing(), 'blue', 'pharmacy.index'),
+            $this->card('Nursing visits to finish', Visit::where('status', VisitStatus::Completed->value)
+                ->whereNull('discharged_at')
+                ->whereHas('prescriptions', fn ($query) => $query->where('requires_in_facility_administration', true))
+                ->count(), 'blue', 'nursing.administrations.index'),
             $this->card('Low-stock drugs', Drug::active()->lowStock()->count(), 'red', 'pharmacy.inventory', ['low' => 1]),
             $this->card('Unpaid invoices', Invoice::whereIn('status', ['unpaid', 'partial'])->count(), 'red', 'billing.index'),
             $this->card('Outstanding balance', $this->money($this->outstanding()), 'red', 'billing.index'),
@@ -69,10 +76,17 @@ class DashboardService
 
     private function nurse(): array
     {
+        $departmentId = auth()->user()->department_id ?? 0;
+
         return [
-            $this->card('Waiting for triage', Visit::withStatus(VisitStatus::WaitingTriage)->count(), 'amber', 'triage.index'),
-            $this->card('Sent to doctor today', Visit::today()->withStatus(VisitStatus::WaitingDoctor, VisitStatus::InConsultation, VisitStatus::Completed)->count(), 'green', 'triage.index'),
-            $this->card('Total in queue', $this->inQueue(), 'blue'),
+            $this->card('Nursing visits to finish', Visit::where('status', VisitStatus::Completed->value)
+                ->where('department_id', $departmentId)
+                ->whereNull('discharged_at')
+                ->whereHas('prescriptions', fn ($query) => $query->where('requires_in_facility_administration', true))
+                ->count(), 'blue', 'nursing.administrations.index'),
+            $this->card('Waiting for triage', Visit::withStatus(VisitStatus::WaitingTriage)->where('department_id', $departmentId)->count(), 'amber', 'triage.index'),
+            $this->card('Sent to doctor today', Visit::today()->withStatus(VisitStatus::WaitingDoctor, VisitStatus::InConsultation, VisitStatus::Completed)->where('department_id', $departmentId)->count(), 'green', 'triage.index'),
+            $this->card('Total in queue', Visit::withStatus(VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor, VisitStatus::InConsultation)->where('department_id', $departmentId)->count(), 'blue'),
         ];
     }
 
@@ -80,10 +94,12 @@ class DashboardService
     {
         return [
             $this->card('Waiting for me', Visit::withStatus(VisitStatus::WaitingDoctor)
+                ->where('department_id', auth()->user()->department_id ?? 0)
                 ->where(fn ($q) => $q->whereNull('doctor_id')->orWhere('doctor_id', $doctorId))
                 ->count(), 'amber', 'consultations.index'),
-            $this->card('In consultation', Visit::withStatus(VisitStatus::InConsultation)->where('doctor_id', $doctorId)->count(), 'blue', 'consultations.index'),
+            $this->card('In consultation', Visit::withStatus(VisitStatus::InConsultation)->where('doctor_id', $doctorId)->where('department_id', auth()->user()->department_id ?? 0)->count(), 'blue', 'consultations.index'),
             $this->card('Seen today', Visit::withStatus(VisitStatus::Completed)->where('doctor_id', $doctorId)->whereDate('closed_at', today())->count(), 'green'),
+            $this->card('Previous consultations', Visit::withStatus(VisitStatus::Completed)->where('doctor_id', $doctorId)->count(), 'blue', 'consultations.history.index'),
             $this->card('My pending lab requests', LabRequest::pending()->where('requested_by', $doctorId)->count(), 'amber', 'lab.index'),
         ];
     }

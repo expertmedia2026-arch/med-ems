@@ -18,6 +18,7 @@
                     {{ ucfirst($patient->gender) }} · {{ $patient->age }} yrs
                     · Blood {{ $patient->blood_group ?: '?' }} · Genotype {{ $patient->genotype ?: '?' }}
                 </p>
+                <p class="mt-1 text-sm text-slate-500">Department: {{ $visit->department?->name ?? '—' }}</p>
             </div>
             <div class="text-right text-sm">
                 <p class="font-medium">{{ $visit->checked_in_at->format('d M Y, g:i A') }}</p>
@@ -169,6 +170,27 @@
                                             <span class="block text-xs text-slate-400">{{ $rx->dispensed_at?->format('d M, g:i A') }}</span>
                                         @else
                                             <x-badge color="amber">Not dispensed</x-badge>
+                                        @endif
+                                        @if ($rx->requires_in_facility_administration)
+                                            <span class="mt-1 block text-xs text-blue-700">Nurse: {{ $rx->administered_count }}/{{ $rx->required_administration_count }} doses given</span>
+                                            @if ($rx->administration_waived_at)
+                                                <span class="block text-xs text-amber-700">Waived: {{ $rx->administration_waiver_reason }}</span>
+                                            @endif
+                                            @foreach ($rx->administrations as $administration)
+                                                <span class="block text-xs text-slate-500">
+                                                    {{ ucfirst(str_replace('_', ' ', $administration->status)) }}
+                                                    @if ($administration->administered_at) · {{ $administration->administered_at->format('d M, g:i A') }} @endif
+                                                    @if ($administration->nurse) · {{ $administration->nurse->name }} @endif
+                                                    @if ($administration->reason) · {{ $administration->reason }} @endif
+                                                </span>
+                                            @endforeach
+                                            @if (! $rx->administration_waived_at && $rx->administered_count < $rx->required_administration_count && (auth()->user()->hasRole('admin') || $visit->doctor_id === auth()->id()))
+                                                <form method="POST" action="{{ route('nursing.administrations.waive', [$visit, $rx]) }}" class="mt-2 flex flex-wrap gap-2">
+                                                    @csrf
+                                                    <input name="reason" required maxlength="2000" placeholder="Clinical reason to waive" class="w-48 rounded border-slate-300 text-xs">
+                                                    <button class="text-xs text-amber-700 hover:underline">Waive with reason</button>
+                                                </form>
+                                            @endif
                                         @endif
                                     </td>
                                 </tr>

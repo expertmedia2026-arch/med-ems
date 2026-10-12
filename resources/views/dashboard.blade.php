@@ -12,7 +12,7 @@
 
     <div class="mb-6">
         <h2 class="text-2xl font-semibold">Welcome, {{ auth()->user()->name }}</h2>
-        <p class="text-slate-500">{{ auth()->user()->role->label() }} · {{ now()->format('l, d F Y') }}</p>
+        <p class="text-slate-500">{{ auth()->user()->role->label() }}@if (auth()->user()->department) · {{ auth()->user()->department->name }} Department @endif · {{ now()->format('l, d F Y') }}</p>
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -43,6 +43,7 @@
                     <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                         <tr>
                             <th class="px-4 py-3">Patient</th>
+                            <th class="px-4 py-3">Department</th>
                             <th class="px-4 py-3">Complaint</th>
                             <th class="px-4 py-3">Doctor</th>
                             <th class="px-4 py-3">Waiting</th>
@@ -56,13 +57,14 @@
                                     <span class="font-medium">{{ $visit->patient->full_name }}</span>
                                     <span class="block font-mono text-xs text-slate-400">{{ $visit->patient->hospital_number }}</span>
                                 </td>
+                                <td class="px-4 py-3">{{ $visit->department?->name ?? '—' }}</td>
                                 <td class="px-4 py-3">{{ $visit->complaint ?: '—' }}</td>
                                 <td class="px-4 py-3">{{ $visit->doctor?->name ?? 'Unassigned' }}</td>
                                 <td class="px-4 py-3">{{ $visit->checked_in_at->diffForHumans(short: true) }}</td>
                                 <td class="px-4 py-3"><x-badge :color="$visit->status->color()">{{ $visit->status->label() }}</x-badge></td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">Nobody in the queue right now.</td></tr>
+                            <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">Nobody in the queue right now.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

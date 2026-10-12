@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\ClinicalController;
 use App\Http\Controllers\Api\V1\CsvTransferController;
 use App\Http\Controllers\Api\V1\DashboardApiController;
 use App\Http\Controllers\Api\V1\LabOperationsController;
+use App\Http\Controllers\Api\V1\NursingAdministrationController;
 use App\Http\Controllers\Api\V1\PatientController;
 use App\Http\Controllers\Api\V1\PharmacyOperationsController;
 use App\Http\Controllers\Api\V1\ReferenceDataController;
@@ -123,10 +124,21 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::put('{visit}/vitals', [ClinicalController::class, 'triageStore'])->whereNumber('visit')->name('vitals.update');
         });
 
+        Route::middleware('role:admin,nurse')->prefix('nursing/medication-administrations')->name('nursing.administrations.')->group(function () {
+            Route::get('/', [NursingAdministrationController::class, 'index'])->name('index');
+            Route::get('visits/{visit}', [NursingAdministrationController::class, 'show'])->whereNumber('visit')->name('show');
+            Route::post('visits/{visit}/prescriptions/{prescription}', [NursingAdministrationController::class, 'store'])
+                ->whereNumber('visit')->whereNumber('prescription')->name('store');
+            Route::post('visits/{visit}/discharge', [NursingAdministrationController::class, 'discharge'])->whereNumber('visit')->name('discharge');
+        });
+        Route::middleware('role:admin,doctor')->post('nursing/medication-administrations/visits/{visit}/prescriptions/{prescription}/waiver', [NursingAdministrationController::class, 'waive'])
+            ->whereNumber('visit')->whereNumber('prescription')->name('nursing.administrations.waive');
+
         // Doctor consultation workspace, including prescriptions and linked lab requests.
         Route::middleware('role:doctor')->prefix('consultations')->name('consultations.')->scopeBindings()->group(function () {
             Route::get('queue', [ClinicalController::class, 'consultationIndex'])->name('queue');
             Route::get('options', [ClinicalController::class, 'options'])->name('options');
+            Route::get('history', [ClinicalController::class, 'consultationHistoryIndex'])->name('history.index');
             Route::get('history/{visit}', [ClinicalController::class, 'consultationHistory'])->whereNumber('visit')->name('history');
             Route::get('{visit}', [ClinicalController::class, 'consultationShow'])->whereNumber('visit')->name('show');
             Route::post('{visit}/start', [ClinicalController::class, 'consultationStart'])->whereNumber('visit')->name('start');

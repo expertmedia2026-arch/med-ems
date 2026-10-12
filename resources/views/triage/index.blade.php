@@ -7,6 +7,8 @@
             <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                     <th class="px-4 py-3">Patient</th>
+                    <th class="px-4 py-3">Department</th>
+                    <th class="px-4 py-3">Assigned doctor</th>
                     <th class="px-4 py-3">Complaint</th>
                     <th class="px-4 py-3">Waiting</th>
                     <th class="px-4 py-3"></th>
@@ -19,6 +21,8 @@
                             <span class="font-medium">{{ $visit->patient->full_name }}</span>
                             <span class="block font-mono text-xs text-slate-400">{{ $visit->patient->hospital_number }}</span>
                         </td>
+                        <td class="px-4 py-3">{{ $visit->department?->name ?? '—' }}</td>
+                        <td class="px-4 py-3">{{ $visit->doctor?->name ?? 'Unassigned' }}</td>
                         <td class="px-4 py-3">{{ $visit->complaint ?: '—' }}</td>
                         <td class="px-4 py-3">{{ $visit->checked_in_at->diffForHumans(short: true) }}</td>
                        
@@ -33,7 +37,7 @@
 
                     </tr>
                 @empty
-                    <tr><td colspan="4" class="px-4 py-10 text-center text-slate-500">Nobody is waiting for triage.</td></tr>
+                    <tr><td colspan="6" class="px-4 py-10 text-center text-slate-500">Nobody in your department is waiting for triage.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -43,9 +47,12 @@
     <div class="overflow-x-auto rounded-xl border bg-white shadow-sm">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
             <tbody class="divide-y divide-slate-100">
+                <tr class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500"><th class="px-4 py-3">Patient</th><th class="px-4 py-3">Department</th><th class="px-4 py-3">Assigned doctor</th><th class="px-4 py-3">Vitals alerts</th><th class="px-4 py-3"></th></tr>
                 @forelse ($done as $visit)
                     <tr>
                         <td class="px-4 py-3 font-medium">{{ $visit->patient->full_name }}</td>
+                        <td class="px-4 py-3">{{ $visit->department?->name ?? '—' }}</td>
+                        <td class="px-4 py-3">{{ $visit->doctor?->name ?? 'Unassigned' }}</td>
                         <td class="px-4 py-3">
                             @foreach ($visit->vitals?->alerts() ?? [] as $alert)
                                 <x-badge color="red">{{ $alert }}</x-badge>

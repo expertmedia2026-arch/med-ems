@@ -33,6 +33,9 @@ class PrescriptionService
             }
 
             $reservedQuantity = min((int) $data['quantity'], $drug->available_quantity);
+            $data['required_administration_count'] = ($data['requires_in_facility_administration'] ?? false)
+                ? (int) ($data['required_administration_count'] ?? 1)
+                : 1;
             $prescription = $visit->prescriptions()->create($data + [
                 'dispensable_quantity' => $reservedQuantity,
                 'prescribed_by' => $doctorId,

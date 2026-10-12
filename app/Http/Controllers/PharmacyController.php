@@ -34,7 +34,12 @@ class PharmacyController extends Controller
             $redirect->with('error', 'Not dispensed: '.implode(', ', $result['skipped']));
         }
 
-        return $redirect->with('success', "{$result['dispensed']} item(s) dispensed for {$result['patient_name']}.");
+        $message = "{$result['dispensed']} item(s) dispensed for {$result['patient_name']}.";
+        if ($result['nursing_ready'] > 0) {
+            $message .= " {$result['nursing_ready']} hospital administration task(s) sent to the nursing queue.";
+        }
+
+        return $redirect->with('success', $message);
     }
 
     public function inventory(PharmacyInventoryRequest $request, PharmacyService $pharmacy)

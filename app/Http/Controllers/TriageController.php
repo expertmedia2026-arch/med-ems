@@ -9,14 +9,14 @@ use App\Services\TriageService;
 
 class TriageController extends Controller
 {
-    public function index(TriageService $triage)
+    public function index(\Illuminate\Http\Request $request, TriageService $triage)
     {
-        return view('triage.index', $triage->indexData());
+        return view('triage.index', $triage->indexData($request->user()));
     }
 
     public function show(Visit $visit, BillingService $billing, TriageService $triage)
     {
-        $triage->assertVitalsEditable($visit);
+        $triage->assertVitalsEditable($visit, request()->user());
 
         if (! $billing->consultationPaid($visit)) {
             return $this->unpaid();
@@ -29,7 +29,7 @@ class TriageController extends Controller
 
     public function store(RecordVitalsRequest $request, Visit $visit, BillingService $billing, TriageService $triage)
     {
-        $triage->assertVitalsEditable($visit);
+        $triage->assertVitalsEditable($visit, $request->user());
 
         if (! $billing->consultationPaid($visit)) {
             return $this->unpaid();

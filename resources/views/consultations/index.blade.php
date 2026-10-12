@@ -6,6 +6,7 @@
             <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                     <th class="px-4 py-3">Patient</th>
+                    <th class="px-4 py-3">Department</th>
                     <th class="px-4 py-3">Complaint</th>
                     <th class="px-4 py-3">Vitals</th>
                     <th class="px-4 py-3">Waiting</th>
@@ -21,6 +22,7 @@
                             <span class="font-medium">{{ $visit->patient->full_name }}</span>
                             <span class="block text-xs text-slate-400">{{ ucfirst($visit->patient->gender) }}, {{ $visit->patient->age }}</span>
                         </td>
+                        <td class="px-4 py-3">{{ $visit->department?->name ?? '—' }}</td>
                         <td class="px-4 py-3">{{ $visit->complaint ?: '—' }}</td>
                         <td class="px-4 py-3">
                             @if ($v)
@@ -53,7 +55,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-10 text-center text-slate-500">No patients waiting.</td></tr>
+                    <tr><td colspan="7" class="px-4 py-10 text-center text-slate-500">No patients waiting in your department.</td></tr>
                 @endforelse
             </tbody>
         </table>

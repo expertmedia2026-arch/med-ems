@@ -19,6 +19,9 @@ class Prescription extends Model
             'status'       => WorkStatus::class,
             'dispensed_at' => 'datetime',
             'dispensable_quantity' => 'integer',
+            'requires_in_facility_administration' => 'boolean',
+            'required_administration_count' => 'integer',
+            'administration_waived_at' => 'datetime',
         ];
     }
 
@@ -59,6 +62,23 @@ class Prescription extends Model
     public function stockReservation(): HasOne
     {
         return $this->hasOne(PrescriptionStockReservation::class);
+    }
+
+    public function administrations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(MedicationAdministration::class);
+    }
+
+    public function administrationWaiver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'administration_waived_by');
+    }
+
+    public function getAdministeredCountAttribute(): int
+    {
+        return $this->relationLoaded('administrations')
+            ? $this->administrations->where('status', 'administered')->count()
+            : $this->administrations()->where('status', 'administered')->count();
     }
 
     protected function isPaid(): Attribute

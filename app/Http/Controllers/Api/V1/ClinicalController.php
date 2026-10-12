@@ -37,9 +37,9 @@ class ClinicalController extends Controller
         ];
     }
 
-    public function triageIndex(TriageService $triage): array
+    public function triageIndex(Request $request, TriageService $triage): array
     {
-        $data = $triage->indexData();
+        $data = $triage->indexData($request->user());
 
         return [
             'waiting' => VisitResource::collection($data['waiting']),
@@ -49,7 +49,7 @@ class ClinicalController extends Controller
 
     public function triageShow(Visit $visit, BillingService $billing, TriageService $triage): VisitResource
     {
-        $triage->assertVitalsEditable($visit);
+        $triage->assertVitalsEditable($visit, request()->user());
         abort_unless($billing->consultationPaid($visit), 402, 'The consultation charge must be paid before triage.');
 
         return new VisitResource($triage->loadVitalsData($visit));
@@ -57,7 +57,7 @@ class ClinicalController extends Controller
 
     public function triageStore(RecordVitalsRequest $request, Visit $visit, BillingService $billing, TriageService $triage): VisitResource
     {
-        $triage->assertVitalsEditable($visit);
+        $triage->assertVitalsEditable($visit, $request->user());
         abort_unless($billing->consultationPaid($visit), 402, 'The consultation charge must be paid before triage.');
         $triage->recordVitals($visit, $request->validated(), $request->user());
 
@@ -76,7 +76,15 @@ class ClinicalController extends Controller
 
     public function consultationHistory(Visit $visit, ConsultationService $consultations): VisitResource
     {
-        return new VisitResource($consultations->historyData($visit));
+        return new VisitResource($consultations->historyData($visit, request()->user()));
+    }
+
+    public function consultationHistoryIndex(Request $request, ConsultationService $consultations): AnonymousResourceCollection
+    {
+        return VisitResource::collection($consultations->historyFor(
+            $request->user(),
+            $request->string('search')->trim()->value(),
+        ));
     }
 
     public function consultationStart(Request $request, Visit $visit, ConsultationService $consultations): VisitResource
@@ -97,7 +105,10 @@ class ClinicalController extends Controller
     {
         $consultations->complete($visit, $request->validated(), $request->user());
 
-        return new VisitResource($visit->refresh()->load(['patient', 'doctor', 'vitals']));
+        return new VisitResource($visit->refresh()->load([
+            'patient', 'doctor', 'vitals', 'prescriptions.drug', 'prescriptions.invoiceItem',
+            'prescriptions.stockReservation', 'prescriptions.administrations.nurse',
+        ]));
     }
 
     public function requestLabTests(RequestLabTestsRequest $request, Visit $visit, LabWorkflowService $lab): array
@@ -134,11 +145,13 @@ class ClinicalController extends Controller
                 'quantity' => $prescription->quantity,
                 'reserved_quantity' => $prescription->dispensable_quantity,
                 'shortage_quantity' => max(0, $prescription->quantity - $prescription->dispensable_quantity),
+                'requires_in_facility_administration' => $prescription->requires_in_facility_administration,
+                'required_administration_count' => $prescription->required_administration_count,
             ],
             'stock_warning' => $result['shortage'] > 0
                 ? "Only {$result['reserved_quantity']} of {$prescription->quantity} units were reserved. Arrange an alternative or external supply for the shortage."
                 : null,
-            'visit' => new VisitResource($visit->load('prescriptions.drug', 'prescriptions.invoiceItem', 'prescriptions.stockReservation')),
+            'visit' => new VisitResource($visit->load('prescriptions.drug', 'prescriptions.invoiceItem', 'prescriptions.stockReservation', 'prescriptions.administrations.nurse')),
         ];
     }
 

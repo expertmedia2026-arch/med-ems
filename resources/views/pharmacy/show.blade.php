@@ -50,6 +50,9 @@
                                 <p class="text-amber-700">{{ $rx->quantity - $dispenseQuantity }} unit(s) unavailable; arrange an alternative or external supply.</p>
                             @endif
                             <p class="text-slate-600">{{ $rx->dosage }}, {{ $rx->frequency }}, for {{ $rx->duration }}</p>
+                            @if ($rx->requires_in_facility_administration)
+                                <p class="mt-1 text-xs font-medium text-blue-700">After dispensing, hand this medicine to the nurse/treatment room. Nursing doses must be recorded before discharge.</p>
+                            @endif
                             @if ($rx->instructions)
                                 <p class="text-slate-500">{{ $rx->instructions }}</p>
                             @endif

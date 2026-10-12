@@ -18,6 +18,13 @@ class ConsultationController extends Controller
         return view('consultations.index', compact('visits'));
     }
 
+    public function historyIndex(Request $request, ConsultationService $consultations)
+    {
+        $visits = $consultations->historyFor($request->user(), $request->string('search')->trim()->value());
+
+        return view('consultations.history-index', compact('visits'));
+    }
+
     public function start(Request $request, Visit $visit, ConsultationService $consultations)
     {
         $consultations->start($visit, $request->user());
@@ -48,7 +55,7 @@ class ConsultationController extends Controller
 
     public function history(ConsultationHistoryRequest $request, Visit $visit, ConsultationService $consultations)
     {
-        $visit = $consultations->historyData($visit);
+        $visit = $consultations->historyData($visit, $request->user());
 
         // "Back" returns to the consultation the doctor came from
         $backUrl = $request->validated('from')

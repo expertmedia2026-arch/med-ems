@@ -116,6 +116,9 @@
                                         <td class="pr-4">{{ $rx->status->value === 'completed' ? ($rx->dispensable_quantity ?? $rx->quantity).' supplied / '.$rx->quantity : ($rx->dispensable_quantity ?? $rx->quantity).' reserved / '.$rx->quantity }}</td>
                                         <td class="pr-4"><x-badge :color="$rx->status->value === 'pending' ? 'amber' : 'green'">{{ $rx->status->value === 'pending' ? 'Pending' : 'Dispensed' }}</x-badge></td>
                                         <td class="text-right">
+                                            @if ($rx->requires_in_facility_administration)
+                                                <span class="block text-xs text-blue-700">Nurse: {{ $rx->administered_count }}/{{ $rx->required_administration_count }} doses</span>
+                                            @endif
                                             @if ($editable && $rx->status->value === 'pending')
                                                 <form method="POST" action="{{ route('consultations.prescriptions.destroy', [$visit, $rx]) }}">
                                                     @csrf @method('DELETE')
@@ -174,6 +177,24 @@
                         <div class="sm:col-span-2">
                             <label class="{{ $label }}">Instructions (optional)</label>
                             <input name="instructions" type="text" placeholder="e.g. Take after meals" value="{{ old('instructions') }}" class="{{ $input }}">
+                        </div>
+
+                        <div class="sm:col-span-2 rounded-lg border border-slate-200 bg-white p-3">
+                            <label class="flex items-start gap-3 text-sm">
+                                <input type="checkbox" name="requires_in_facility_administration" value="1"
+                                       @checked(old('requires_in_facility_administration'))
+                                       class="mt-0.5 rounded border-slate-300 text-teal-700 focus:ring-teal-600">
+                                <span>
+                                    <span class="font-medium">Give this medicine at the hospital</span>
+                                    <span class="block text-xs text-slate-500">After pharmacy dispenses it, add a nursing administration task. Leave unchecked for take-home medicine.</span>
+                                </span>
+                            </label>
+                            <div class="mt-3 max-w-xs">
+                                <label class="{{ $label }}" for="required_administration_count">Number of administrations</label>
+                                <input id="required_administration_count" name="required_administration_count" type="number" min="1" max="100"
+                                       value="{{ old('required_administration_count', 1) }}" class="{{ $input }}">
+                                @error('required_administration_count')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            </div>
                         </div>
 
                         <div class="sm:col-span-2">
@@ -276,11 +297,12 @@
                         Save notes
                     </button>
                     <button form="visit-form" formaction="{{ route('consultations.complete', $visit) }}"
-                            onclick="return confirm('Complete this consultation? Prescriptions and lab requests will go to the pharmacy and lab.')"
+                            onclick="return confirm('Complete the doctor consultation? Prescriptions and lab requests will go to pharmacy and lab. Hospital-administered injections will then appear in the nursing queue; the nurse records doses before discharge.')"
                             @disabled($outstandingLabRequests->isNotEmpty())
                             class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">
                         Complete consultation
                     </button>
+                    <p class="basis-full text-xs text-slate-500">Completing the consultation sends orders downstream. Nursing administration and patient discharge are tracked separately.</p>
                 </div>
             @endif
         </div>

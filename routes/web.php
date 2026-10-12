@@ -15,6 +15,7 @@ use App\Http\Controllers\LabController;
 use App\Http\Controllers\LabReferralController;
 use App\Http\Controllers\LabRequestController;
 use App\Http\Controllers\LabTestController;
+use App\Http\Controllers\NursingAdministrationController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PatientPortalController;
 use App\Http\Controllers\PaystackWebhookController;
@@ -156,9 +157,20 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         Route::post('{visit}', [TriageController::class, 'store'])->name('store');
     });
 
+    Route::middleware('role:admin,nurse')->prefix('nursing/medication-administrations')->name('nursing.administrations.')->group(function () {
+        Route::get('/', [NursingAdministrationController::class, 'index'])->name('index');
+        Route::get('visits/{visit}', [NursingAdministrationController::class, 'show'])->whereNumber('visit')->name('show');
+        Route::post('visits/{visit}/prescriptions/{prescription}', [NursingAdministrationController::class, 'store'])
+            ->whereNumber('visit')->whereNumber('prescription')->name('store');
+        Route::post('visits/{visit}/discharge', [NursingAdministrationController::class, 'discharge'])->whereNumber('visit')->name('discharge');
+    });
+    Route::middleware('role:admin,doctor')->post('nursing/medication-administrations/visits/{visit}/prescriptions/{prescription}/waiver', [NursingAdministrationController::class, 'waive'])
+        ->whereNumber('visit')->whereNumber('prescription')->name('nursing.administrations.waive');
+
     // Doctor: consultation workspace
     Route::middleware('role:doctor')->prefix('consultations')->name('consultations.')->scopeBindings()->group(function () {
         Route::get('/', [ConsultationController::class, 'index'])->name('index');
+        Route::get('history', [ConsultationController::class, 'historyIndex'])->name('history.index');
         Route::get('history/{visit}', [ConsultationController::class, 'history'])->name('history');
         Route::get('{visit}', [ConsultationController::class, 'show'])->name('show');
         Route::post('{visit}/start', [ConsultationController::class, 'start'])->name('start');

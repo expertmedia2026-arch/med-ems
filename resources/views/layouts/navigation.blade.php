@@ -15,6 +15,11 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    @if (Auth::user()->hasRole('admin', 'nurse'))
+                        <x-nav-link :href="route('nursing.administrations.index')" :active="request()->routeIs('nursing.administrations.*')">
+                            {{ __('Medication administration') }}
+                        </x-nav-link>
+                    @endif
                 </div>
             </div>
 
@@ -70,6 +75,11 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+            @if (Auth::user()->hasRole('admin', 'nurse'))
+                <x-responsive-nav-link :href="route('nursing.administrations.index')" :active="request()->routeIs('nursing.administrations.*')">
+                    {{ __('Medication administration') }}
+                </x-responsive-nav-link>
+            @endif
         </div>
 
         <!-- Responsive Settings Options -->
