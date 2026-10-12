@@ -113,7 +113,7 @@
                                         <td class="pr-4">{{ $rx->dosage }}</td>
                                         <td class="pr-4">{{ $rx->frequency }}</td>
                                         <td class="pr-4">{{ $rx->duration }}</td>
-                                        <td class="pr-4">{{ $rx->quantity }}</td>
+                                        <td class="pr-4">{{ $rx->status->value === 'completed' ? ($rx->dispensable_quantity ?? $rx->quantity).' supplied / '.$rx->quantity : ($rx->dispensable_quantity ?? $rx->quantity).' reserved / '.$rx->quantity }}</td>
                                         <td class="pr-4"><x-badge :color="$rx->status->value === 'pending' ? 'amber' : 'green'">{{ $rx->status->value === 'pending' ? 'Pending' : 'Dispensed' }}</x-badge></td>
                                         <td class="text-right">
                                             @if ($editable && $rx->status->value === 'pending')
@@ -143,7 +143,7 @@
                                 <option value="">Select drug…</option>
                                 @foreach ($drugs as $drug)
                                     <option value="{{ $drug->id }}" @selected(old('drug_id') == $drug->id)>
-                                        {{ $drug->display_name }}: {{ $drug->stock_quantity }} in stock
+                                        {{ $drug->display_name }}: {{ $drug->available_quantity }} available
                                     </option>
                                 @endforeach
                             </select>

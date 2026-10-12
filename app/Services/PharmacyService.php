@@ -11,12 +11,16 @@ use Illuminate\Support\Facades\DB;
 
 class PharmacyService
 {
+    public function __construct(private readonly DrugInventoryService $inventory) {}
+
     public function dashboardData(): array
     {
+        $this->inventory->expireReservations();
+
         return [
             'queue' => Visit::with([
                 'patient',
-                'prescriptions' => fn ($query) => $query->pending()->with(['drug', 'invoiceItem']),
+                'prescriptions' => fn ($query) => $query->pending()->with(['drug', 'invoiceItem', 'stockReservation']),
             ])->withStatus(VisitStatus::Completed)
                 ->whereHas('prescriptions', fn ($query) => $query->pending())->oldest('closed_at')->get(),
             'lowStock' => Drug::lowStock()->orderBy('stock_quantity')->get(),
@@ -29,11 +33,21 @@ class PharmacyService
     {
         abort_unless($visit->status === VisitStatus::Completed, 404);
 
-        return $visit->load(['patient', 'doctor', 'prescriptions.drug', 'prescriptions.dispenser', 'prescriptions.invoiceItem']);
+        $this->inventory->expireReservations();
+        $visit->loadMissing(['prescriptions' => fn ($query) => $query->pending()->with('invoiceItem')]);
+        foreach ($visit->prescriptions as $prescription) {
+            if ($prescription->is_paid) {
+                $this->inventory->ensurePrescriptionReserved($prescription, null);
+            }
+        }
+
+        return $visit->load(['patient', 'doctor', 'prescriptions.drug', 'prescriptions.dispenser', 'prescriptions.invoiceItem', 'prescriptions.stockReservation']);
     }
 
     public function inventoryData(?string $term, bool $lowStock)
     {
+        $this->inventory->expireReservations();
+
         return Drug::query()->when($term, fn ($query) => $query->where(fn ($search) => $search
             ->whereLike('name', "%{$term}%")->orWhereLike('generic_name', "%{$term}%")))
             ->when($lowStock, fn ($query) => $query->lowStock())->orderBy('name')->paginate(15)->withQueryString();
@@ -47,8 +61,8 @@ class PharmacyService
         $skipped = [];
 
         DB::transaction(function () use ($visit, $prescriptionIds, $userId, &$dispensed, &$skipped) {
-            $items = $visit->prescriptions()->pending()->with(['invoiceItem', 'drug'])
-                ->whereIn('id', array_unique($prescriptionIds))->get();
+            $items = $visit->prescriptions()->pending()->with(['invoiceItem', 'drug', 'stockReservation'])
+                ->whereIn('id', array_unique($prescriptionIds))->orderBy('drug_id')->get();
 
             foreach ($items as $prescription) {
                 if (! $prescription->is_paid) {
@@ -57,14 +71,19 @@ class PharmacyService
                     continue;
                 }
 
-                $drug = Drug::lockForUpdate()->findOrFail($prescription->drug_id);
-                if ($drug->stock_quantity < $prescription->quantity) {
-                    $skipped[] = "{$drug->name} (need {$prescription->quantity}, have {$drug->stock_quantity})";
+                if (! $this->inventory->ensurePrescriptionReserved($prescription, null)) {
+                    $drug = Drug::findOrFail($prescription->drug_id);
+                    $skipped[] = "{$drug->name} (reserved stock expired and only {$drug->available_quantity} is now available)";
 
                     continue;
                 }
 
-                $drug->decrement('stock_quantity', $prescription->quantity);
+                if (! $this->inventory->fulfillPrescription($prescription, $userId)) {
+                    $skipped[] = "{$prescription->drug->name} (reserved stock is no longer available)";
+
+                    continue;
+                }
+
                 $prescription->update([
                     'status' => WorkStatus::Completed,
                     'dispensed_by' => $userId,
@@ -82,10 +101,8 @@ class PharmacyService
         ];
     }
 
-    public function restock(Drug $drug, int $quantity): Drug
+    public function restock(Drug $drug, int $quantity, int $userId): Drug
     {
-        $drug->increment('stock_quantity', $quantity);
-
-        return $drug->refresh();
+        return $this->inventory->restock($drug, $quantity, $userId);
     }
 }

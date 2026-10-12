@@ -27,7 +27,8 @@ class PharmacyOperationsController extends Controller
                 'prescription_id' => $prescription->id,
                 'drug' => $prescription->drug?->display_name,
                 'patient' => $prescription->visit?->patient?->full_name,
-                'quantity' => $prescription->quantity,
+                'quantity' => $prescription->dispensable_quantity ?? $prescription->quantity,
+                'prescribed_quantity' => $prescription->quantity,
                 'dispensed_at' => $prescription->dispensed_at?->toIso8601String(),
             ])->values(),
         ];
@@ -52,7 +53,7 @@ class PharmacyOperationsController extends Controller
 
     public function restock(RestockDrugRequest $request, Drug $drug, PharmacyService $service): DrugResource
     {
-        return new DrugResource($service->restock($drug, $request->validated('quantity')));
+        return new DrugResource($service->restock($drug, $request->validated('quantity'), $request->user()->id));
     }
 
     public function createDrug(SaveDrugRequest $request, DrugCatalogService $catalog): DrugResource

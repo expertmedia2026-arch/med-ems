@@ -12,7 +12,10 @@ use Illuminate\Support\Str;
 
 class OnlinePaymentService
 {
-    public function __construct(private PaystackGateway $gateway) {}
+    public function __construct(
+        private PaystackGateway $gateway,
+        private DrugInventoryService $inventory,
+    ) {}
 
     public function findForPatient(string $reference, int $patientId): ?OnlinePayment
     {
@@ -111,6 +114,16 @@ class OnlinePaymentService
                     'status' => 'review',
                     'paid_at' => now(),
                     'note' => 'Paid online, but some items were already settled at the cashier. Refund or reconcile in the gateway dashboard.',
+                ]);
+
+                return $attempt;
+            }
+
+            if (! $this->inventory->ensureItemsReserved($items, null)) {
+                $attempt->update([
+                    'status' => 'review',
+                    'paid_at' => now(),
+                    'note' => 'Payment succeeded online, but the reserved drug stock could not be reacquired. Refund or reconcile in the gateway dashboard.',
                 ]);
 
                 return $attempt;

@@ -41,6 +41,7 @@ class PortalInvoiceController extends Controller
             $message = match ($checkout['status']) {
                 'invalid_items' => 'Some selected items cannot be paid online (already paid, or not ready yet). Please try again.',
                 'pending_overlap' => 'A payment for these items is already in progress. Complete it, or try again in a few minutes.',
+                'stock_unavailable' => 'The pharmacy can no longer reserve stock for one or more selected drugs. Please contact the pharmacy before paying.',
                 default => 'We could not start the payment. Please try again in a moment.',
             };
 

@@ -13,4 +13,9 @@ return [
         'lab_capacity' => 3,                   // lab bookings allowed per slot
         'max_upcoming' => 5,                   // upcoming appointments per patient
     ],
+
+    'pharmacy' => [
+        'unpaid_reservation_minutes' => 120,
+        'online_payment_reservation_minutes' => 30,
+    ],
 ];

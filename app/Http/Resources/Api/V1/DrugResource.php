@@ -18,6 +18,8 @@ class DrugResource extends JsonResource
             'strength' => $this->strength,
             'unit_price' => (float) $this->unit_price,
             'stock_quantity' => $this->stock_quantity,
+            'reserved_quantity' => $this->reserved_quantity,
+            'available_quantity' => $this->available_quantity,
             'reorder_level' => $this->reorder_level,
             'is_active' => (bool) $this->is_active,
         ];

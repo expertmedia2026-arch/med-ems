@@ -22,7 +22,11 @@ class PrescriptionController extends Controller
             return back()->withInput()->withErrors([$field => $result['error']]);
         }
 
-        return back()->with('success', "{$result['drug']->name} added to the prescription.");
+        $message = $result['shortage'] > 0
+            ? "{$result['reserved_quantity']} of {$request->validated('quantity')} {$result['drug']->name} unit(s) reserved; {$result['shortage']} unavailable. Arrange an alternative or external supply for the shortage."
+            : "{$result['drug']->name} added to the prescription and reserved.";
+
+        return back()->with('success', $message);
     }
 
     public function destroy(Request $request, Visit $visit, Prescription $prescription, PrescriptionService $prescriptions)

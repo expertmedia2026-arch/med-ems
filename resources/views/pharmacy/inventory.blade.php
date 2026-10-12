@@ -26,7 +26,7 @@
             <tr>
                 <th class="px-4 py-3">Drug</th>
                 <th class="px-4 py-3">Price</th>
-                <th class="px-4 py-3">Stock</th>
+                <th class="px-4 py-3">On hand / Reserved / Available</th>
                 <th class="px-4 py-3">Restock</th>
                 <th class="px-4 py-3">Status</th>
                 <th class="px-4 py-3"></th>
@@ -42,6 +42,7 @@
                     <td class="px-4 py-3">₦{{ number_format($drug->unit_price, 2) }}</td>
                     <td class="px-4 py-3">
                         <span class="font-semibold">{{ $drug->stock_quantity }}</span>
+                        <span class="block text-xs text-slate-500">{{ $drug->reserved_quantity }} reserved · {{ $drug->available_quantity }} available</span>
                         @if ($drug->is_low_stock)
                             <x-badge color="red" class="ml-2">Low</x-badge>
                         @endif
@@ -82,7 +83,7 @@
                 <tr>
                     <th class="px-4 py-3">Drug</th>
                     <th class="px-4 py-3">Price</th>
-                    <th class="px-4 py-3">Stock</th>
+                <th class="px-4 py-3">On hand / Reserved / Available</th>
                     <th class="px-4 py-3">Restock</th>
                 </tr>
             </thead>
@@ -96,6 +97,7 @@
                         <td class="px-4 py-3">₦{{ number_format($drug->unit_price) }}</td>
                         <td class="px-4 py-3">
                             <span class="font-semibold">{{ $drug->stock_quantity }}</span>
+                            <span class="block text-xs text-slate-500">{{ $drug->reserved_quantity }} reserved · {{ $drug->available_quantity }} available</span>
                             @if ($drug->is_low_stock)
                                 <x-badge color="red" class="ml-2">Low</x-badge>
                             @endif

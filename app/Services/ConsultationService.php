@@ -14,7 +14,10 @@ use Illuminate\Validation\ValidationException;
 
 class ConsultationService
 {
-    public function __construct(private readonly BillingService $billing) {}
+    public function __construct(
+        private readonly BillingService $billing,
+        private readonly DrugInventoryService $inventory,
+    ) {}
 
     public function queueFor(User $doctor)
     {
@@ -26,11 +29,12 @@ class ConsultationService
 
     public function showData(Visit $visit, User $doctor): array
     {
+        $this->inventory->expireReservations();
         $this->assertAssignedToDoctor($visit, $doctor);
         abort_if($visit->status === VisitStatus::WaitingTriage, 404);
 
         $visit->load([
-            'patient', 'vitals', 'prescriptions.drug', 'prescriptions.invoiceItem',
+            'patient', 'vitals', 'prescriptions.drug', 'prescriptions.invoiceItem', 'prescriptions.stockReservation',
             'labRequests.test', 'labRequests.attachments', 'labRequests.invoiceItem',
         ]);
 
@@ -39,7 +43,7 @@ class ConsultationService
             'editable' => $visit->isOpenFor($doctor),
             'history' => $visit->patient->visits()->with('doctor')->where('id', '!=', $visit->id)
                 ->withStatus(VisitStatus::Completed)->latest('checked_in_at')->take(5)->get(),
-            'drugs' => Drug::active()->where('stock_quantity', '>', 0)->orderBy('name')->get(),
+            'drugs' => Drug::active()->whereRaw('(stock_quantity - reserved_quantity) > 0')->orderBy('name')->get(),
             'tests' => LabTest::active()->orderBy('name')->get(),
         ];
     }
@@ -49,7 +53,7 @@ class ConsultationService
         abort_unless($visit->status === VisitStatus::Completed, 404);
 
         return $visit->load([
-            'patient', 'doctor', 'vitals', 'prescriptions.drug', 'prescriptions.dispenser',
+            'patient', 'doctor', 'vitals', 'prescriptions.drug', 'prescriptions.dispenser', 'prescriptions.stockReservation',
             'labRequests.test', 'labRequests.processor', 'labRequests.attachments',
         ]);
     }

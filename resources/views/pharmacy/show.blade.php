@@ -23,7 +23,9 @@
 
     @if ($pending->isNotEmpty())
        @php
-            $dispensable = $pending->filter(fn ($rx) => $rx->is_paid && $rx->drug->stock_quantity >= $rx->quantity);
+            $dispensable = $pending->filter(fn ($rx) => $rx->is_paid
+                && $rx->stockReservation?->status === 'reserved'
+                && $rx->stockReservation->quantity >= ($rx->dispensable_quantity ?? $rx->quantity));
     @endphp
 
         <form method="POST" action="{{ route('pharmacy.dispense', $visit) }}" class="mb-8 rounded-xl border bg-white shadow-sm">
@@ -33,7 +35,9 @@
             <ul class="divide-y text-sm">
                 @foreach ($pending as $rx)
                     @php
-                        $inStock = $rx->drug->stock_quantity >= $rx->quantity;
+                        $reservedQuantity = $rx->stockReservation?->status === 'reserved' ? $rx->stockReservation->quantity : 0;
+                        $dispenseQuantity = $rx->dispensable_quantity ?? $rx->quantity;
+                        $inStock = $reservedQuantity >= $dispenseQuantity;
                         $ok      = $inStock && $rx->is_paid;
                     @endphp
                     <li class="flex items-start gap-3 px-5 py-4">
@@ -41,7 +45,10 @@
                             @checked($ok) @disabled(! $ok)
                             class="mt-1 rounded border-slate-300 text-teal-700 focus:ring-teal-600">
                         <div class="flex-1">
-                            <p class="font-medium">{{ $rx->drug->display_name }} × {{ $rx->quantity }}</p>
+                            <p class="font-medium">{{ $rx->drug->display_name }} · {{ $dispenseQuantity }} reserved of {{ $rx->quantity }} prescribed</p>
+                            @if ($rx->quantity > $dispenseQuantity)
+                                <p class="text-amber-700">{{ $rx->quantity - $dispenseQuantity }} unit(s) unavailable; arrange an alternative or external supply.</p>
+                            @endif
                             <p class="text-slate-600">{{ $rx->dosage }}, {{ $rx->frequency }}, for {{ $rx->duration }}</p>
                             @if ($rx->instructions)
                                 <p class="text-slate-500">{{ $rx->instructions }}</p>
@@ -55,9 +62,9 @@
                             @endif
 
                             @if ($inStock)
-                                <span class="block text-xs text-slate-500">{{ $rx->drug->stock_quantity }} in stock</span>
+                                <span class="block text-xs text-slate-500">{{ $rx->drug->stock_quantity }} on hand · {{ $rx->drug->reserved_quantity }} reserved</span>
                             @else
-                                <x-badge color="red">Insufficient stock ({{ $rx->drug->stock_quantity }})</x-badge>
+                                <x-badge color="red">Reservation expired or unavailable ({{ $rx->drug->available_quantity }} available)</x-badge>
                             @endif
                         </div>
                     </li>
@@ -90,7 +97,7 @@
             <ul class="divide-y text-sm">
                 @foreach ($done as $rx)
                     <li class="flex items-center justify-between px-5 py-3">
-                        <span>{{ $rx->drug->display_name }} × {{ $rx->quantity }}</span>
+                        <span>{{ $rx->drug->display_name }} × {{ $rx->dispensable_quantity ?? $rx->quantity }}</span>
                         <span class="text-xs text-slate-500">{{ $rx->dispensed_at->format('d M, g:i A') }} · {{ $rx->dispenser?->name }}</span>
                     </li>
                 @endforeach

@@ -162,7 +162,7 @@
                                     <td class="pr-4">{{ $rx->dosage }}</td>
                                     <td class="pr-4">{{ $rx->frequency }}</td>
                                     <td class="pr-4">{{ $rx->duration }}</td>
-                                    <td class="pr-4">{{ $rx->quantity }}</td>
+                                    <td class="pr-4">{{ $rx->status->value === 'completed' ? ($rx->dispensable_quantity ?? $rx->quantity).' supplied / '.$rx->quantity : ($rx->dispensable_quantity ?? $rx->quantity).' reserved / '.$rx->quantity }}</td>
                                     <td>
                                         @if ($rx->status->value === 'completed')
                                             <x-badge color="green">Dispensed</x-badge>

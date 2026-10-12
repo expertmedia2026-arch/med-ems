@@ -48,8 +48,8 @@ class PharmacyController extends Controller
     public function restock(RestockDrugRequest $request, Drug $drug, PharmacyService $pharmacy)
     {
         $quantity = $request->validated('quantity');
-        $drug = $pharmacy->restock($drug, $quantity);
+        $drug = $pharmacy->restock($drug, $quantity, $request->user()->id);
 
-        return back()->with('success', "Added {$quantity} to {$drug->name}. New stock: {$drug->stock_quantity}.");
+        return back()->with('success', "Added {$quantity} to {$drug->name}. On hand: {$drug->stock_quantity}; available: {$drug->available_quantity}.");
     }
 }

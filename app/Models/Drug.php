@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Drug extends Model
 {
@@ -14,8 +15,7 @@ class Drug extends Model
         return [
             'unit_price' => 'decimal:2',
             'is_active'  => 'boolean',
-            
-            ];
+        ];
     }
 
     protected function displayName(): Attribute
@@ -25,17 +25,32 @@ class Drug extends Model
 
     protected function isLowStock(): Attribute
     {
-        return Attribute::get(fn () => $this->stock_quantity <= $this->reorder_level);
+        return Attribute::get(fn () => $this->available_quantity <= $this->reorder_level);
+    }
+
+    protected function availableQuantity(): Attribute
+    {
+        return Attribute::get(fn () => max(0, (int) $this->stock_quantity - (int) $this->reserved_quantity));
     }
 
     public function scopeLowStock($query)
     {
-        return $query->whereColumn('stock_quantity', '<=', 'reorder_level');
+        return $query->whereRaw('(stock_quantity - reserved_quantity) <= reorder_level');
     }
 
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(PrescriptionStockReservation::class);
+    }
+
+    public function movements(): HasMany
+    {
+        return $this->hasMany(DrugStockMovement::class);
     }
 
 

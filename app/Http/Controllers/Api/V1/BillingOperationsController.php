@@ -107,6 +107,7 @@ class BillingOperationsController extends Controller
         abort_unless($checkout['status'] === 'started', 422, match ($checkout['status']) {
             'invalid_items' => 'Some selected items cannot be paid online.',
             'pending_overlap' => 'A payment for these items is already in progress.',
+            'stock_unavailable' => 'There is not enough available stock for one or more selected drug items. Contact the pharmacy.',
             default => 'We could not start the payment. Please try again.',
         });
 

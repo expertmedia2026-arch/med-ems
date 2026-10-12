@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 class PortalInvoiceService
 {
+    public function __construct(private readonly DrugInventoryService $inventory) {}
+
     /** @return array{invoices: mixed, outstanding: float} */
     public function indexData(Patient $patient): array
     {
@@ -78,6 +80,11 @@ class PortalInvoiceService
 
         if ($payments->hasPendingOverlap($invoice, $items)) {
             return ['status' => 'pending_overlap', 'url' => null];
+        }
+
+        $expiresAt = now()->addMinutes((int) config('hms.pharmacy.online_payment_reservation_minutes', 30));
+        if (! $this->inventory->ensureItemsReserved($items, $expiresAt)) {
+            return ['status' => 'stock_unavailable', 'url' => null];
         }
 
         try {

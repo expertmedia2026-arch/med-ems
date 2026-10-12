@@ -68,7 +68,7 @@ class BillingService
                 $invoice->items()->create([
                     'category' => 'drug',
                     'description' => $rx->drug->display_name,
-                    'quantity' => $rx->quantity,
+                    'quantity' => $rx->dispensable_quantity ?? $rx->quantity,
                     'unit_price' => $rx->drug->unit_price,
                     'billable_type' => $rx->getMorphClass(),
                     'billable_id' => $rx->id,

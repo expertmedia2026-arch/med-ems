@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\WorkStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
@@ -17,6 +18,7 @@ class Prescription extends Model
         return [
             'status'       => WorkStatus::class,
             'dispensed_at' => 'datetime',
+            'dispensable_quantity' => 'integer',
         ];
     }
 
@@ -52,6 +54,11 @@ class Prescription extends Model
     public function invoiceItem(): MorphOne
     {
         return $this->morphOne(InvoiceItem::class, 'billable');
+    }
+
+    public function stockReservation(): HasOne
+    {
+        return $this->hasOne(PrescriptionStockReservation::class);
     }
 
     protected function isPaid(): Attribute

@@ -18,6 +18,7 @@ use App\Models\Prescription;
 use App\Models\Visit;
 use App\Services\BillingService;
 use App\Services\ConsultationService;
+use App\Services\DrugInventoryService;
 use App\Services\LabWorkflowService;
 use App\Services\PrescriptionService;
 use App\Services\TriageService;
@@ -26,10 +27,12 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ClinicalController extends Controller
 {
-    public function options(): array
+    public function options(DrugInventoryService $inventory): array
     {
+        $inventory->expireReservations();
+
         return [
-            'available_drugs' => DrugResource::collection(Drug::active()->where('stock_quantity', '>', 0)->orderBy('name')->get()),
+            'available_drugs' => DrugResource::collection(Drug::active()->whereRaw('(stock_quantity - reserved_quantity) > 0')->orderBy('name')->get()),
             'lab_tests' => LabTestResource::collection(LabTest::active()->orderBy('name')->get()),
         ];
     }
@@ -129,8 +132,13 @@ class ClinicalController extends Controller
                 'frequency' => $prescription->frequency,
                 'duration' => $prescription->duration,
                 'quantity' => $prescription->quantity,
+                'reserved_quantity' => $prescription->dispensable_quantity,
+                'shortage_quantity' => max(0, $prescription->quantity - $prescription->dispensable_quantity),
             ],
-            'visit' => new VisitResource($visit->load('prescriptions.drug', 'prescriptions.invoiceItem')),
+            'stock_warning' => $result['shortage'] > 0
+                ? "Only {$result['reserved_quantity']} of {$prescription->quantity} units were reserved. Arrange an alternative or external supply for the shortage."
+                : null,
+            'visit' => new VisitResource($visit->load('prescriptions.drug', 'prescriptions.invoiceItem', 'prescriptions.stockReservation')),
         ];
     }
 

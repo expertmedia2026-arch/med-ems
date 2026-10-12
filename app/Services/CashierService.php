@@ -6,10 +6,13 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\OnlinePayment;
 use App\Models\Payment;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 
 class CashierService
 {
+    public function __construct(private readonly DrugInventoryService $inventory) {}
+
     public function indexData(?string $status, ?string $term): array
     {
         return [
@@ -48,6 +51,12 @@ class CashierService
 
             if ($items->count() !== count($wanted)) {
                 return;
+            }
+
+            if (! $this->inventory->ensureItemsReserved($items, null)) {
+                throw ValidationException::withMessages([
+                    'item_ids' => 'There is not enough available stock for one or more drug items. Remove those items or contact the pharmacy before collecting payment.',
+                ]);
             }
 
             $payment = $invoice->payments()->create([

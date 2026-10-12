@@ -78,7 +78,7 @@
                     @forelse ($lowStock as $drug)
                         <li class="flex items-center justify-between px-5 py-3">
                             <span>{{ $drug->display_name }}</span>
-                            <x-badge color="red">{{ $drug->stock_quantity }} left</x-badge>
+                            <x-badge color="red">{{ $drug->available_quantity }} available</x-badge>
                         </li>
                     @empty
                         <li class="px-5 py-6 text-center text-slate-500">All stocked up.</li>
