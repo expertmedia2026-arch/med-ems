@@ -26,6 +26,7 @@ class VisitResource extends JsonResource
                 'hospital_number' => $this->patient->hospital_number,
                 'name' => $this->patient->full_name,
                 'phone' => $this->patient->phone,
+                'age_group' => $this->patient->age === null ? null : ($this->patient->age < 18 ? 'Child' : 'Adult'),
             ] : null),
             'doctor' => $this->whenLoaded('doctor', fn () => $this->doctor ? [
                 'id' => $this->doctor->id,
