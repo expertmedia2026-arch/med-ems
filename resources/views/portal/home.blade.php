@@ -48,6 +48,7 @@
                 'Hospital number' => $patient->hospital_number,
                 'Sex'             => ucfirst($patient->gender),
                 'Age'             => ($patient->dob_estimated ? '~' : '') . $patient->age . ' yrs',
+                'Date of birth'   => $patient->date_of_birth ? ($patient->dob_estimated ? '~' : '') . $patient->date_of_birth->format('d M Y') : null,
                 'Blood group'     => $patient->blood_group,
                 'Genotype'        => $patient->genotype,
                 'Allergies'       => $patient->allergies,

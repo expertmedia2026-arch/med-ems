@@ -9,8 +9,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use App\Enums\Role;
-
 
 class LoginRequest extends FormRequest
 {
@@ -63,17 +61,6 @@ class LoginRequest extends FormRequest
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
-            ]);
-        }
-
-        // Patients can only sign in once their registration fee has been paid
-        $user = Auth::user();
-
-        if ($user->role === Role::Patient && ! $user->patient?->registration_paid_at) {
-            Auth::logout();
-
-            throw ValidationException::withMessages([
-                'email' => 'Your registration fee has not been paid yet. Please pay at the cashier to activate your account.',
             ]);
         }
 

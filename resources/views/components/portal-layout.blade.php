@@ -94,6 +94,14 @@
         </header>
 
         <main class="min-w-0 flex-1 p-4 sm:p-5 lg:p-8">
+            @if ($user->patient && ! $user->patient->registration_paid_at)
+                @php($registrationFee = (float) $hospital->registration_fee)
+                <div role="alert" class="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <p class="font-semibold">Registration fee outstanding</p>
+                    <p class="mt-1">Your registration fee of ₦{{ number_format($registrationFee, 2) }} has not been paid. Please pay at the cashier. You can continue using your patient portal.</p>
+                </div>
+            @endif
+
             @foreach (['success' => 'border-green-200 bg-green-50 text-green-800', 'error' => 'border-red-200 bg-red-50 text-red-800'] as $key => $classes)
                 @if (session($key))
                     <div class="mb-6 rounded-lg border px-4 py-3 text-sm {{ $classes }}">{{ session($key) }}</div>

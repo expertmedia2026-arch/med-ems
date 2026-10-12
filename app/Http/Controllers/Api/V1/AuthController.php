@@ -82,6 +82,7 @@ class AuthController extends Controller
             'token_type' => 'Bearer',
             'token' => $result['token'],
             'user' => UserResource::make($result['user'])->resolve($request),
+            'registration_fee_notice' => $result['registration_fee_notice'],
         ]);
     }
 
