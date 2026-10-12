@@ -1,6 +1,8 @@
 <x-app-layout>
     <x-slot name="header">Consultation Pricing</x-slot>
 
+    <div class="mb-6"><x-csv-transfer-actions dataset="consultation-prices" label="consultation prices" /></div>
+
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-slate-600">Set the consultation types and prices offered by each department.</p>
         <a href="{{ route('consultation-types.create') }}" class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">+ Add consultation type</a>

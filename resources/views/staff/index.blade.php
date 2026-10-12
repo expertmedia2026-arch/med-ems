@@ -1,6 +1,8 @@
 <x-app-layout>
     <x-slot name="header">Staff</x-slot>
 
+    <div class="mb-6"><x-csv-transfer-actions dataset="staff" label="staff accounts" /></div>
+
     @if (session('invite_link'))
         <div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900" x-data="{ copied: false }">
             <p class="font-medium">Invitation link (valid for 7 days, single use)</p>

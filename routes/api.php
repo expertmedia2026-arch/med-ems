@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AppointmentController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BillingOperationsController;
 use App\Http\Controllers\Api\V1\ClinicalController;
+use App\Http\Controllers\Api\V1\CsvTransferController;
 use App\Http\Controllers\Api\V1\DashboardApiController;
 use App\Http\Controllers\Api\V1\LabOperationsController;
 use App\Http\Controllers\Api\V1\PatientController;
@@ -25,6 +26,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         // Shared authenticated identity endpoints; logout revokes the current Sanctum token.
         Route::get('auth/me', [AuthController::class, 'show'])->name('auth.me');
         Route::delete('auth/logout', [AuthController::class, 'destroy'])->name('auth.logout');
+
+        // CSV import/export for authorized hospital catalogs and records.
+        Route::get('data/{dataset}/export', [CsvTransferController::class, 'export'])->name('data.export');
+        Route::post('data/{dataset}/import', [CsvTransferController::class, 'import'])->name('data.import');
 
         Route::get('dashboard', DashboardApiController::class)->middleware('staff')->name('dashboard');
         Route::get('profile', [AccountController::class, 'show'])->name('profile.show');

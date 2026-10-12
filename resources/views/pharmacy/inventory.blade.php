@@ -3,6 +3,8 @@
 
     @include('pharmacy._tabs')
 
+    <div class="mb-6"><x-csv-transfer-actions dataset="pharmacy-catalog" label="pharmacy catalog items" /></div>
+
     <form method="GET" class="mb-6 flex flex-wrap items-center gap-3">
         <input type="search" name="q" value="{{ request('q') }}" placeholder="Search drug name"
                class="w-full rounded-lg border-slate-300 shadow-sm focus:border-teal-600 focus:ring-teal-600 sm:max-w-xs">

@@ -1,6 +1,8 @@
 <x-app-layout>
     <x-slot name="header">Departments</x-slot>
 
+    <div class="mb-6"><x-csv-transfer-actions dataset="departments" label="departments" /></div>
+
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-slate-600">Manage hospital departments and assign staff from the staff form.</p>
         <a href="{{ route('departments.create') }}" class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">+ Add department</a>

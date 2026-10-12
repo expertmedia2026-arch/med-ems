@@ -4,6 +4,7 @@ use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationTypeController;
+use App\Http\Controllers\CsvTransferController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DoctorAvailabilityController;
@@ -78,6 +79,9 @@ Route::middleware(['auth', 'auth.session', 'active', 'role:patient'])->prefix('p
 // ---------------- Staff ----------------
 Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get('data/{dataset}/export', [CsvTransferController::class, 'export'])->name('data.export');
+    Route::post('data/{dataset}/import', [CsvTransferController::class, 'import'])->name('data.import');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

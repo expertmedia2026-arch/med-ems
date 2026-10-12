@@ -3,6 +3,8 @@
 
     @include('lab._tabs')
 
+    <div class="mb-6"><x-csv-transfer-actions dataset="lab-catalog" label="laboratory catalog items" /></div>
+
     <form method="GET" class="mb-6 flex flex-wrap items-center gap-3">
         <input type="search" name="q" value="{{ request('q') }}" placeholder="Search test name or code"
                class="w-full rounded-lg border-slate-300 shadow-sm focus:border-teal-600 focus:ring-teal-600 sm:max-w-xs">

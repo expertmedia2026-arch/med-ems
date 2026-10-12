@@ -1,6 +1,10 @@
 <x-app-layout>
     <x-slot name="header">Patients</x-slot>
 
+    @if (auth()->user()->hasRole('admin', 'receptionist'))
+        <div class="mb-6"><x-csv-transfer-actions dataset="patients" label="patients" /></div>
+    @endif
+
     <div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <form method="GET" class="flex w-full min-w-0 gap-2 lg:max-w-md">
             <input type="search" name="q" value="{{ request('q') }}" placeholder="Search name, hospital no. or phone"
