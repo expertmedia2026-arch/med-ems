@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\DispensePrescriptionsRequest;
 use App\Http\Requests\PharmacyInventoryRequest;
 use App\Http\Requests\RestockDrugRequest;
+use App\Models\Drug;
 use App\Models\Visit;
 use App\Services\PharmacyService;
 
