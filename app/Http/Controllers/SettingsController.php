@@ -14,7 +14,13 @@ class SettingsController extends Controller
 
     public function update(UpdateHospitalSettingsRequest $request, HospitalSettingsService $settings)
     {
-        $settings->update($request->validated(), $request->file('logo'), $request->boolean('remove_logo'));
+        $settings->update(
+            $request->validated(),
+            $request->file('logo'),
+            $request->boolean('remove_logo'),
+            $request->file('administrator_signature'),
+            $request->boolean('remove_administrator_signature'),
+        );
 
         return redirect()->route('settings.edit')->with('success', 'Hospital settings saved.');
     }

@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">Register Patient</x-slot>
 
-    <form method="POST" action="{{ route('patients.store') }}" class="max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
+    <form method="POST" action="{{ route('patients.store') }}" enctype="multipart/form-data" class="max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
         @csrf
         @include('patients._form', ['patient' => null])
 

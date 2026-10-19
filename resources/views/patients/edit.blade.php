@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">Edit {{ $patient->full_name }}</x-slot>
 
-    <form method="POST" action="{{ route('patients.update', $patient) }}" class="max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
+    <form method="POST" action="{{ route('patients.update', $patient) }}" enctype="multipart/form-data" class="max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
         @csrf
         @method('PUT')
         @include('patients._form')

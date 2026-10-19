@@ -134,7 +134,13 @@ class AdminController extends Controller
 
     public function updateHospitalSettings(UpdateHospitalSettingsRequest $request, HospitalSettingsService $service): array
     {
-        $setting = $service->update($request->validated(), $request->file('logo'), $request->boolean('remove_logo'));
+        $setting = $service->update(
+            $request->validated(),
+            $request->file('logo'),
+            $request->boolean('remove_logo'),
+            $request->file('administrator_signature'),
+            $request->boolean('remove_administrator_signature'),
+        );
 
         return $this->settingsPayload($setting);
     }
@@ -148,6 +154,7 @@ class AdminController extends Controller
             'email' => $setting->email,
             'website' => $setting->website,
             'logo_url' => $setting->logo_url,
+            'has_administrator_signature' => filled($setting->administrator_signature_path),
             'receipt_footer' => $setting->receipt_footer,
             'registration_fee' => (float) $setting->registration_fee,
             'paystack_public_key' => $setting->paystack_public_key,

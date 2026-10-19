@@ -8,6 +8,8 @@ use App\Models\Department;
 use App\Models\HospitalSetting;
 use App\Models\Patient;
 use App\Models\User;
+use Picqer\Barcode\BarcodeGeneratorSVG;
+use Illuminate\Http\UploadedFile;
 
 class PatientService
 {
@@ -46,12 +48,26 @@ class PatientService
             ? $addressParts->get($addressParts->count() - 2)
             : null;
 
-        return ['patient' => $patient, 'hospital' => HospitalSetting::current(), 'area' => $area];
+        $profileUrl = route('patients.show', $patient);
+        $barcode = new BarcodeGeneratorSVG;
+
+        return [
+            'patient' => $patient,
+            'hospital' => HospitalSetting::current(),
+            'area' => $area,
+            'barcodeSvg' => $barcode->getBarcode($profileUrl, $barcode::TYPE_CODE_128, 2, 36),
+            'administratorSignatureUrl' => route('settings.administrator-signature'),
+            'profileUrl' => $profileUrl,
+        ];
     }
 
     public function update(Patient $patient, array $attributes): Patient
     {
+        $photo = $attributes['photo'] ?? null;
+        unset($attributes['photo']);
         $patient->update($attributes + ['dob_estimated' => false]);
+
+        app(PatientPhotoService::class)->replace($patient, $photo instanceof UploadedFile ? $photo : null);
 
         return $patient->refresh();
     }

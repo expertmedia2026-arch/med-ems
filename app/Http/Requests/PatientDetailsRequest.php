@@ -35,6 +35,7 @@ class PatientDetailsRequest extends FormRequest
             'allergies' => ['nullable', 'string', 'max:500'],
             'next_of_kin_name' => ['nullable', 'string', 'max:150'],
             'next_of_kin_phone' => ['nullable', 'string', 'max:20'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'is_nhis' => ['boolean'],
             'nhis_number' => ['nullable', 'required_if:is_nhis,1', 'string', 'max:50'],
         ];

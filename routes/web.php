@@ -17,6 +17,7 @@ use App\Http\Controllers\LabRequestController;
 use App\Http\Controllers\LabTestController;
 use App\Http\Controllers\NursingAdministrationController;
 use App\Http\Controllers\PatientController;
+use App\Http\Controllers\PatientMediaController;
 use App\Http\Controllers\PatientPortalController;
 use App\Http\Controllers\PaystackWebhookController;
 use App\Http\Controllers\PharmacyController;
@@ -35,6 +36,10 @@ use App\Http\Controllers\VisitController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
+
+Route::get('patients/{patient}/photo', [PatientMediaController::class, 'photo'])
+    ->middleware(['auth', 'auth.session', 'active'])
+    ->name('patients.photo');
 
 // Payment gateway notifications (no login, no CSRF; protected by the gateway's signature)
 Route::post('webhooks/paystack', PaystackWebhookController::class)->name('webhooks.paystack');
@@ -140,6 +145,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
     Route::middleware('role:admin,receptionist,nurse,doctor')->group(function () {
         Route::get('patients', [PatientController::class, 'index'])->name('patients.index');
         Route::get('patients/{patient}', [PatientController::class, 'show'])->name('patients.show');
+        Route::get('settings/administrator-signature', [PatientMediaController::class, 'administratorSignature'])->name('settings.administrator-signature');
     });
 
     Route::get('appointments', [AppointmentController::class, 'index'])

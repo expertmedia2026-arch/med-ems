@@ -42,6 +42,11 @@ class Patient extends Model
         return Attribute::get(fn () => "{$this->first_name} {$this->last_name}");
     }
 
+    protected function photoUrl(): Attribute
+    {
+        return Attribute::get(fn () => $this->photo_path ? route('patients.photo', $this) : null);
+    }
+
     protected function age(): Attribute
     {
         return Attribute::get(fn () => $this->date_of_birth?->age);

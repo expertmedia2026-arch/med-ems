@@ -101,6 +101,24 @@
                 <p class="mt-1 text-xs text-slate-500">PNG, JPG or WebP, up to 2 MB. Uploading a new file replaces the current logo.</p>
                 @error('logo')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
             </div>
+
+            <div class="sm:col-span-2 border-t pt-5">
+                <label for="administrator_signature" class="{{ $label }}">Administrator signature for patient cards</label>
+                <p class="mt-1 text-sm text-slate-500">Upload a clear image of the authorized administrator's signature. It is stored privately and appears on the back of printed patient cards.</p>
+                @if ($settings->administrator_signature_path)
+                    <div class="mt-3 flex items-center gap-4">
+                        <img src="{{ route('settings.administrator-signature') }}" alt="Current administrator signature" class="h-16 max-w-48 rounded border bg-white object-contain p-2">
+                        <label class="flex items-center gap-2 text-sm text-red-600">
+                            <input type="checkbox" name="remove_administrator_signature" value="1" class="rounded border-slate-300 text-red-600 focus:ring-red-500">
+                            Remove signature
+                        </label>
+                    </div>
+                @endif
+                <input id="administrator_signature" name="administrator_signature" type="file" accept="image/png,image/jpeg,image/webp"
+                       class="mt-2 block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-teal-700 hover:file:bg-teal-100">
+                <p class="mt-1 text-xs text-slate-500">PNG, JPG or WebP, up to 2 MB. Uploading a new signature replaces the current one.</p>
+                @error('administrator_signature')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+            </div>
         </div>
 
         <div class="mt-6">

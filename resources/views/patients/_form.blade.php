@@ -31,6 +31,34 @@
         @error('date_of_birth')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
 
+    <div class="sm:col-span-2 rounded-lg border border-slate-200 p-4">
+        <label for="photo" class="{{ $label }}">Patient photograph</label>
+        <div class="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
+            <img id="patient-photo-preview"
+                 src="{{ $patient?->photo_path ? route('patients.photo', $patient) : '' }}"
+                 alt="Patient photograph preview"
+                 @if (! $patient?->photo_path) hidden @endif
+                 class="h-32 w-32 rounded-lg border bg-slate-50 object-cover">
+            <div class="min-w-0 flex-1">
+                <input id="photo" name="photo" type="file" accept="image/png,image/jpeg,image/webp"
+                       class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-teal-700 hover:file:bg-teal-100">
+                <p class="mt-1 text-xs text-slate-500">Upload JPG, PNG or WebP, up to 5 MB, or capture a photo with a connected camera.</p>
+                @error('photo')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <button id="start-camera" type="button" class="rounded-lg border border-teal-700 px-3 py-2 text-sm font-medium text-teal-800 hover:bg-teal-50">Use camera</button>
+                    <button id="capture-photo" type="button" hidden class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-800">Capture photo</button>
+                    <button id="stop-camera" type="button" hidden class="rounded-lg border px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Close camera</button>
+                </div>
+                <label id="camera-picker-label" for="camera-picker" hidden class="mt-3 block text-sm text-slate-600">Camera
+                    <select id="camera-picker" class="mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm"></select>
+                </label>
+                <video id="camera-preview" autoplay playsinline muted hidden class="mt-3 max-h-64 w-full rounded-lg bg-black object-contain"></video>
+                <p id="camera-message" role="status" class="mt-2 text-sm text-red-700"></p>
+            </div>
+        </div>
+        <canvas id="photo-canvas" hidden></canvas>
+    </div>
+
     <div class="sm:col-span-2">
         <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
             <input name="is_nhis" type="hidden" value="0">
@@ -106,5 +134,88 @@
 
         enrolled.addEventListener('change', updateNhisField);
         updateNhisField();
+    })();
+</script>
+
+<script>
+    (() => {
+        const input = document.getElementById('photo');
+        const preview = document.getElementById('patient-photo-preview');
+        const startButton = document.getElementById('start-camera');
+        const captureButton = document.getElementById('capture-photo');
+        const stopButton = document.getElementById('stop-camera');
+        const video = document.getElementById('camera-preview');
+        const canvas = document.getElementById('photo-canvas');
+        const cameraPicker = document.getElementById('camera-picker');
+        const pickerLabel = document.getElementById('camera-picker-label');
+        const message = document.getElementById('camera-message');
+        let stream = null;
+
+        const stopCamera = () => {
+            stream?.getTracks().forEach((track) => track.stop());
+            stream = null;
+            video.hidden = true;
+            captureButton.hidden = true;
+            stopButton.hidden = true;
+            pickerLabel.hidden = true;
+        };
+
+        const showPreview = (file) => {
+            if (!file) return;
+            preview.src = URL.createObjectURL(file);
+            preview.hidden = false;
+        };
+
+        input.addEventListener('change', () => showPreview(input.files[0]));
+        startButton.addEventListener('click', async () => {
+            message.textContent = '';
+            if (!navigator.mediaDevices?.getUserMedia) {
+                message.textContent = 'Camera access needs a secure connection (HTTPS or localhost) and a supported browser.';
+                return;
+            }
+
+            try {
+                stopCamera();
+                const selectedCamera = cameraPicker.value;
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: selectedCamera ? { deviceId: { exact: selectedCamera } } : { facingMode: 'user' },
+                    audio: false,
+                });
+                video.srcObject = stream;
+                video.hidden = false;
+                captureButton.hidden = false;
+                stopButton.hidden = false;
+                const cameras = await navigator.mediaDevices.enumerateDevices();
+                const options = cameras.filter((device) => device.kind === 'videoinput');
+                if (options.length > 1) {
+                    cameraPicker.replaceChildren(...options.map((device, index) => new Option(device.label || `Camera ${index + 1}`, device.deviceId)));
+                    cameraPicker.value = stream.getVideoTracks()[0].getSettings().deviceId || '';
+                    pickerLabel.hidden = false;
+                }
+            } catch (error) {
+                message.textContent = error.name === 'NotAllowedError'
+                    ? 'Allow camera access in your browser, then try again.'
+                    : 'Could not open a camera. Check that it is connected and not in use by another app.';
+                stopCamera();
+            }
+        });
+
+        cameraPicker.addEventListener('change', () => startButton.click());
+        stopButton.addEventListener('click', stopCamera);
+        captureButton.addEventListener('click', async () => {
+            if (!video.videoWidth) return;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+            if (!blob) return;
+            const transfer = new DataTransfer();
+            transfer.items.add(new File([blob], 'patient-photo.jpg', { type: 'image/jpeg' }));
+            input.files = transfer.files;
+            showPreview(input.files[0]);
+            stopCamera();
+        });
+
+        window.addEventListener('pagehide', stopCamera, { once: true });
     })();
 </script>

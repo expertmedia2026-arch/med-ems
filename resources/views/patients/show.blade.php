@@ -11,7 +11,13 @@
         {{-- Profile --}}
         <div class="rounded-xl border bg-white p-6 shadow-sm lg:col-span-2">
             <div class="flex items-start justify-between">
-                <div>
+                <div class="flex min-w-0 items-start gap-4">
+                    @if ($patient->photo_url)
+                        <img src="{{ $patient->photo_url }}" alt="{{ $patient->full_name }}" class="h-20 w-20 shrink-0 rounded-xl border bg-slate-50 object-cover">
+                    @else
+                        <div class="grid h-20 w-20 shrink-0 place-items-center rounded-xl border bg-slate-50 text-xs text-slate-400">No photo</div>
+                    @endif
+                    <div>
                     <p class="font-mono text-sm text-teal-700">{{ $patient->hospital_number }}</p>
                     <h2 class="text-2xl font-semibold">{{ $patient->full_name }}</h2>
                     <p class="text-slate-500">
@@ -22,6 +28,7 @@
                             · DOB {{ $patient->date_of_birth->format('d M Y') }}
                         @endif
                     </p>
+                    </div>
                 </div>
                 @if ($frontDesk)
                     <a href="{{ route('patients.edit', $patient) }}" class="text-sm text-teal-700 hover:underline">Edit</a>
