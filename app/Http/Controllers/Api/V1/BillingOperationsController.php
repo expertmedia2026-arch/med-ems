@@ -95,8 +95,8 @@ class BillingOperationsController extends Controller
 
         return [
             'invoice' => new InvoiceResource($invoice->load('patient', 'items')),
-            'payable_items' => $details['payable']->map(fn ($item) => ['id' => $item->id, 'description' => $item->description, 'total' => (float) $item->total])->values(),
-            'waiting_items' => $details['waiting']->map(fn ($item) => ['id' => $item->id, 'description' => $item->description, 'total' => (float) $item->total])->values(),
+            'payable_items' => $details['payable']->map(fn ($item) => ['id' => $item->id, 'description' => $item->descriptionForPatient(), 'total' => (float) $item->total])->values(),
+            'waiting_items' => $details['waiting']->map(fn ($item) => ['id' => $item->id, 'description' => $item->descriptionForPatient(), 'total' => (float) $item->total])->values(),
         ];
     }
 
@@ -141,7 +141,7 @@ class BillingOperationsController extends Controller
             'reference' => $payment->reference,
             'created_at' => $payment->created_at->toIso8601String(),
             'invoice_number' => $payment->invoice->invoice_number,
-            'items' => $payment->items->map(fn ($item) => ['description' => $item->description, 'total' => (float) $item->total])->values(),
+            'items' => $payment->items->map(fn ($item) => ['description' => $item->descriptionForPatient(), 'total' => (float) $item->total])->values(),
             'printable' => [
                 'content_type' => 'text/html; charset=UTF-8',
                 'html' => view('billing.receipt', compact('payment'))->render(),

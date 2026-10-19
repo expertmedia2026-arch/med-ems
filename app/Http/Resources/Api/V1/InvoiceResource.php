@@ -9,6 +9,8 @@ class InvoiceResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $isPatient = $request->user()?->hasRole('patient') ?? false;
+
         return [
             'id' => $this->id,
             'invoice_number' => $this->invoice_number,
@@ -23,9 +25,9 @@ class InvoiceResource extends JsonResource
             ] : null),
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($item) => [
                 'id' => $item->id,
-                'description' => $item->description,
+                'description' => $isPatient ? $item->descriptionForPatient() : $item->description,
                 'category' => $item->category,
-                'quantity' => $item->quantity,
+                'quantity' => $isPatient && $item->category === 'drug' ? null : $item->quantity,
                 'total' => (float) $item->total,
                 'is_paid' => $item->is_paid,
             ])->values()),

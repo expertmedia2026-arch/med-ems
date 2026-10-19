@@ -52,8 +52,8 @@
                 @foreach ($payment->items as $item)
                     <tr>
                         <td class="py-2">
-                            {{ $item->description }}
-                            @if ($item->quantity > 1)<span class="text-slate-400">× {{ $item->quantity }}</span>@endif
+                            {{ $isPatient ? $item->descriptionForPatient() : $item->description }}
+                            @if ($item->quantity > 1 && ! ($isPatient && $item->category === 'drug'))<span class="text-slate-400">× {{ $item->quantity }}</span>@endif
                         </td>
                         <td class="py-2 text-right">₦{{ number_format($item->total, 2) }}</td>
                     </tr>

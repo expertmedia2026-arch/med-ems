@@ -52,7 +52,6 @@
                                         @endif
                                     </th>
                                     <th class="px-3 py-2">Item</th>
-                                    <th class="px-3 py-2 text-right">Qty</th>
                                     <th class="px-3 py-2 text-right">Total</th>
                                     <th class="px-4 py-2">Status</th>
                                 </tr>
@@ -67,10 +66,11 @@
                                             @endif
                                         </td>
                                         <td class="px-3 py-3">
-                                            {{ $item->description }}
-                                            <x-badge :color="$catColor[$item->category] ?? 'slate'" class="ml-2">{{ ucfirst($item->category) }}</x-badge>
+                                            {{ $item->descriptionForPatient() }}
+                                            @unless ($item->category === 'drug')
+                                                <x-badge :color="$catColor[$item->category] ?? 'slate'" class="ml-2">{{ ucfirst($item->category) }}</x-badge>
+                                            @endunless
                                         </td>
-                                        <td class="px-3 py-3 text-right">{{ $item->quantity }}</td>
                                         <td class="px-3 py-3 text-right font-medium">₦{{ number_format($item->total, 2) }}</td>
                                         <td class="px-4 py-3">
                                             @if ($item->payment)
@@ -89,15 +89,15 @@
                             </tbody>
                             <tfoot class="border-t-2 text-sm">
                                 <tr>
-                                    <td colspan="3" class="px-4 py-2 text-right text-slate-500">Total</td>
+                                    <td colspan="2" class="px-4 py-2 text-right text-slate-500">Total</td>
                                     <td class="px-3 py-2 text-right font-semibold">₦{{ number_format($invoice->total, 2) }}</td><td></td>
                                 </tr>
                                 <tr>
-                                    <td colspan="3" class="px-4 py-2 text-right text-slate-500">Paid</td>
+                                    <td colspan="2" class="px-4 py-2 text-right text-slate-500">Paid</td>
                                     <td class="px-3 py-2 text-right text-green-700">₦{{ number_format($invoice->amount_paid, 2) }}</td><td></td>
                                 </tr>
                                 <tr>
-                                    <td colspan="3" class="px-4 py-2 text-right font-semibold">Balance</td>
+                                    <td colspan="2" class="px-4 py-2 text-right font-semibold">Balance</td>
                                     <td class="px-3 py-2 text-right text-lg font-bold {{ $balance > 0 ? 'text-red-700' : 'text-green-700' }}">₦{{ number_format($balance, 2) }}</td><td></td>
                                 </tr>
                             </tfoot>

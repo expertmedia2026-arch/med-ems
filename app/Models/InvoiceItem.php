@@ -45,6 +45,11 @@ class InvoiceItem extends Model
         return Attribute::get(fn () => $this->payment_id !== null || (float) $this->total <= 0);
     }
 
+    public function descriptionForPatient(): string
+    {
+        return $this->category === 'drug' ? 'Drug' : $this->description;
+    }
+
     public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class);
