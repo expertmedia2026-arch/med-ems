@@ -37,6 +37,16 @@ class LabController extends Controller
                 ->route('lab.show', $labRequest)
                 ->with('error', 'Payment is required before a result can be entered.');
         }
+        if ($outcome === 'notification_failed') {
+            return redirect()
+                ->route('lab.index')
+                ->with('error', "Result saved for {$labRequest->visit->patient->full_name}, but the result email could not be sent. Please contact the patient manually.");
+        }
+        if ($outcome === 'notification_missing_email') {
+            return redirect()
+                ->route('lab.index')
+                ->with('error', "Result saved for {$labRequest->visit->patient->full_name}, but no email is on file to notify them.");
+        }
 
         return redirect()
             ->route('lab.index')

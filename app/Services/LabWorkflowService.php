@@ -6,11 +6,13 @@ use App\Enums\AppointmentStatus;
 use App\Enums\Role;
 use App\Enums\VisitStatus;
 use App\Enums\WorkStatus;
+use App\Models\HospitalSetting;
 use App\Models\LabRequest;
 use App\Models\User;
 use App\Models\Visit;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class LabWorkflowService
 {
@@ -75,7 +77,7 @@ class LabWorkflowService
     public function reportData(Visit $visit, User $user): array
     {
         $requests = $visit->labRequests()->completed()
-            ->when($user->hasRole(Role::Doctor), fn ($query) => $query->where('requested_by', $user->id))
+            ->when($user->hasRole(Role::Doctor) && ! $visit->isLabOnly(), fn ($query) => $query->where('requested_by', $user->id))
             ->with(['test', 'attachments', 'processor'])->orderBy('id')->get();
 
         abort_if($requests->isEmpty(), 404, 'There are no completed results to print for this visit.');
@@ -136,6 +138,24 @@ class LabWorkflowService
         if ($visit->isLabOnly() && ! $visit->labRequests()->pending()->exists()) {
             $visit->update(['status' => VisitStatus::Completed, 'closed_at' => now()]);
             $visit->appointment?->update(['status' => AppointmentStatus::Completed]);
+        }
+
+        $patient = $visit->patient;
+        if ($patient->email) {
+            try {
+                $labRequest->loadMissing(['test', 'attachments', 'visit.patient']);
+                Mail::to($patient->email)->send(new \App\Mail\LabResultMail(
+                    $labRequest,
+                    HospitalSetting::current()->name,
+                    (bool) $visit->email_lab_results,
+                ));
+            } catch (\Throwable $exception) {
+                report($exception);
+
+                return 'notification_failed';
+            }
+        } else {
+            return 'notification_missing_email';
         }
 
         return null;

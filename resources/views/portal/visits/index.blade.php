@@ -18,8 +18,8 @@
                     <x-badge :color="$visit->status->color()">{{ $visit->status->label() }}</x-badge>
                 </div>
 
-                @if ($visit->diagnosis)
-                    <p class="mt-3 text-sm text-slate-700"><span class="text-slate-500">Diagnosis:</span> {{ $visit->diagnosis }}</p>
+                @if ($visit->patient_details_visible && $visit->patient_visible_note)
+                    <p class="mt-3 whitespace-pre-line text-sm text-slate-700"><span class="text-slate-500">Note from your doctor:</span> {{ $visit->patient_visible_note }}</p>
                 @endif
 
                 <p class="mt-3 text-xs text-slate-400">

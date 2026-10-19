@@ -10,6 +10,7 @@ class PatientVisitResource extends JsonResource
     public function toArray(Request $request): array
     {
         $detailsVisible = (bool) $this->resource->getAttribute('patient_details_visible');
+        $labResultsVisible = (bool) $this->resource->getAttribute('patient_lab_results_visible');
 
         return [
             'id' => $this->id,
@@ -49,17 +50,15 @@ class PatientVisitResource extends JsonResource
                 'id' => $labRequest->id,
                 'test' => $labRequest->test?->name,
                 'status' => $labRequest->status->value,
-                'result' => $labRequest->status->value === 'completed' ? $labRequest->result : null,
                 'completed_at' => $labRequest->completed_at?->toIso8601String(),
-                'attachments' => $labRequest->status->value === 'completed'
-                    ? $labRequest->attachments->map(fn ($attachment) => [
-                        'id' => $attachment->id,
-                        'name' => $attachment->original_name,
-                        'mime_type' => $attachment->mime,
-                        'size' => $attachment->size,
-                        'download_url' => route('api.v1.patient.attachments.show', $attachment),
-                    ])->values()
-                    : [],
+                'result' => $this->when($labResultsVisible && $labRequest->status->value === 'completed', $labRequest->result),
+                'attachments' => $this->when($labResultsVisible && $labRequest->status->value === 'completed' && $labRequest->relationLoaded('attachments'), fn () => $labRequest->attachments->map(fn ($attachment) => [
+                    'id' => $attachment->id,
+                    'name' => $attachment->original_name,
+                    'mime_type' => $attachment->mime,
+                    'size' => $attachment->size,
+                    'download_url' => route('api.v1.patient.attachments.show', $attachment),
+                ])->values()),
             ])->values()),
             'prescriptions' => $this->when($detailsVisible && $this->relationLoaded('prescriptions'), fn () => $this->prescriptions->map(fn ($prescription) => [
                 'id' => $prescription->id,

@@ -258,7 +258,9 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <x-badge :color="$visit->status->color()">{{ $visit->status->label() }}</x-badge>
-                            @if (($doctor || $admin) && $visit->status->value === 'completed')
+                            @if (($doctor || $admin) && $visit->isLabOnly() && $visit->status->value === 'completed')
+                                <a href="{{ route('lab.report', $visit) }}" class="rounded-lg border px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-50">View results</a>
+                            @elseif (($doctor || $admin) && $visit->status->value === 'completed')
                                 <a href="{{ route('consultations.history', $visit) }}" class="rounded-lg border px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-50">View</a>
                             @endif
                         </div>

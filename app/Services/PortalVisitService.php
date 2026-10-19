@@ -14,15 +14,19 @@ class PortalVisitService
     public function index(Patient $patient)
     {
         $visits = $patient->visits()
-            ->with(['doctor.department', 'department', 'consultationType.department'])
+            ->with(['doctor.department', 'department', 'consultationType.department', 'labRequests.test'])
             ->withCount(['labRequests', 'prescriptions'])
             ->latest('checked_in_at')
             ->paginate(10);
 
-        $visits->getCollection()->each(fn (Visit $visit) => $visit->setAttribute(
-            'patient_details_visible',
-            $this->detailsVisible($visit),
-        ));
+        $visits->getCollection()->each(function (Visit $visit) {
+            $visit->setAttribute('patient_details_visible', $this->detailsVisible($visit));
+            $labResultsVisible = $this->labResultsVisible($visit);
+            $visit->setAttribute('patient_lab_results_visible', $labResultsVisible);
+            if ($labResultsVisible) {
+                $visit->loadMissing('labRequests.attachments');
+            }
+        });
 
         return $visits;
     }
@@ -30,10 +34,15 @@ class PortalVisitService
     public function showForPatient(Visit $visit, int $patientId): array
     {
         $this->authorizePatientVisit($visit, $patientId);
-        $visit->load([
+        $relations = [
             'doctor.department', 'department', 'consultationType.department', 'vitals', 'prescriptions.drug', 'labRequests.test',
-            'labRequests.attachments', 'labRequests.processor', 'invoice.items',
-        ]);
+            'invoice.items',
+        ];
+        if ($this->labResultsVisible($visit)) {
+            $relations[] = 'labRequests.attachments';
+        }
+        $visit->load($relations);
+        $visit->setAttribute('patient_lab_results_visible', $this->labResultsVisible($visit));
 
         return ['visit' => $visit, 'inProgress' => ! $this->detailsVisible($visit)];
     }
@@ -42,7 +51,7 @@ class PortalVisitService
     public function labReportData(Visit $visit, int $patientId): array
     {
         $this->authorizePatientVisit($visit, $patientId);
-        abort_unless($this->detailsVisible($visit), 404);
+        abort_unless($this->labResultsVisible($visit), 404);
 
         $requests = $visit->labRequests()
             ->completed()
@@ -63,7 +72,7 @@ class PortalVisitService
 
         return (bool) ($visit
             && $visit->patient_id === $patientId
-            && $this->detailsVisible($visit)
+            && $this->labResultsVisible($visit)
             && $labRequest->status === WorkStatus::Completed);
     }
 
@@ -75,5 +84,10 @@ class PortalVisitService
     private function detailsVisible(Visit $visit): bool
     {
         return $visit->isLabOnly() || $visit->status === VisitStatus::Completed;
+    }
+
+    private function labResultsVisible(Visit $visit): bool
+    {
+        return $visit->isLabOnly() && ! $visit->email_lab_results;
     }
 }

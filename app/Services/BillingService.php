@@ -36,10 +36,24 @@ class BillingService
     }
 
     /** Add any lab tests and drugs not yet on the invoice (safe to call repeatedly). */
-    public function syncFor(Visit $visit): Invoice
+    public function syncFor(Visit $visit, bool $includeRegistrationFee = false): Invoice
     {
-        return DB::transaction(function () use ($visit) {
+        return DB::transaction(function () use ($visit, $includeRegistrationFee) {
             $invoice = $this->invoiceFor($visit);
+
+            if ($includeRegistrationFee && ! $invoice->items()->where('category', 'registration')->exists()) {
+                $fee = (float) HospitalSetting::current()->registration_fee;
+                if ($fee > 0) {
+                    $invoice->items()->create([
+                        'category' => 'registration',
+                        'description' => 'Patient registration fee',
+                        'quantity' => 1,
+                        'unit_price' => $fee,
+                    ]);
+                } else {
+                    $visit->patient()->whereNull('registration_paid_at')->update(['registration_paid_at' => now()]);
+                }
+            }
 
             $billed = $invoice->items()->whereNotNull('billable_id')->get(['billable_type', 'billable_id'])
                 ->map(fn ($item) => "{$item->billable_type}:{$item->billable_id}")

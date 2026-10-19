@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">External Lab Request</x-slot>
+    <x-slot name="header">Register Patient & Request Lab Tests</x-slot>
 
     @php
         $input      = 'mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-teal-600 focus:ring-teal-600';
@@ -15,9 +15,11 @@
               hospitalNumber: @js(old('hospital_number', $selected ?? '')),
               confirmNew: '0',
               submitting: false,
+              registrationFee: @js($registrationFee),
               tests: @js($tests->map(fn ($t) => ['id' => (string) $t->id, 'price' => (float) $t->price])->values()),
               selected: @js(array_map('strval', old('lab_test_ids', []))),
-              get total() { return this.tests.filter(t => this.selected.includes(t.id)).reduce((s, t) => s + t.price, 0) },
+              get testTotal() { return this.tests.filter(t => this.selected.includes(t.id)).reduce((s, t) => s + t.price, 0) },
+              get total() { return this.testTotal + (this.mode === 'new' ? this.registrationFee : 0) },
               money(n) { return '₦' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
               useExisting(hn) { this.hospitalNumber = hn; this.mode = 'existing'; window.scrollTo({ top: 0, behavior: 'smooth' }); }
           }">
@@ -26,8 +28,8 @@
         <input type="hidden" name="confirm_new" :value="confirmNew">
 
         <p class="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-900">
-            For patients who only need a lab test: referred from another hospital, or walking in on their own.
-            There is no consultation or triage, and they pay for the tests only.
+            Every lab request must be linked to a registered patient. Register walk-in and external-referral patients here; their registration fee and selected tests will appear together on one invoice.
+            Newly registered walk-in patients receive completed results by email. Existing patients receive an email alert and can view results for standalone lab-only visits in their portal. Results from consultation visits remain with the care team.
         </p>
 
         @if ($errors->any())
@@ -114,15 +116,25 @@
                     @error('gender')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div>
-                    <label for="age" class="{{ $label }}">Age (years)</label>
-                    <input id="age" name="age" type="number" min="0" max="120" value="{{ old('age') }}" :required="mode === 'new'" class="{{ $input }}">
-                    @error('age')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                    <label for="date_of_birth" class="{{ $label }}">Date of birth</label>
+                    <input id="date_of_birth" name="date_of_birth" type="date" max="{{ now()->toDateString() }}" value="{{ old('date_of_birth') }}" :required="mode === 'new'" class="{{ $input }}">
+                    @error('date_of_birth')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label for="phone" class="{{ $label }}">Phone</label>
+                    <input id="phone" name="phone" type="tel" value="{{ old('phone') }}" class="{{ $input }}">
+                    @error('phone')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div class="sm:col-span-2">
-                    <label for="phone" class="{{ $label }}">Phone (recommended)</label>
-                    <input id="phone" name="phone" type="tel" value="{{ old('phone') }}" class="{{ $input }}">
-                    <p class="mt-1 text-xs text-slate-500">It helps find this patient next time and avoids duplicate records.</p>
-                    @error('phone')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                    <label for="email" class="{{ $label }}">Email for completed results <span class="text-red-600">*</span></label>
+                    <input id="email" name="email" type="email" value="{{ old('email') }}" :required="mode === 'new'" autocomplete="email" class="{{ $input }}">
+                    <p class="mt-1 text-xs text-slate-500">We’ll email the completed result and any attached report to this address.</p>
+                    @error('email')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div class="sm:col-span-2">
+                    <label for="address" class="{{ $label }}">Address (optional)</label>
+                    <input id="address" name="address" type="text" value="{{ old('address') }}" autocomplete="street-address" class="{{ $input }}">
+                    @error('address')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
             </div>
         </div>
@@ -173,14 +185,16 @@
 
         <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-white p-5 shadow-sm">
             <div>
-                <p class="text-xs text-slate-500">Total to pay</p>
+                <p class="text-xs text-slate-500">Tests: <span x-text="money(testTotal)"></span></p>
+                <p x-show="mode === 'new'" class="text-xs text-slate-500">Registration fee: <span x-text="money(registrationFee)"></span></p>
+                <p class="mt-1 text-xs font-medium text-slate-700">Total to pay</p>
                 <p class="text-2xl font-bold text-teal-800" x-text="money(total)"></p>
             </div>
             <div class="flex items-center gap-3">
                 <a href="{{ url()->previous() }}" class="text-sm text-slate-500 hover:underline">Cancel</a>
                 <button type="submit" :disabled="submitting"
                         class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:cursor-wait disabled:opacity-60">
-                    <span x-text="submitting ? 'Creating request…' : 'Create request'">Create request</span>
+                    <span x-text="submitting ? 'Registering patient…' : 'Register patient & create request'">Register patient & create request</span>
                 </button>
             </div>
         </div>

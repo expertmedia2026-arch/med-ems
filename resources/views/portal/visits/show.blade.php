@@ -5,7 +5,8 @@
         $vitals   = $visit->vitals;
         $invoice  = $visit->invoice;
         $catColor = ['consultation' => 'blue', 'lab' => 'amber', 'drug' => 'green'];
-        $hasDoneLabs = $visit->labRequests->contains(fn ($r) => $r->status->value === 'completed');
+        $hasDoneLabs = $visit->labRequests->contains(fn ($request) => $request->status->value === 'completed');
+        $labResultsVisible = $visit->patient_lab_results_visible ?? false;
     @endphp
 
     <a href="{{ route('portal.visits.index') }}" class="mb-4 inline-block text-sm text-teal-700 hover:underline">← Back to my visits</a>
@@ -75,12 +76,12 @@
 
             {{-- Lab --}}
             <div class="rounded-xl border bg-white p-6 shadow-sm">
-                <div class="mb-4 flex items-center justify-between">
-                    <h3 class="font-semibold">Lab tests and results</h3>
-                    @if ($hasDoneLabs)
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <h3 class="font-semibold">{{ $labResultsVisible ? 'Lab tests and results' : 'Lab tests' }}</h3>
+                    @if ($labResultsVisible && $hasDoneLabs)
                         <a href="{{ route('portal.visits.lab-report', $visit) }}" target="_blank"
                            class="rounded-lg border border-teal-700 px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-50">
-                            Print lab report
+                            View or print results
                         </a>
                     @endif
                 </div>
@@ -93,15 +94,18 @@
                                 {{ $req->status->value === 'pending' ? 'Awaiting result' : 'Result ready' }}
                             </x-badge>
                         </div>
-
                         @if ($req->status->value === 'completed')
-                            @if ($req->result)
-                                <p class="mt-2 whitespace-pre-line rounded-lg bg-slate-50 px-3 py-2 text-sm">{{ $req->result }}</p>
+                            @if ($labResultsVisible)
+                                @if ($req->result)
+                                    <p class="mt-2 whitespace-pre-line rounded-lg bg-slate-50 px-3 py-2 text-sm">{{ $req->result }}</p>
+                                @endif
+                                @include('lab._attachments', ['attachments' => $req->attachments, 'canManage' => false])
+                                <p class="mt-2 text-xs text-slate-400">Completed {{ $req->completed_at->format('d M Y, g:i A') }}</p>
+                            @elseif ($visit->email_lab_results)
+                                <p class="mt-2 text-xs text-slate-500">Your result has been sent to your email address.</p>
+                            @else
+                                <p class="mt-2 text-xs text-slate-500">Your result has been uploaded and shared with your care team. Please contact your doctor or the hospital to discuss it.</p>
                             @endif
-
-                            @include('lab._attachments', ['attachments' => $req->attachments, 'canManage' => false])
-
-                            <p class="mt-2 text-xs text-slate-400">Completed {{ $req->completed_at->format('d M Y, g:i A') }}</p>
                         @endif
                     </div>
                 @empty

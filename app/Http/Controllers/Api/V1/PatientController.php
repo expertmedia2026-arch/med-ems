@@ -170,6 +170,7 @@ class PatientController extends Controller
     {
         $result = $visits->showForPatient($visit, $this->patient($request)->id);
         $result['visit']->setAttribute('patient_details_visible', ! $result['inProgress']);
+        $result['visit']->setAttribute('patient_lab_results_visible', $result['visit']->isLabOnly() && ! $result['visit']->email_lab_results);
 
         return new PatientVisitResource($result['visit']);
     }
