@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AppointmentStatus;
+use App\Enums\Role;
 use App\Enums\VisitStatus;
 use App\Enums\WorkStatus;
 use App\Models\Drug;
@@ -69,9 +70,13 @@ class ConsultationService
         ];
     }
 
-    public function historyData(Visit $visit, User $doctor): Visit
+    public function historyData(Visit $visit, User $user): Visit
     {
-        abort_unless($visit->doctor_id === $doctor->id, 403, 'You can only view your own previous consultations.');
+        abort_unless(
+            $user->hasRole(Role::Admin) || $visit->doctor_id === $user->id,
+            403,
+            'You can only view consultations assigned to you.'
+        );
         abort_unless($visit->status === VisitStatus::Completed, 404);
 
         return $visit->load([

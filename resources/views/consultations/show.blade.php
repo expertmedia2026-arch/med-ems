@@ -80,8 +80,14 @@
                             @error('diagnosis')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
                         <div>
-                            <label class="{{ $label }}">Clinical notes</label>
+                            <label class="{{ $label }}">Clinical notes <span class="text-xs font-normal text-slate-500">(staff only)</span></label>
                             <textarea name="clinical_notes" rows="5" class="{{ $input }}">{{ old('clinical_notes', $visit->clinical_notes) }}</textarea>
+                            <p class="mt-1 text-xs text-slate-500">These notes stay in the clinical record and are not shown in the patient portal.</p>
+                        </div>
+                        <div>
+                            <label class="{{ $label }}">Note for the patient</label>
+                            <textarea name="patient_visible_note" rows="4" class="{{ $input }}">{{ old('patient_visible_note', $visit->patient_visible_note) }}</textarea>
+                            <p class="mt-1 text-xs text-slate-500">Only this note is shown to the patient in their visit view after the consultation is completed.</p>
                         </div>
                     </form>
                 @else
@@ -89,6 +95,9 @@
                         <div><dt class="text-slate-500">Complaint</dt><dd class="font-medium">{{ $visit->complaint ?: '—' }}</dd></div>
                         <div><dt class="text-slate-500">Diagnosis</dt><dd class="font-medium">{{ $visit->diagnosis ?: '—' }}</dd></div>
                         <div><dt class="text-slate-500">Clinical notes</dt><dd class="whitespace-pre-line">{{ $visit->clinical_notes ?: '—' }}</dd></div>
+                        @if ($visit->patient_visible_note)
+                            <div><dt class="text-slate-500">Note shared with patient</dt><dd class="whitespace-pre-line">{{ $visit->patient_visible_note }}</dd></div>
+                        @endif
                     </dl>
                 @endif
             </div>

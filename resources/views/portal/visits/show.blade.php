@@ -33,7 +33,7 @@
         @if ($inProgress)
             <div class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
                 <p class="font-semibold">This visit is still in progress</p>
-                <p class="mt-1">Your results, diagnosis and prescription will appear here once the doctor completes the consultation.</p>
+                <p class="mt-1">Visit details, test results, and prescriptions will appear here once staff complete the visit.</p>
             </div>
         @else
 
@@ -65,27 +65,13 @@
                 </div>
             @endif
 
-            {{-- Assessment --}}
-            <div class="rounded-xl border bg-white p-6 shadow-sm">
-                <h3 class="mb-4 font-semibold">{{ $visit->isLabOnly() ? 'Reason for tests' : 'Doctor\'s assessment' }}</h3>
-
-                <dl class="space-y-3 text-sm">
-                    <div>
-                        <dt class="text-slate-500">{{ $visit->isLabOnly() ? 'Note' : 'Complaint' }}</dt>
-                        <dd class="font-medium">{{ $visit->complaint ?: '—' }}</dd>
-                    </div>
-                    @unless ($visit->isLabOnly())
-                        <div>
-                            <dt class="text-slate-500">Diagnosis</dt>
-                            <dd class="font-medium">{{ $visit->diagnosis ?: '—' }}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-slate-500">Doctor's notes</dt>
-                            <dd class="whitespace-pre-line">{{ $visit->clinical_notes ?: '—' }}</dd>
-                        </div>
-                    @endunless
-                </dl>
-            </div>
+            {{-- Only the note specifically written for the patient is shown here. --}}
+            @if ($visit->patient_visible_note)
+                <div class="rounded-xl border bg-white p-6 shadow-sm">
+                    <h3 class="mb-3 font-semibold">Note from your doctor</h3>
+                    <p class="whitespace-pre-line text-sm text-slate-700">{{ $visit->patient_visible_note }}</p>
+                </div>
+            @endif
 
             {{-- Lab --}}
             <div class="rounded-xl border bg-white p-6 shadow-sm">

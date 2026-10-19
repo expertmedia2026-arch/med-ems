@@ -2,6 +2,7 @@
     <x-slot name="header">Nursing care · {{ $visit->patient->full_name }}</x-slot>
 
     @php
+        $patient = $visit->patient;
         $incomplete = $visit->prescriptions->filter(fn ($rx) => ! $rx->administration_waived_at && ($rx->status->value !== 'completed' || $rx->administered_count < $rx->required_administration_count));
     @endphp
 
@@ -18,6 +19,57 @@
             <ul class="list-inside list-disc">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
         </div>
     @endif
+
+    <section class="mb-6 overflow-hidden rounded-xl border border-blue-200 bg-white shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-blue-100 bg-blue-50 px-5 py-3">
+            <div>
+                <h2 class="font-semibold text-blue-950">Consultation details</h2>
+                <p class="mt-0.5 text-xs text-blue-800">For nursing reference · view only</p>
+            </div>
+            <span class="text-xs text-slate-600">Seen by {{ $visit->doctor?->name ?? '—' }} · {{ $visit->closed_at?->format('d M Y, g:i A') }}</span>
+        </div>
+        <div class="grid gap-5 p-5 lg:grid-cols-2">
+            <dl class="space-y-3 text-sm">
+                <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Presenting complaint</dt><dd class="mt-1 whitespace-pre-line text-slate-900">{{ $visit->complaint ?: '—' }}</dd></div>
+                <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Diagnosis</dt><dd class="mt-1 whitespace-pre-line font-medium text-slate-900">{{ $visit->diagnosis ?: '—' }}</dd></div>
+                <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Doctor’s clinical notes</dt><dd class="mt-1 whitespace-pre-line text-slate-700">{{ $visit->clinical_notes ?: 'No clinical notes recorded.' }}</dd></div>
+                @if ($patient->allergies)
+                    <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-red-900"><dt class="text-xs font-semibold uppercase tracking-wide">Patient allergies</dt><dd class="mt-1">{{ $patient->allergies }}</dd></div>
+                @endif
+            </dl>
+
+            <div>
+                <h3 class="text-xs font-medium uppercase tracking-wide text-slate-500">Vitals at consultation</h3>
+                @if ($visit->vitals)
+                    <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        @foreach ([
+                            'Temperature' => $visit->vitals->temperature ? $visit->vitals->temperature.' °C' : null,
+                            'Pulse' => $visit->vitals->pulse ? $visit->vitals->pulse.' bpm' : null,
+                            'Blood pressure' => $visit->vitals->blood_pressure,
+                            'Respiratory rate' => $visit->vitals->respiratory_rate ? $visit->vitals->respiratory_rate.' /min' : null,
+                            'Oxygen saturation' => $visit->vitals->spo2 ? $visit->vitals->spo2.'%' : null,
+                            'Weight' => $visit->vitals->weight ? $visit->vitals->weight.' kg' : null,
+                        ] as $label => $value)
+                            <div class="rounded-lg bg-slate-50 px-3 py-2"><p class="text-[11px] text-slate-500">{{ $label }}</p><p class="mt-0.5 text-sm font-semibold text-slate-900">{{ $value ?: '—' }}</p></div>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="mt-2 text-sm text-slate-500">No vitals recorded.</p>
+                @endif
+
+                @if ($visit->labRequests->isNotEmpty())
+                    <div class="mt-4 border-t pt-3">
+                        <h3 class="text-xs font-medium uppercase tracking-wide text-slate-500">Consultation tests</h3>
+                        <ul class="mt-2 space-y-1 text-sm text-slate-700">
+                            @foreach ($visit->labRequests as $request)
+                                <li class="flex items-center justify-between gap-3"><span>{{ $request->test?->name ?? 'Lab test' }}</span><span class="text-xs text-slate-500">{{ $request->status->label() }}</span></li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </section>
 
     @forelse ($visit->prescriptions as $rx)
         <section class="mb-5 rounded-xl border bg-white p-5 shadow-sm">

@@ -57,10 +57,12 @@ class ConsultationController extends Controller
     {
         $visit = $consultations->historyData($visit, $request->user());
 
-        // "Back" returns to the consultation the doctor came from
-        $backUrl = $request->validated('from')
-            ? route('consultations.show', (int) $request->validated('from'))
-            : route('consultations.index');
+        // Return administrators to the patient record; doctors return to their consultation workspace.
+        $backUrl = $request->user()->hasRole('admin')
+            ? route('patients.show', $visit->patient)
+            : ($request->validated('from')
+                ? route('consultations.show', (int) $request->validated('from'))
+                : route('consultations.index'));
 
         return view('consultations.history', compact('visit', 'backUrl'));
     }

@@ -156,8 +156,13 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         ->name('appointments.index');
 
     Route::get('appointments/{appointment}', [AppointmentController::class, 'show'])
-        ->middleware('role:doctor')
+        ->middleware('role:admin,doctor')
         ->name('appointments.show');
+
+    // Read-only completed consultation details are available to administrators and the assigned doctor.
+    Route::get('consultations/history/{visit}', [ConsultationController::class, 'history'])
+        ->middleware('role:admin,doctor')
+        ->name('consultations.history');
 
     // Nurse: triage
     Route::middleware('role:admin,nurse')->prefix('triage')->name('triage.')->group(function () {
@@ -180,7 +185,6 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
     Route::middleware('role:doctor')->prefix('consultations')->name('consultations.')->scopeBindings()->group(function () {
         Route::get('/', [ConsultationController::class, 'index'])->name('index');
         Route::get('history', [ConsultationController::class, 'historyIndex'])->name('history.index');
-        Route::get('history/{visit}', [ConsultationController::class, 'history'])->name('history');
         Route::get('{visit}', [ConsultationController::class, 'show'])->name('show');
         Route::post('{visit}/start', [ConsultationController::class, 'start'])->name('start');
         Route::put('{visit}', [ConsultationController::class, 'update'])->name('update');

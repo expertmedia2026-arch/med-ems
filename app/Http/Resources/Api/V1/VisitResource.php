@@ -18,6 +18,7 @@ class VisitResource extends JsonResource
             'complaint' => $this->complaint,
             'diagnosis' => $this->diagnosis,
             'clinical_notes' => $this->clinical_notes,
+            'patient_visible_note' => $this->patient_visible_note,
             'checked_in_at' => $this->checked_in_at?->toIso8601String(),
             'consulted_at' => $this->consulted_at?->toIso8601String(),
             'closed_at' => $this->closed_at?->toIso8601String(),

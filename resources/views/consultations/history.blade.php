@@ -81,6 +81,9 @@
                 <div><dt class="text-slate-500">Complaint</dt><dd class="font-medium">{{ $visit->complaint ?: '—' }}</dd></div>
                 <div><dt class="text-slate-500">Diagnosis</dt><dd class="font-medium">{{ $visit->diagnosis ?: '—' }}</dd></div>
                 <div><dt class="text-slate-500">Clinical notes</dt><dd class="whitespace-pre-line">{{ $visit->clinical_notes ?: '—' }}</dd></div>
+                @if ($visit->patient_visible_note)
+                    <div><dt class="text-slate-500">Note shared with patient</dt><dd class="whitespace-pre-line">{{ $visit->patient_visible_note }}</dd></div>
+                @endif
             </dl>
         </div>
 

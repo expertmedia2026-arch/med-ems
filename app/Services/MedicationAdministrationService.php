@@ -34,9 +34,10 @@ class MedicationAdministrationService
     {
         $this->assertDepartmentAccess($visit, $staff);
         abort_unless($visit->status === VisitStatus::Completed, 404);
+        abort_unless($visit->prescriptions()->where('requires_in_facility_administration', true)->exists(), 404);
 
         return $visit->load([
-            'patient', 'doctor', 'department', 'dischargeActor',
+            'patient', 'doctor', 'department', 'dischargeActor', 'vitals', 'labRequests.test',
             'prescriptions' => fn ($query) => $query->where('requires_in_facility_administration', true)
                 ->with(['drug', 'dispenser', 'invoiceItem', 'stockReservation', 'administrations.nurse', 'administrationWaiver']),
         ]);

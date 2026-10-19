@@ -34,9 +34,7 @@ class PatientVisitResource extends JsonResource
                 'name' => $this->consultationType->name,
                 'department' => $this->consultationType->department?->name,
             ] : null),
-            'complaint' => $this->complaint,
-            'diagnosis' => $this->when($detailsVisible, $this->diagnosis),
-            'clinical_notes' => $this->when($detailsVisible, $this->clinical_notes),
+            'patient_visible_note' => $this->when($detailsVisible, $this->patient_visible_note),
             'vitals' => $this->when($detailsVisible && $this->relationLoaded('vitals') && $this->vitals, fn () => [
                 'temperature' => $this->vitals?->temperature,
                 'pulse' => $this->vitals?->pulse,

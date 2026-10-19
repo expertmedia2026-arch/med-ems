@@ -17,6 +17,7 @@ class ConsultationNotesRequest extends FormRequest
             'complaint' => ['nullable', 'string', 'max:500'],
             'diagnosis' => ['nullable', 'string', 'max:1000'],
             'clinical_notes' => ['nullable', 'string', 'max:5000'],
+            'patient_visible_note' => ['nullable', 'string', 'max:5000'],
         ];
     }
 }
