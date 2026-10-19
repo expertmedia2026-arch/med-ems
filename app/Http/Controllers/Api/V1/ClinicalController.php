@@ -39,7 +39,7 @@ class ClinicalController extends Controller
 
     public function triageIndex(Request $request, TriageService $triage): array
     {
-        $data = $triage->indexData($request->user());
+        $data = $triage->indexData($request->user(), paginate: false);
 
         return [
             'waiting' => VisitResource::collection($data['waiting']),

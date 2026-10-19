@@ -26,4 +26,12 @@ class RecordVitalsRequest extends FormRequest
             'complaint' => ['nullable', 'string', 'max:500'],
         ];
     }
+
+    public function attributes(): array
+    {
+        return [
+            'bp_systolic' => 'blood pressure top number',
+            'bp_diastolic' => 'blood pressure bottom number',
+        ];
+    }
 }

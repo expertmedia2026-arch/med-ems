@@ -3,15 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\RecordVitalsRequest;
+use App\Http\Requests\TriageQueueRequest;
 use App\Models\Visit;
 use App\Services\BillingService;
 use App\Services\TriageService;
 
 class TriageController extends Controller
 {
-    public function index(\Illuminate\Http\Request $request, TriageService $triage)
+    public function index(TriageQueueRequest $request, TriageService $triage)
     {
-        return view('triage.index', $triage->indexData($request->user()));
+        return view('triage.index', $triage->indexData($request->user(), $request->validated()));
     }
 
     public function show(Visit $visit, BillingService $billing, TriageService $triage)
@@ -46,6 +47,6 @@ class TriageController extends Controller
     {
         return redirect()
             ->route('triage.index')
-            ->with('error', 'The selected consultation charge has not been paid. Please send the patient to the cashier first.');
+            ->with('error', 'The consultation charge has not been paid. Please send the patient to the cashier before recording vitals.');
     }
 }

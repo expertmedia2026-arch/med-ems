@@ -35,7 +35,7 @@ class DashboardService
         $queue = $user->hasRole(Role::Admin, Role::Receptionist, Role::Nurse, Role::Doctor)
             ? Visit::with(['patient', 'doctor', 'department'])
                 ->withStatus(VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor, VisitStatus::InConsultation)
-                ->when($user->hasRole(Role::Nurse), fn ($query) => $query->where('department_id', $user->department_id ?? 0))
+                ->when($user->hasRole(Role::Nurse) && $user->department_id && ! $user->isCentralVitalsNurse(), fn ($query) => $query->where('department_id', $user->department_id))
                 ->when($user->hasRole(Role::Doctor), fn ($query) => $query->where('department_id', $user->department_id ?? 0)
                     ->where(fn ($q) => $q->whereNull('doctor_id')->orWhere('doctor_id', $user->id)))
                 ->oldest('checked_in_at')
@@ -76,17 +76,19 @@ class DashboardService
 
     private function nurse(): array
     {
-        $departmentId = auth()->user()->department_id ?? 0;
+        $nurse = auth()->user();
+        $departmentId = $nurse->department_id;
+        $isCentralNurse = $nurse->isCentralVitalsNurse();
 
         return [
             $this->card('Nursing visits to finish', Visit::where('status', VisitStatus::Completed->value)
-                ->where('department_id', $departmentId)
+                ->where('department_id', $departmentId ?? 0)
                 ->whereNull('discharged_at')
                 ->whereHas('prescriptions', fn ($query) => $query->where('requires_in_facility_administration', true))
                 ->count(), 'blue', 'nursing.administrations.index'),
-            $this->card('Waiting for triage', Visit::withStatus(VisitStatus::WaitingTriage)->where('department_id', $departmentId)->count(), 'amber', 'triage.index'),
-            $this->card('Sent to doctor today', Visit::today()->withStatus(VisitStatus::WaitingDoctor, VisitStatus::InConsultation, VisitStatus::Completed)->where('department_id', $departmentId)->count(), 'green', 'triage.index'),
-            $this->card('Total in queue', Visit::withStatus(VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor, VisitStatus::InConsultation)->where('department_id', $departmentId)->count(), 'blue'),
+            $this->card('Waiting for vitals', Visit::withStatus(VisitStatus::WaitingTriage)->when($departmentId && ! $isCentralNurse, fn ($query) => $query->where('department_id', $departmentId))->count(), 'amber', 'triage.index'),
+            $this->card('Sent to doctor today', Visit::today()->withStatus(VisitStatus::WaitingDoctor, VisitStatus::InConsultation, VisitStatus::Completed)->when($departmentId && ! $isCentralNurse, fn ($query) => $query->where('department_id', $departmentId))->count(), 'green', 'triage.index'),
+            $this->card('OPD queue', Visit::withStatus(VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor, VisitStatus::InConsultation)->when($departmentId && ! $isCentralNurse, fn ($query) => $query->where('department_id', $departmentId))->count(), 'blue'),
         ];
     }
 

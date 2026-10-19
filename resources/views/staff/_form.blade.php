@@ -40,6 +40,7 @@
                 <option value="{{ $department->id }}" @selected((string) old('department_id', $staff?->department_id) === (string) $department->id)>{{ $department->name }}</option>
             @endforeach
         </select>
+        <p class="mt-1 text-xs text-slate-500">Assign a nurse to the OPD department for Central Vitals access across outpatient departments. Nurses assigned to a clinical department can take vitals for that department only.</p>
         @error('department_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
         @if ($departments->isEmpty())
             <p class="mt-1 text-xs text-slate-500">Add a department before assigning staff.</p>

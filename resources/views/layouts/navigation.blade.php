@@ -16,6 +16,9 @@
                         {{ __('Dashboard') }}
                     </x-nav-link>
                     @if (Auth::user()->hasRole('admin', 'nurse'))
+                        <x-nav-link :href="route('triage.index')" :active="request()->routeIs('triage.*')">
+                            {{ __('Central Vitals') }}
+                        </x-nav-link>
                         <x-nav-link :href="route('nursing.administrations.index')" :active="request()->routeIs('nursing.administrations.*')">
                             {{ __('Medication administration') }}
                         </x-nav-link>
@@ -76,6 +79,9 @@
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
             @if (Auth::user()->hasRole('admin', 'nurse'))
+                <x-responsive-nav-link :href="route('triage.index')" :active="request()->routeIs('triage.*')">
+                    {{ __('Central Vitals') }}
+                </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('nursing.administrations.index')" :active="request()->routeIs('nursing.administrations.*')">
                     {{ __('Medication administration') }}
                 </x-responsive-nav-link>

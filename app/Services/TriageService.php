@@ -6,6 +6,8 @@ use App\Enums\VisitStatus;
 use App\Models\User;
 use App\Models\Visit;
 use App\Enums\Role;
+use App\Models\Department;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class TriageService
@@ -22,14 +24,36 @@ class TriageService
         );
     }
 
-    public function indexData(User $staff): array
+    public function indexData(User $staff, array $filters = [], bool $paginate = true): array
     {
-        $departmentId = $staff->hasRole(Role::Admin) ? null : $staff->department_id;
-        abort_if(! $staff->hasRole(Role::Admin) && ! $departmentId, 403, 'Your staff account must be assigned to a department to use triage.');
+        $isAdmin = $staff->hasRole(Role::Admin);
+        $isCentralNurse = $staff->isCentralVitalsNurse();
+        abort_if(! $isAdmin && ! $isCentralNurse && ! $staff->department_id, 403,
+            'Assign this nurse to a clinical department or the OPD department to access Central Vitals.');
+        $selectedDepartment = ($isAdmin || $isCentralNurse) ? ($filters['department_id'] ?? null) : null;
+        $departmentId = $isAdmin || $isCentralNurse ? $selectedDepartment : $staff->department_id;
+        $search = trim((string) ($filters['q'] ?? ''));
 
-        $waiting = Visit::with(['patient', 'doctor', 'department', 'invoice.items'])->withStatus(VisitStatus::WaitingTriage)
+        $queue = fn (VisitStatus $status): Builder => Visit::query()
+            ->with(['patient', 'doctor', 'department', 'vitals.recorder', 'invoice.items'])
+            ->where('status', $status->value)
             ->when($departmentId, fn ($query) => $query->where('department_id', $departmentId))
-            ->oldest('checked_in_at')->get();
+            ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search) {
+                $query->where('complaint', 'like', "%{$search}%")
+                    ->orWhereHas('patient', fn ($patient) => $patient->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('hospital_number', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%"));
+            }));
+
+        $waitingQuery = $queue(VisitStatus::WaitingTriage)->oldest('checked_in_at');
+        $doneQuery = $queue(VisitStatus::WaitingDoctor)->today()->latest('updated_at');
+        $waiting = $paginate
+            ? $waitingQuery->paginate(15, ['*'], 'waiting_page')->withQueryString()
+            : $waitingQuery->get();
+        $done = $paginate
+            ? $doneQuery->paginate(10, ['*'], 'ready_page')->withQueryString()
+            : $doneQuery->get();
         $waiting->each(function (Visit $visit) {
             if (! $visit->invoice) {
                 $this->billing->invoiceFor($visit);
@@ -39,9 +63,13 @@ class TriageService
 
         return [
             'waiting' => $waiting,
-            'done' => Visit::with(['patient', 'doctor', 'department', 'vitals'])->withStatus(VisitStatus::WaitingDoctor)
-                ->when($departmentId, fn ($query) => $query->where('department_id', $departmentId))
-                ->today()->latest('updated_at')->get(),
+            'done' => $done,
+            'waitingCount' => (clone $queue(VisitStatus::WaitingTriage))->count(),
+            'overdueCount' => (clone $queue(VisitStatus::WaitingTriage))->where('checked_in_at', '<=', now()->subMinutes(30))->count(),
+            'readyCount' => (clone $queue(VisitStatus::WaitingDoctor))->today()->count(),
+            'departments' => ($isAdmin || $isCentralNurse) ? Department::orderBy('name')->get(['id', 'name']) : collect(),
+            'selectedDepartment' => $selectedDepartment,
+            'search' => $search,
         ];
     }
 
@@ -74,8 +102,7 @@ class TriageService
     private function assertDepartmentAccess(Visit $visit, User $staff): void
     {
         abort_unless($staff->hasRole(Role::Admin) || ($staff->hasRole(Role::Nurse)
-            && $staff->department_id !== null
-            && (int) $staff->department_id === (int) $visit->department_id), 403,
-            'This visit belongs to another department. Only nurses assigned to the visit department can provide triage.');
+            && ($staff->isCentralVitalsNurse() || (int) $staff->department_id === (int) $visit->department_id)), 403,
+            'This visit belongs to another department. Only its assigned nurse or a nurse assigned to OPD can record vitals.');
     }
 }

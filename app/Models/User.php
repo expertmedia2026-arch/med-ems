@@ -50,6 +50,17 @@ class User extends Authenticatable
         return false;
     }
 
+    public function isCentralVitalsNurse(): bool
+    {
+        if (! $this->hasRole(Role::Nurse)) {
+            return false;
+        }
+
+        $departmentName = trim((string) $this->department?->name);
+
+        return preg_match('/\\bOPD\\b|^outpatient(?:\\s|$)/i', $departmentName) === 1;
+    }
+
     public function scopeOfRole($query, Role $role)
     {
         return $query->where('role', $role->value);
