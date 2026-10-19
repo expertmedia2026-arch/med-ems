@@ -36,7 +36,7 @@
         @endforelse
 
         @if ($upcoming->isNotEmpty())
-            <p class="text-xs text-slate-400">For doctor appointments, arrive early and check in at the front desk; patients are seen in arrival order. Lab appointments have a reserved time. Fees are paid at the cashier.</p>
+            <p class="text-xs text-slate-400">For doctor appointments, arrive early and check in at the front desk; patients are seen in arrival order. Lab appointments have a reserved time. Fees are paid at the billing desk.</p>
         @endif
     </div>
 

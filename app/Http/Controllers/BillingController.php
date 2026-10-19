@@ -6,27 +6,27 @@ use App\Http\Requests\BillingIndexRequest;
 use App\Http\Requests\PayInvoiceRequest;
 use App\Models\Invoice;
 use App\Models\Payment;
-use App\Services\CashierService;
+use App\Services\BillingOperationsService;
 
 class BillingController extends Controller
 {
-    public function index(BillingIndexRequest $request, CashierService $cashier)
+    public function index(BillingIndexRequest $request, BillingOperationsService $billing)
     {
         $filters = $request->validated();
 
-        return view('billing.index', $cashier->indexData($filters['status'] ?? null, $filters['q'] ?? null));
+        return view('billing.index', $billing->indexData($filters['status'] ?? null, $filters['q'] ?? null));
     }
 
-    public function show(Invoice $invoice, CashierService $cashier)
+    public function show(Invoice $invoice, BillingOperationsService $billing)
     {
-        $invoice = $cashier->invoiceDetails($invoice);
+        $invoice = $billing->invoiceDetails($invoice);
 
         return view('billing.show', compact('invoice'));
     }
 
-    public function pay(PayInvoiceRequest $request, Invoice $invoice, CashierService $cashier)
+    public function pay(PayInvoiceRequest $request, Invoice $invoice, BillingOperationsService $billing)
     {
-        $payment = $cashier->recordPayment($invoice, $request->validated(), $request->user()->id);
+        $payment = $billing->recordPayment($invoice, $request->validated(), $request->user()->id);
 
         if (! $payment) {
             return redirect()->route('billing.show', $invoice)
@@ -38,9 +38,9 @@ class BillingController extends Controller
             ->with('success', 'Payment of ₦'.number_format((float) $payment->amount, 2).' recorded.');
     }
 
-    public function receipt(Payment $payment, CashierService $cashier)
+    public function receipt(Payment $payment, BillingOperationsService $billing)
     {
-        $payment = $cashier->receiptDetails($payment);
+        $payment = $billing->receiptDetails($payment);
 
         return view('billing.receipt', compact('payment'));
     }

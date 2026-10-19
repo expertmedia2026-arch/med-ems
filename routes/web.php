@@ -8,6 +8,7 @@ use App\Http\Controllers\CsvTransferController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DoctorAvailabilityController;
+use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\DrugController;
 use App\Http\Controllers\InvitationAcceptController;
 use App\Http\Controllers\LabAttachmentController;
@@ -99,13 +100,15 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         Route::delete('availability/{doctorAvailability}', [DoctorAvailabilityController::class, 'destroy'])->name('availability.destroy');
     });
 
+    // Admin and chief accountant may view staff; writes remain admin-only.
+    Route::middleware('role:admin,chief_accountant')->get('staff', [StaffController::class, 'index'])->name('staff.index');
+
     // Admin: staff management and hospital settings
     Route::middleware('role:admin')->group(function () {
         Route::resource('departments', DepartmentController::class)->except('show');
         Route::resource('consultation-types', ConsultationTypeController::class)->except(['show', 'destroy']);
 
         Route::prefix('staff')->name('staff.')->group(function () {
-            Route::get('/', [StaffController::class, 'index'])->name('index');
             Route::get('create', [StaffController::class, 'create'])->name('create');
             Route::post('/', [StaffController::class, 'store'])->name('store');
 
@@ -248,8 +251,14 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         Route::patch('drugs/{drug}/toggle', [DrugController::class, 'toggle'])->name('drugs.toggle');
     });
 
-    // Cashier
-    Route::middleware('role:admin,cashier')->prefix('billing')->name('billing.')->group(function () {
+    // Finance reporting for administrators and accounting leadership.
+    Route::middleware('role:admin,chief_accountant')->prefix('finance')->name('finance.')->group(function () {
+        Route::get('/', [FinanceController::class, 'index'])->name('index');
+        Route::get('export/pdf', [FinanceController::class, 'exportPdf'])->name('export.pdf');
+    });
+
+    // Payment collection and invoice handling.
+    Route::middleware('role:admin,accountant,receptionist')->prefix('billing')->name('billing.')->group(function () {
         Route::get('/', [BillingController::class, 'index'])->name('index');
         Route::get('invoices/{invoice}', [BillingController::class, 'show'])->name('show');
         Route::post('invoices/{invoice}/payments', [BillingController::class, 'pay'])->name('pay');

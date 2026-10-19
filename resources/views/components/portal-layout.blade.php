@@ -98,7 +98,7 @@
                 @php($registrationFee = (float) $hospital->registration_fee)
                 <div role="alert" class="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                     <p class="font-semibold">Registration fee outstanding</p>
-                    <p class="mt-1">Your registration fee of ₦{{ number_format($registrationFee, 2) }} has not been paid. Please pay at the cashier. You can continue using your patient portal.</p>
+                    <p class="mt-1">Your registration fee of ₦{{ number_format($registrationFee, 2) }} has not been paid. Please pay at the billing desk. You can continue using your patient portal.</p>
                 </div>
             @endif
 

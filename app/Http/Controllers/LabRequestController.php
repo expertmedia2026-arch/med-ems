@@ -16,7 +16,7 @@ class LabRequestController extends Controller
 
         $count = $lab->requestTests($visit, $request->validated('lab_test_ids'), $request->user()->id);
 
-        return back()->with('success', $count.' lab test(s) requested. The patient must pay at the cashier before results can be entered.');
+        return back()->with('success', $count.' lab test(s) requested. The patient must pay at the billing desk before results can be entered.');
     }
 
     public function destroy(Request $request, Visit $visit, LabRequest $labRequest, LabWorkflowService $lab)

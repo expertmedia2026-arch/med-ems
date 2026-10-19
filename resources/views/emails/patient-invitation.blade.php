@@ -18,7 +18,7 @@
     </p>
 
     <p>
-        Your portal login becomes active once your registration fee has been paid at the cashier.
+        Your portal login becomes active once your registration fee has been paid at the billing desk.
     </p>
 
     <p style="font-size: 13px; color: #64748b;">

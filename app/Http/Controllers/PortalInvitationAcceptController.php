@@ -37,7 +37,7 @@ class PortalInvitationAcceptController extends Controller
 
         $message = $patient->registration_paid_at
             ? 'Your account is ready. Log in with your email and password.'
-            : 'Your account has been created. You can log in once your registration fee has been paid at the cashier.';
+            : 'Your account has been created. You can log in once your registration fee has been paid at the billing desk.';
 
         return redirect()->route('login')->with('status', $message);
     }

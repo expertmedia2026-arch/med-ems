@@ -3,7 +3,7 @@
 return [
     ['label' => 'Dashboard',    'route' => 'dashboard', 'roles' => '*'],
     ['label' => 'Patients',     'route' => 'patients.index',     'active' => 'patients.*',     'roles' => ['admin', 'receptionist', 'nurse', 'doctor']],
-    ['label' => 'Staff',             'route' => 'staff.index',   'active' => 'staff.*',    'roles' => ['admin']],
+    ['label' => 'Staff',             'route' => 'staff.index',   'active' => 'staff.*',    'roles' => ['admin', 'chief_accountant']],
     ['label' => 'Departments', 'route' => 'departments.index', 'active' => 'departments.*', 'roles' => ['admin']],
     ['label' => 'Consultation Pricing', 'route' => 'consultation-types.index', 'active' => 'consultation-types.*', 'roles' => ['admin']],
     ['label' => 'Appointments', 'route' => 'appointments.index', 'active' => 'appointments.*', 'roles' => ['admin', 'receptionist', 'doctor']],
@@ -16,7 +16,8 @@ return [
     ['label' => 'Laboratory', 'route' => 'lab.index', 'active' => ['lab.index', 'lab.show', 'lab.report', 'lab.tests.*', 'lab.attachments.*'], 'roles' => ['admin', 'lab', 'doctor']],
     ['label' => 'External Lab Request', 'route' => 'lab.referrals.create', 'active' => 'lab.referrals.*', 'roles' => ['admin', 'receptionist', 'lab']],
     ['label' => 'Pharmacy',   'route' => 'pharmacy.index', 'active' => 'pharmacy.*', 'roles' => ['admin', 'pharmacist']],
-    ['label' => 'Billing', 'route' => 'billing.index', 'active' => 'billing.*', 'roles' => ['admin', 'cashier']],
+    ['label' => 'Billing', 'route' => 'billing.index', 'active' => 'billing.*', 'roles' => ['admin', 'accountant', 'receptionist']],
+    ['label' => 'Finance overview', 'route' => 'finance.index', 'active' => 'finance.*', 'roles' => ['admin', 'chief_accountant']],
     ['label' => 'Hospital Settings', 'route' => 'settings.edit', 'active' => 'settings.*', 'roles' => ['admin']],
 
 ];

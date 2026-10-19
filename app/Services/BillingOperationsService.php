@@ -6,10 +6,10 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\OnlinePayment;
 use App\Models\Payment;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
-class CashierService
+class BillingOperationsService
 {
     public function __construct(private readonly DrugInventoryService $inventory) {}
 
@@ -38,12 +38,12 @@ class CashierService
         return $payment->load(['invoice.patient', 'invoice.visit.doctor', 'items', 'receiver']);
     }
 
-    public function recordPayment(Invoice $invoice, array $data, int $cashierId): ?Payment
+    public function recordPayment(Invoice $invoice, array $data, int $receiverId): ?Payment
     {
         $payment = null;
         $wanted = array_values(array_unique($data['item_ids']));
 
-        DB::transaction(function () use ($invoice, $data, $wanted, $cashierId, &$payment) {
+        DB::transaction(function () use ($invoice, $data, $wanted, $receiverId, &$payment) {
             Invoice::lockForUpdate()->findOrFail($invoice->id);
 
             $items = $invoice->items()->whereIn('id', $wanted)->whereNull('payment_id')
@@ -63,7 +63,7 @@ class CashierService
                 'amount' => round((float) $items->sum('total'), 2),
                 'method' => $data['method'],
                 'reference' => $data['reference'] ?? null,
-                'received_by' => $cashierId,
+                'received_by' => $receiverId,
             ]);
 
             InvoiceItem::whereIn('id', $items->pluck('id'))->update(['payment_id' => $payment->id]);

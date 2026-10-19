@@ -23,7 +23,7 @@ class VisitController extends Controller
 
         return redirect()
             ->route('patients.show', $patient)
-            ->with('success', 'Patient checked in for '.$consultationType->name.'. Send them to the cashier to pay ₦'.number_format((float) $consultationType->price, 2).', then to triage.');
+            ->with('success', 'Patient checked in for '.$consultationType->name.'. Send them to the billing desk to pay ₦'.number_format((float) $consultationType->price, 2).', then to triage.');
     }
 
     /** Appointment: check in and link the visit to the booking. */
@@ -41,7 +41,7 @@ class VisitController extends Controller
                 return back()->with('error', 'None of the booked tests are available any more. Cancel this booking and book again.');
             }
 
-            return back()->with('success', "{$visit->patient->full_name} checked in for lab tests. Send them to the cashier to pay for the tests.");
+            return back()->with('success', "{$visit->patient->full_name} checked in for lab tests. Send them to the billing desk to pay for the tests.");
         }
 
         if (! $checkIn->doctorDepartmentId($appointment)) {
@@ -57,6 +57,6 @@ class VisitController extends Controller
 
         $consultationType = $visit->consultationType;
 
-        return back()->with('success', "{$visit->patient->full_name} checked in for {$consultationType->name}. Send them to the cashier to pay ₦".number_format((float) $consultationType->price, 2).', then to triage.');
+        return back()->with('success', "{$visit->patient->full_name} checked in for {$consultationType->name}. Send them to the billing desk to pay ₦".number_format((float) $consultationType->price, 2).', then to triage.');
     }
 }

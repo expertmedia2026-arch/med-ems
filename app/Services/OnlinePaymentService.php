@@ -108,12 +108,12 @@ class OnlinePaymentService
                 ->lockForUpdate()
                 ->get();
 
-            // Something was settled at the cashier in the meantime: do not record twice
+            // Something was settled at the billing desk in the meantime: do not record twice
             if ($items->count() !== count($attempt->item_ids)) {
                 $attempt->update([
                     'status' => 'review',
                     'paid_at' => now(),
-                    'note' => 'Paid online, but some items were already settled at the cashier. Refund or reconcile in the gateway dashboard.',
+                    'note' => 'Paid online, but some items were already settled at the billing desk. Refund or reconcile in the gateway dashboard.',
                 ]);
 
                 return $attempt;

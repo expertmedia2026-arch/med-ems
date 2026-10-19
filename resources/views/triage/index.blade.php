@@ -57,7 +57,7 @@
                 <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
                     <div>
                         <h2 class="font-semibold text-slate-900">Patients awaiting vitals</h2>
-                        <p class="mt-1 text-sm text-slate-500">Oldest check-ins appear first. Unpaid visits stay in the queue until cleared by the cashier.</p>
+                        <p class="mt-1 text-sm text-slate-500">Oldest check-ins appear first. Unpaid visits stay in the queue until payment is recorded.</p>
                     </div>
                     <form method="GET" action="{{ route('triage.index') }}" class="grid gap-2 sm:grid-cols-[minmax(14rem,1fr)_auto_auto]">
                         <label class="sr-only" for="q">Search patients</label>
@@ -142,7 +142,7 @@
                                             <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 0 1 .02-1.06L10.94 10 7.23 6.29a.75.75 0 1 1 1.06-1.06l4.24 4.24a.75.75 0 0 1 0 1.06l-4.24 4.24a.75.75 0 0 1-1.08 0Z" clip-rule="evenodd"/></svg>
                                         </a>
                                     @else
-                                        <span class="text-xs text-slate-400">Send to cashier</span>
+                                        <span class="text-xs text-slate-400">Send to billing desk</span>
                                     @endif
                                 </td>
                             </tr>

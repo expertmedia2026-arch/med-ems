@@ -13,7 +13,7 @@ class StaffController extends Controller
 {
     public function index(StaffIndexRequest $request, StaffService $staffService)
     {
-        return view('staff.index', $staffService->indexData($request->validated()));
+        return view('staff.index', $staffService->indexData($request->validated(), $request->user()));
     }
 
     public function create(StaffService $staffService)

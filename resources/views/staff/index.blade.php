@@ -1,7 +1,11 @@
 <x-app-layout>
-    <x-slot name="header">Staff</x-slot>
+    <x-slot name="header">{{ $isDepartmentViewer ? 'Department staff' : 'Staff' }}</x-slot>
 
-    <div class="mb-6"><x-csv-transfer-actions dataset="staff" label="staff accounts" /></div>
+    @unless ($isDepartmentViewer)
+        <div class="mb-6"><x-csv-transfer-actions dataset="staff" label="staff accounts" /></div>
+    @else
+        <p class="mb-6 text-sm text-slate-500">Staff assigned to {{ auth()->user()->department?->name ?? 'your department' }}. This view is read-only.</p>
+    @endunless
 
     @if (session('invite_link'))
         <div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900" x-data="{ copied: false }">
@@ -30,12 +34,14 @@
                 @endforeach
             </select>
 
-            <select name="department_id" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
-                <option value="">All departments</option>
-                @foreach ($departments as $department)
-                    <option value="{{ $department->id }}" @selected((string) request('department_id') === (string) $department->id)>{{ $department->name }}</option>
-                @endforeach
-            </select>
+            @unless ($isDepartmentViewer)
+                <select name="department_id" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
+                    <option value="">All departments</option>
+                    @foreach ($departments as $department)
+                        <option value="{{ $department->id }}" @selected((string) request('department_id') === (string) $department->id)>{{ $department->name }}</option>
+                    @endforeach
+                </select>
+            @endunless
 
             <select name="status" class="rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                 <option value="">Active and inactive</option>
@@ -46,14 +52,16 @@
             <button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">Filter</button>
         </form>
 
-        <a href="{{ route('staff.invite') }}"
-           class="rounded-lg border border-teal-700 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">Invite by email</a>
-        <a href="{{ route('staff.create') }}"
-           class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">+ Add staff</a>
+        @unless ($isDepartmentViewer)
+            <a href="{{ route('staff.invite') }}"
+               class="rounded-lg border border-teal-700 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">Invite by email</a>
+            <a href="{{ route('staff.create') }}"
+               class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">+ Add staff</a>
+        @endunless
     </div>
 
     {{-- Pending invitations --}}
-    @if ($invitations->isNotEmpty())
+    @if (! $isDepartmentViewer && $invitations->isNotEmpty())
         <div class="mb-8 rounded-xl border border-blue-200 bg-white shadow-sm">
             <h3 class="border-b border-blue-200 bg-blue-50 px-5 py-3 font-semibold text-blue-900">
                 Pending invitations ({{ $invitations->count() }})
@@ -99,7 +107,7 @@
                     <th class="px-4 py-3">Department</th>
                     <th class="px-4 py-3">Status</th>
                     <th class="px-4 py-3">Joined</th>
-                    <th class="px-4 py-3"></th>
+                    @unless ($isDepartmentViewer)<th class="px-4 py-3"></th>@endunless
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -114,22 +122,24 @@
                         <td class="px-4 py-3">{{ $member->department?->name ?? '—' }}</td>
                         <td class="px-4 py-3"><x-badge :color="$member->is_active ? 'green' : 'slate'">{{ $member->is_active ? 'Active' : 'Inactive' }}</x-badge></td>
                         <td class="px-4 py-3">{{ $member->created_at->format('d M Y') }}</td>
-                        <td class="px-4 py-3">
-                            <div class="flex justify-end gap-4">
-                                <a href="{{ route('staff.edit', $member) }}" class="text-teal-700 hover:underline">Edit</a>
-                                @unless ($member->is(auth()->user()))
-                                    <form method="POST" action="{{ route('staff.toggle', $member) }}">
-                                        @csrf @method('PATCH')
-                                        <button class="{{ $member->is_active ? 'text-red-600' : 'text-green-700' }} hover:underline">
-                                            {{ $member->is_active ? 'Deactivate' : 'Activate' }}
-                                        </button>
-                                    </form>
-                                @endunless
-                            </div>
-                        </td>
+                        @unless ($isDepartmentViewer)
+                            <td class="px-4 py-3">
+                                <div class="flex justify-end gap-4">
+                                    <a href="{{ route('staff.edit', $member) }}" class="text-teal-700 hover:underline">Edit</a>
+                                    @unless ($member->is(auth()->user()))
+                                        <form method="POST" action="{{ route('staff.toggle', $member) }}">
+                                            @csrf @method('PATCH')
+                                            <button class="{{ $member->is_active ? 'text-red-600' : 'text-green-700' }} hover:underline">
+                                                {{ $member->is_active ? 'Deactivate' : 'Activate' }}
+                                            </button>
+                                        </form>
+                                    @endunless
+                                </div>
+                            </td>
+                        @endunless
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-10 text-center text-slate-500">No staff found.</td></tr>
+                    <tr><td colspan="{{ $isDepartmentViewer ? 5 : 6 }}" class="px-4 py-10 text-center text-slate-500">No staff found.</td></tr>
                 @endforelse
             </tbody>
         </table>

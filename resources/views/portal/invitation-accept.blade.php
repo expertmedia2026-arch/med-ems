@@ -30,7 +30,7 @@
 
         @unless ($invitation->patient->registration_paid_at)
             <p class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                You can log in once your registration fee has been paid at the cashier.
+                You can log in once your registration fee has been paid at the billing desk.
             </p>
         @endunless
 
@@ -38,4 +38,4 @@
             Verify email and create account
         </button>
     </form>
-</x-guest-layout>   
+</x-guest-layout>

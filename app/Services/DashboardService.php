@@ -28,7 +28,8 @@ class DashboardService
             Role::Doctor => $this->doctor($user->id),
             Role::Lab => $this->lab(),
             Role::Pharmacist => $this->pharmacist(),
-            Role::Cashier => $this->cashier(),
+            Role::Accountant => $this->accountant(),
+            Role::ChiefAccountant => $this->chiefAccountant(),
             default => [],
         };
 
@@ -71,6 +72,8 @@ class DashboardService
             $this->card('In queue', $this->inQueue(), 'amber'),
             $this->card('Appointments today', Appointment::today()->where('status', 'scheduled')->count(), 'blue', 'appointments.index'),
             $this->card('Checked out today', Visit::today()->withStatus(VisitStatus::Completed)->count(), 'green'),
+            $this->card('Collected today', $this->money($this->revenueToday()), 'teal', 'billing.index'),
+            $this->card('Unpaid invoices', Invoice::whereIn('status', ['unpaid', 'partial'])->count(), 'amber', 'billing.index'),
         ];
     }
 
@@ -124,12 +127,21 @@ class DashboardService
         ];
     }
 
-    private function cashier(): array
+    private function accountant(): array
     {
         return [
             $this->card('Revenue today', $this->money($this->revenueToday()), 'green', 'billing.index'),
             $this->card('Unpaid invoices', Invoice::whereIn('status', ['unpaid', 'partial'])->count(), 'amber', 'billing.index'),
             $this->card('Outstanding balance', $this->money($this->outstanding()), 'red', 'billing.index'),
+        ];
+    }
+
+    private function chiefAccountant(): array
+    {
+        return [
+            $this->card('Revenue today', $this->money($this->revenueToday()), 'green', 'finance.index'),
+            $this->card('Unpaid invoices', Invoice::whereIn('status', ['unpaid', 'partial'])->count(), 'amber', 'finance.index'),
+            $this->card('Outstanding balance', $this->money($this->outstanding()), 'red', 'finance.index'),
         ];
     }
 

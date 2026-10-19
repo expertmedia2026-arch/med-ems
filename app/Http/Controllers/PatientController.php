@@ -30,7 +30,7 @@ class PatientController extends Controller
         $message = "Patient registered: {$patient->hospital_number}.";
 
         if ($invoice) {
-            $message .= ' Registration fee of ₦'.number_format((float) $invoice->total).' is waiting at the cashier.';
+            $message .= ' Registration fee of ₦'.number_format((float) $invoice->total).' is waiting at the billing desk.';
         }
 
         $flash = [];

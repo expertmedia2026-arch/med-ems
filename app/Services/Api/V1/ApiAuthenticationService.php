@@ -30,7 +30,7 @@ class ApiAuthenticationService
                 'required' => true,
                 'amount' => $amount,
                 'currency' => 'NGN',
-                'message' => 'Your registration fee of ₦'.number_format($amount, 2).' is outstanding. Please pay at the cashier.',
+                'message' => 'Your registration fee of ₦'.number_format($amount, 2).' is outstanding. Please pay at the billing desk.',
             ];
         }
 

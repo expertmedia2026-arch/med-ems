@@ -61,7 +61,7 @@
                     
                     @if ($activeVisit->status->value === 'waiting_triage' && ! $activeVisit->consultation_paid)
                         <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                            Consultation charge not paid yet. Send the patient to the cashier.
+                            Consultation charge not paid yet. Send the patient to the billing desk.
                         </p>
                     @endif
 
@@ -199,7 +199,7 @@
                     @if ($patient->registration_paid_at)
                         <span class="font-medium text-green-700">paid</span>
                     @else
-                        <span class="font-medium text-amber-700">unpaid (at the cashier)</span>
+                        <span class="font-medium text-amber-700">unpaid (at the billing desk)</span>
                     @endif
                 </p>
 
@@ -211,7 +211,7 @@
                     </p>
                     <p class="mt-1 text-xs text-slate-500">{{ $portalUser->email }}</p>
                     @unless ($patient->registration_paid_at)
-                        <p class="mt-2 text-xs text-amber-800">The patient can log in once the cashier collects the registration fee.</p>
+                        <p class="mt-2 text-xs text-amber-800">The patient can log in once the registration fee is paid.</p>
                     @endunless
                 @elseif ($pendingInvite)
                     <p class="mt-3 text-xs text-slate-600">

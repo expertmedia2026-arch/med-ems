@@ -11,16 +11,16 @@ use App\Http\Resources\Api\V1\InvoiceResource;
 use App\Http\Resources\Api\V1\PaymentReceiptResource;
 use App\Models\Invoice;
 use App\Models\Payment;
-use App\Services\CashierService;
+use App\Services\BillingOperationsService;
 use App\Services\OnlinePaymentService;
 use App\Services\PortalInvoiceService;
 use Illuminate\Http\Request;
 
 class BillingOperationsController extends Controller
 {
-    public function index(BillingIndexRequest $request, CashierService $cashier): array
+    public function index(BillingIndexRequest $request, BillingOperationsService $billing): array
     {
-        $data = $cashier->indexData($request->validated('status'), $request->validated('q'));
+        $data = $billing->indexData($request->validated('status'), $request->validated('q'));
 
         return [
             'invoices' => InvoiceResource::collection($data['invoices']),
@@ -36,14 +36,14 @@ class BillingOperationsController extends Controller
         ];
     }
 
-    public function show(Invoice $invoice, CashierService $cashier): InvoiceResource
+    public function show(Invoice $invoice, BillingOperationsService $billing): InvoiceResource
     {
-        return new InvoiceResource($cashier->invoiceDetails($invoice));
+        return new InvoiceResource($billing->invoiceDetails($invoice));
     }
 
-    public function pay(PayInvoiceRequest $request, Invoice $invoice, CashierService $cashier): array
+    public function pay(PayInvoiceRequest $request, Invoice $invoice, BillingOperationsService $billing): array
     {
-        $payment = $cashier->recordPayment($invoice, $request->validated(), $request->user()->id);
+        $payment = $billing->recordPayment($invoice, $request->validated(), $request->user()->id);
         abort_unless($payment, 409, 'Some selected items were already paid or are no longer valid. Refresh the invoice.');
 
         return [
@@ -54,14 +54,14 @@ class BillingOperationsController extends Controller
                 'method' => $payment->method,
                 'reference' => $payment->reference,
             ],
-            'invoice' => new InvoiceResource($cashier->invoiceDetails($invoice->refresh())),
+            'invoice' => new InvoiceResource($billing->invoiceDetails($invoice->refresh())),
         ];
     }
 
     /** Return receipt data and HTML rendered from the web receipt view for mobile printing. */
-    public function receipt(Payment $payment, CashierService $cashier): array
+    public function receipt(Payment $payment, BillingOperationsService $billing): array
     {
-        $payment = $cashier->receiptDetails($payment);
+        $payment = $billing->receiptDetails($payment);
 
         return [
             'receipt' => (new PaymentReceiptResource($payment))->resolve(request()),

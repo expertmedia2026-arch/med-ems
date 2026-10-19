@@ -47,6 +47,10 @@ class StaffInvitationService
     /** @return array{invitation: StaffInvitation, link: string, message: string, sent: bool} */
     public function issue(string $email, Role $role, ?int $departmentId, User $inviter): array
     {
+        if ($role->isFinanceStaff()) {
+            $departmentId = Department::where('name', Department::FINANCE_NAME)->value('id');
+        }
+
         StaffInvitation::where('email', $email)->whereNull('accepted_at')->delete();
 
         $token = Str::random(48);

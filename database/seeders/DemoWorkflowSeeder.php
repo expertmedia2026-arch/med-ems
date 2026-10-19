@@ -50,14 +50,14 @@ class DemoWorkflowSeeder extends Seeder
         $receptionist = User::where('email', 'reception@hms.test')->firstOrFail();
         $labStaff = User::where('email', 'lab@hms.test')->firstOrFail();
         $pharmacist = User::where('email', 'pharmacy@hms.test')->firstOrFail();
-        $cashier = User::where('email', 'cashier@hms.test')->firstOrFail();
+        $paymentCollector = $receptionist;
 
         $appointments = $this->seedAppointments($patients, $departments, $doctors, $tests, $receptionist);
         $visits = $this->seedVisits($patients, $departments, $doctors, $nurses, $tests, $drugs, $appointments, $receptionist);
 
         $billing = app(BillingService::class);
-        $this->seedRegistrationBilling($patients, $billing, $cashier);
-        $this->seedVisitBilling($visits, $billing, $cashier);
+        $this->seedRegistrationBilling($patients, $billing, $paymentCollector);
+        $this->seedVisitBilling($visits, $billing, $paymentCollector);
         $this->seedLabResults($visits, $labStaff);
         $this->seedDispensing($visits, $pharmacist);
     }
@@ -269,7 +269,7 @@ class DemoWorkflowSeeder extends Seeder
         ]];
     }
 
-    private function seedRegistrationBilling(Collection $patients, BillingService $billing, User $cashier): void
+    private function seedRegistrationBilling(Collection $patients, BillingService $billing, User $paymentCollector): void
     {
         foreach ($patients as $patient) {
             $patient->update(['registration_paid_at' => now()]);
@@ -280,11 +280,11 @@ class DemoWorkflowSeeder extends Seeder
             }
 
             $items = $invoice->items()->where('category', 'registration')->whereNull('payment_id')->get();
-            $this->settleItems($invoice, $items, $cashier, 'SEED-REG-'.$patient->id);
+            $this->settleItems($invoice, $items, $paymentCollector, 'SEED-REG-'.$patient->id);
         }
     }
 
-    private function seedVisitBilling(Collection $visits, BillingService $billing, User $cashier): void
+    private function seedVisitBilling(Collection $visits, BillingService $billing, User $paymentCollector): void
     {
         foreach ($visits as $visit) {
             $billing->syncFor($visit);
@@ -310,11 +310,11 @@ class DemoWorkflowSeeder extends Seeder
                 return false;
             });
 
-            $this->settleItems($invoice, $paidItems, $cashier, 'SEED-VISIT-'.$visit->id);
+            $this->settleItems($invoice, $paidItems, $paymentCollector, 'SEED-VISIT-'.$visit->id);
         }
     }
 
-    private function settleItems(Invoice $invoice, Collection $items, User $cashier, string $reference): ?Payment
+    private function settleItems(Invoice $invoice, Collection $items, User $paymentCollector, string $reference): ?Payment
     {
         $items = $items->whereNull('payment_id');
         $amount = (float) $items->sum('total');
@@ -327,7 +327,7 @@ class DemoWorkflowSeeder extends Seeder
             'amount' => $amount,
             'method' => ['cash', 'transfer', 'pos'][$invoice->id % 3],
             'reference' => $reference,
-            'received_by' => $cashier->id,
+            'received_by' => $paymentCollector->id,
         ]);
         $invoice->items()->whereIn('id', $items->modelKeys())->update(['payment_id' => $payment->id]);
         $invoice->recalculate();

@@ -35,7 +35,7 @@ class LabReferralController extends Controller
         $total = number_format($result['total'] ?? 0, 2);
         $message = "Request created for {$patient->full_name}"
             .($result['is_new'] ? " (lab number {$patient->hospital_number})" : '')
-            .". Send them to the cashier to pay ₦{$total}.";
+            .". Send them to the billing desk to pay ₦{$total}.";
 
         // Front desk has no access to the lab pages, so send them back to the patient
         return $request->user()->hasRole(Role::Receptionist)

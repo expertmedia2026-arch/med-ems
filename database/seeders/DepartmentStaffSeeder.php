@@ -47,6 +47,11 @@ class DepartmentStaffSeeder extends Seeder
 
     public function run(): void
     {
+        $financeDepartment = Department::updateOrCreate(
+            ['name' => Department::FINANCE_NAME],
+            ['description' => 'Payment collection, accounting, and financial oversight.'],
+        );
+
         foreach (self::DEPARTMENTS as $departmentIndex => [$name, $description]) {
             $department = Department::updateOrCreate(['name' => $name], ['description' => $description]);
 
@@ -95,7 +100,8 @@ class DepartmentStaffSeeder extends Seeder
             ['Chiamaka Nwosu', 'reception@hms.test', Role::Receptionist],
             ['Ifeanyi Eze', 'lab@hms.test', Role::Lab],
             ['Ngozi Madu', 'pharmacy@hms.test', Role::Pharmacist],
-            ['Emeka Nwachukwu', 'cashier@hms.test', Role::Cashier],
+            ['Adaobi Eze', 'accountant@hms.test', Role::Accountant],
+            ['Ezeani Okoro', 'chief.accountant@hms.test', Role::ChiefAccountant],
         ];
 
         foreach ($supportStaff as [$name, $email, $role]) {
@@ -104,7 +110,9 @@ class DepartmentStaffSeeder extends Seeder
                 [
                     'name' => $name,
                     'role' => $role,
-                    'department_id' => null,
+                    'department_id' => in_array($role, [Role::Accountant, Role::ChiefAccountant], true)
+                        ? $financeDepartment->id
+                        : null,
                     'password' => 'password',
                     'email_verified_at' => now(),
                     'is_active' => true,

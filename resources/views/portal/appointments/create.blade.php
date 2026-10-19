@@ -186,7 +186,7 @@
                         @error('lab_test_ids')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
                         @error('lab_test_ids.*')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
 
-                        <p class="mt-3 text-sm text-slate-600">Estimated cost: <strong x-text="money(total)"></strong>, paid at the cashier.</p>
+                        <p class="mt-3 text-sm text-slate-600">Estimated cost: <strong x-text="money(total)"></strong>, paid at the billing desk.</p>
                     @endif
 
                     <div class="mt-6">

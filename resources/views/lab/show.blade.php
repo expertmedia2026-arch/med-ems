@@ -134,7 +134,7 @@
                 <p class="font-semibold">Payment required</p>
                 <p class="mt-1">
                     This test (₦{{ number_format($labRequest->invoiceItem?->total ?? 0, 2) }}) has not been paid for.
-                    Results can be entered once the patient has paid at the cashier.
+                    Results can be entered once the patient has paid at the billing desk.
                 </p>
                 <a href="{{ route('lab.index') }}" class="mt-3 inline-block text-teal-700 hover:underline">Back</a>
             </div>

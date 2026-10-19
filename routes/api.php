@@ -186,8 +186,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::patch('drugs/{drug}/toggle', [PharmacyOperationsController::class, 'toggleDrug'])->whereNumber('drug')->name('drugs.toggle');
         });
 
-        // Cashier/admin invoice browsing, payment collection, and receipts.
-        Route::middleware('role:admin,cashier')->prefix('billing')->name('billing.')->group(function () {
+        // Reception and admin invoice browsing, payment collection, and receipts.
+        Route::middleware('role:admin,accountant,receptionist')->prefix('billing')->name('billing.')->group(function () {
             Route::get('invoices', [BillingOperationsController::class, 'index'])->name('invoices.index');
             Route::get('invoices/{invoice}', [BillingOperationsController::class, 'show'])->whereNumber('invoice')->name('invoices.show');
             Route::post('invoices/{invoice}/payments', [BillingOperationsController::class, 'pay'])->whereNumber('invoice')->name('invoices.pay');

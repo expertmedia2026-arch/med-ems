@@ -10,13 +10,15 @@ enum Role: string
     case Doctor       = 'doctor';
     case Lab          = 'lab';
     case Pharmacist   = 'pharmacist';
-    case Cashier      = 'cashier';
+    case Accountant   = 'accountant';
+    case ChiefAccountant = 'chief_accountant';
     case Patient      = 'patient';
 
     public function label(): string
     {
         return match ($this) {
             self::Lab => 'Lab Scientist',
+            self::ChiefAccountant => 'Chief Accountant',
             default   => ucfirst($this->value),
         };
     }
@@ -25,5 +27,10 @@ enum Role: string
     public static function staff(): array
     {
         return array_values(array_filter(self::cases(), fn (self $role) => $role !== self::Patient));
+    }
+
+    public function isFinanceStaff(): bool
+    {
+        return in_array($this, [self::Accountant, self::ChiefAccountant], true);
     }
 }
