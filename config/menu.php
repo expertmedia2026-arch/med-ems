@@ -15,7 +15,7 @@ return [
     // ['label' => 'Laboratory', 'route' => 'lab.index',      'active' => 'lab.*',      'roles' => ['admin', 'lab', 'doctor']],
     ['label' => 'Laboratory', 'route' => 'lab.index', 'active' => ['lab.index', 'lab.show', 'lab.report', 'lab.tests.*', 'lab.attachments.*'], 'roles' => ['admin', 'lab', 'doctor']],
     ['label' => 'External Lab Request', 'route' => 'lab.referrals.create', 'active' => 'lab.referrals.*', 'roles' => ['admin', 'receptionist', 'lab']],
-    ['label' => 'Pharmacy',   'route' => 'pharmacy.index', 'active' => 'pharmacy.*', 'roles' => ['admin', 'pharmacist']],
+    ['label' => 'Pharmacy',   'route' => 'pharmacy.index', 'active' => 'pharmacy.*', 'roles' => ['admin', 'pharmacist', 'chief_pharmacist']],
     ['label' => 'Billing', 'route' => 'billing.index', 'active' => 'billing.*', 'roles' => ['admin', 'accountant', 'receptionist']],
     ['label' => 'Finance overview', 'route' => 'finance.index', 'active' => 'finance.*', 'roles' => ['admin', 'chief_accountant']],
     ['label' => 'Hospital Settings', 'route' => 'settings.edit', 'active' => 'settings.*', 'roles' => ['admin']],

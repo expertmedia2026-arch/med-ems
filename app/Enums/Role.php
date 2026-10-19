@@ -12,6 +12,7 @@ enum Role: string
     case Pharmacist   = 'pharmacist';
     case Accountant   = 'accountant';
     case ChiefAccountant = 'chief_accountant';
+    case ChiefPharmacist = 'chief_pharmacist';
     case Patient      = 'patient';
 
     public function label(): string
@@ -19,6 +20,7 @@ enum Role: string
         return match ($this) {
             self::Lab => 'Lab Scientist',
             self::ChiefAccountant => 'Chief Accountant',
+            self::ChiefPharmacist => 'Chief Pharmacist',
             default   => ucfirst($this->value),
         };
     }
@@ -32,5 +34,10 @@ enum Role: string
     public function isFinanceStaff(): bool
     {
         return in_array($this, [self::Accountant, self::ChiefAccountant], true);
+    }
+
+    public function isPharmacyStaff(): bool
+    {
+        return in_array($this, [self::Pharmacist, self::ChiefPharmacist], true);
     }
 }

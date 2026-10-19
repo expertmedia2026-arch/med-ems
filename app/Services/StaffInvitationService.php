@@ -49,6 +49,8 @@ class StaffInvitationService
     {
         if ($role->isFinanceStaff()) {
             $departmentId = Department::where('name', Department::FINANCE_NAME)->value('id');
+        } elseif ($role->isPharmacyStaff()) {
+            $departmentId = Department::where('name', Department::PHARMACY_NAME)->value('id');
         }
 
         StaffInvitation::where('email', $email)->whereNull('accepted_at')->delete();

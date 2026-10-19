@@ -68,7 +68,7 @@ class AdminController extends Controller
 
     public function staff(StaffIndexRequest $request, StaffService $service)
     {
-        $data = $service->indexData($request->validated());
+        $data = $service->indexData($request->validated(), $request->user());
 
         return UserResource::collection($data['staff'])->additional([
             'departments' => DepartmentResource::collection($data['departments']),

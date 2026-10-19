@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Department extends Model
 {
     public const FINANCE_NAME = 'Accounting & Finance';
+    public const PHARMACY_NAME = 'Pharmacy';
 
     protected $guarded = [];
 

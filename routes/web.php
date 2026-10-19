@@ -237,8 +237,9 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         ->name('lab.update');
 
     // Pharmacy
-    Route::middleware('role:admin,pharmacist')->prefix('pharmacy')->name('pharmacy.')->group(function () {
+    Route::middleware('role:admin,pharmacist,chief_pharmacist')->prefix('pharmacy')->name('pharmacy.')->group(function () {
         Route::get('/', [PharmacyController::class, 'index'])->name('index');
+        Route::get('audit', [PharmacyController::class, 'audit'])->middleware('role:admin,chief_pharmacist')->name('audit');
         Route::get('inventory', [PharmacyController::class, 'inventory'])->name('inventory');
         Route::post('inventory/{drug}/restock', [PharmacyController::class, 'restock'])->name('restock');
         Route::get('visits/{visit}', [PharmacyController::class, 'show'])->name('show');

@@ -23,6 +23,15 @@ class PharmacyOperationsController extends Controller
         return [
             'queue' => VisitResource::collection($data['queue']),
             'low_stock' => DrugResource::collection($data['lowStock']),
+            'summary' => $data['pharmacySummary'],
+            'pharmacist_activity' => $data['pharmacistActivity']->map(fn ($row) => [
+                'pharmacist_id' => $row['user']->id,
+                'pharmacist' => $row['user']->name,
+                'department' => $row['user']->department?->name,
+                'patients_attended' => $row['patients'],
+                'items_dispensed' => $row['items'],
+                'injections_dispensed' => $row['injections'],
+            ])->values(),
             'dispensed_today' => $data['dispensedToday']->map(fn ($prescription) => [
                 'prescription_id' => $prescription->id,
                 'drug' => $prescription->drug?->display_name,
@@ -30,6 +39,11 @@ class PharmacyOperationsController extends Controller
                 'quantity' => $prescription->dispensable_quantity ?? $prescription->quantity,
                 'prescribed_quantity' => $prescription->quantity,
                 'dispensed_at' => $prescription->dispensed_at?->toIso8601String(),
+                'dispenser' => $prescription->dispenser ? [
+                    'id' => $prescription->dispenser->id,
+                    'name' => $prescription->dispenser->name,
+                    'role' => $prescription->dispenser->role->value,
+                ] : null,
             ])->values(),
         ];
     }

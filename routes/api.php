@@ -175,7 +175,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         });
 
         // Pharmacy dispensing, inventory, restocking, and drug catalogue operations.
-        Route::middleware('role:admin,pharmacist')->prefix('pharmacy')->name('pharmacy.')->group(function () {
+        Route::middleware('role:admin,pharmacist,chief_pharmacist')->prefix('pharmacy')->name('pharmacy.')->group(function () {
             Route::get('dashboard', [PharmacyOperationsController::class, 'dashboard'])->name('dashboard');
             Route::get('inventory', [PharmacyOperationsController::class, 'inventory'])->name('inventory');
             Route::post('inventory/{drug}/restock', [PharmacyOperationsController::class, 'restock'])->whereNumber('drug')->name('restock');

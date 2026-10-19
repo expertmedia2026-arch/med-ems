@@ -8,12 +8,18 @@ use App\Http\Requests\RestockDrugRequest;
 use App\Models\Drug;
 use App\Models\Visit;
 use App\Services\PharmacyService;
+use Illuminate\Http\Request;
 
 class PharmacyController extends Controller
 {
     public function index(PharmacyService $pharmacy)
     {
         return view('pharmacy.index', $pharmacy->dashboardData());
+    }
+
+    public function audit(Request $request, PharmacyService $pharmacy)
+    {
+        return view('pharmacy.audit', $pharmacy->auditData((string) $request->query('period', 'month')));
     }
 
     public function show(Visit $visit, PharmacyService $pharmacy)

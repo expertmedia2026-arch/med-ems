@@ -28,6 +28,7 @@ class DashboardService
             Role::Doctor => $this->doctor($user->id),
             Role::Lab => $this->lab(),
             Role::Pharmacist => $this->pharmacist(),
+            Role::ChiefPharmacist => $this->pharmacist(),
             Role::Accountant => $this->accountant(),
             Role::ChiefAccountant => $this->chiefAccountant(),
             default => [],
@@ -55,6 +56,8 @@ class DashboardService
             $this->card('Pending lab requests', LabRequest::pending()->count(), 'amber', 'lab.index'),
             $this->card('Revenue today', $this->money($this->revenueToday()), 'green', 'billing.index'),
             $this->card('Awaiting dispensing', $this->awaitingDispensing(), 'blue', 'pharmacy.index'),
+            $this->card('Pharmacy patients today', $this->pharmacyPatientsToday(), 'teal', 'pharmacy.index'),
+            $this->card('Dispensed today', Prescription::completed()->whereDate('dispensed_at', today())->count(), 'green', 'pharmacy.index'),
             $this->card('Nursing visits to finish', Visit::where('status', VisitStatus::Completed->value)
                 ->whereNull('discharged_at')
                 ->whereHas('prescriptions', fn ($query) => $query->where('requires_in_facility_administration', true))
@@ -123,6 +126,7 @@ class DashboardService
         return [
             $this->card('Awaiting dispensing', $this->awaitingDispensing(), 'amber', 'pharmacy.index'),
             $this->card('Dispensed today', Prescription::completed()->whereDate('dispensed_at', today())->count(), 'green', 'pharmacy.index'),
+            $this->card('Patients served today', $this->pharmacyPatientsToday(), 'teal', 'pharmacy.index'),
             $this->card('Low-stock drugs', Drug::active()->lowStock()->count(), 'red', 'pharmacy.inventory', ['low' => 1]),
         ];
     }
@@ -163,6 +167,16 @@ class DashboardService
     private function awaitingDispensing(): int
     {
         return Visit::withStatus(VisitStatus::Completed)->whereHas('prescriptions', fn ($q) => $q->pending())->count();
+    }
+
+    private function pharmacyPatientsToday(): int
+    {
+        return (int) DB::table('prescriptions')
+            ->join('visits', 'visits.id', '=', 'prescriptions.visit_id')
+            ->where('prescriptions.status', 'completed')
+            ->whereDate('prescriptions.dispensed_at', today())
+            ->distinct('visits.patient_id')
+            ->count('visits.patient_id');
     }
 
     private function revenueToday(): float

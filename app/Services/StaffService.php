@@ -9,13 +9,13 @@ use App\Models\User;
 
 class StaffService
 {
-    public function indexData(array $filters, User $actor): array
+    public function indexData(array $filters, ?User $actor = null): array
     {
-        $isDepartmentViewer = $actor->role === Role::ChiefAccountant;
+        $isDepartmentViewer = $actor?->role === Role::ChiefAccountant;
 
         return [
             'staff' => User::query()->with('department')->where('role', '!=', Role::Patient->value)
-                ->when($isDepartmentViewer, fn ($query) => $query->where('department_id', $actor->department_id ?? 0))
+                ->when($isDepartmentViewer, fn ($query) => $query->where('department_id', $actor?->department_id ?? 0))
                 ->when($filters['q'] ?? null, fn ($query, $term) => $query->where(fn ($search) => $search
                     ->whereLike('name', "%{$term}%")->orWhereLike('email', "%{$term}%")))
                 ->when($filters['role'] ?? null, fn ($query, $role) => $query->where('role', $role))
@@ -82,6 +82,8 @@ class StaffService
 
         if ($role?->isFinanceStaff()) {
             $data['department_id'] = Department::where('name', Department::FINANCE_NAME)->value('id');
+        } elseif ($role?->isPharmacyStaff()) {
+            $data['department_id'] = Department::where('name', Department::PHARMACY_NAME)->value('id');
         }
     }
 }
