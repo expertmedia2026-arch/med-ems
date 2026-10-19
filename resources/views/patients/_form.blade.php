@@ -5,17 +5,19 @@
     $dob   = old('date_of_birth', $patient?->date_of_birth?->format('Y-m-d'));
 @endphp
 
+<p class="mb-4 text-xs text-slate-500">Fields marked <span class="font-semibold text-red-600">*</span> are required.</p>
+
 <div class="grid gap-5 sm:grid-cols-2">
     @foreach ([['first_name', 'First name', 'text'], ['last_name', 'Last name', 'text']] as [$name, $text, $type])
         <div>
-            <label for="{{ $name }}" class="{{ $label }}">{{ $text }}</label>
+            <label for="{{ $name }}" class="{{ $label }}">{{ $text }} <span class="text-red-600" aria-hidden="true">*</span></label>
             <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ $val($name) }}" required class="{{ $input }}">
             @error($name)<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
         </div>
     @endforeach
 
     <div>
-        <label for="gender" class="{{ $label }}">Gender</label>
+        <label for="gender" class="{{ $label }}">Gender <span class="text-red-600" aria-hidden="true">*</span></label>
         <select id="gender" name="gender" required class="{{ $input }}">
             <option value="">Select…</option>
             @foreach (['male' => 'Male', 'female' => 'Female'] as $v => $t)
@@ -26,7 +28,7 @@
     </div>
 
     <div>
-        <label for="date_of_birth" class="{{ $label }}">Date of birth</label>
+        <label for="date_of_birth" class="{{ $label }}">Date of birth <span class="text-red-600" aria-hidden="true">*</span></label>
         <input id="date_of_birth" name="date_of_birth" type="date" value="{{ $dob }}" max="{{ today()->toDateString() }}" required class="{{ $input }}">
         @error('date_of_birth')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
@@ -43,7 +45,7 @@
                 <input id="photo" name="photo" type="file" accept="image/png,image/jpeg,image/webp"
                        class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-teal-700 hover:file:bg-teal-100">
                 <p class="mt-1 text-xs text-slate-500">Upload JPG, PNG or WebP, up to 5 MB, or capture a photo with a connected camera.</p>
-                @error('photo')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                <p id="photo-upload-error" class="mt-1 text-sm text-red-600" role="alert">@error('photo'){{ $message }}@enderror</p>
                 <div class="mt-3 flex flex-wrap gap-2">
                     <button id="start-camera" type="button" class="rounded-lg border border-teal-700 px-3 py-2 text-sm font-medium text-teal-800 hover:bg-teal-50">Use camera</button>
                     <button id="capture-photo" type="button" hidden class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-800">Capture photo</button>
@@ -68,7 +70,7 @@
         @error('is_nhis')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
 
         <div id="nhis_number_field" class="mt-4" @if (!old('is_nhis', $patient?->is_nhis)) hidden @endif>
-            <label for="nhis_number" class="{{ $label }}">NHIS number</label>
+            <label for="nhis_number" class="{{ $label }}">NHIS number <span id="nhis-required-marker" class="text-red-600" aria-hidden="true" @if (!old('is_nhis', $patient?->is_nhis)) hidden @endif>*</span></label>
             <input id="nhis_number" name="nhis_number" type="text" value="{{ $val('nhis_number') }}" maxlength="50" class="{{ $input }}">
             @error('nhis_number')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
         </div>
@@ -126,10 +128,12 @@
         const enrolled = document.getElementById('is_nhis');
         const numberField = document.getElementById('nhis_number_field');
         const numberInput = document.getElementById('nhis_number');
+        const requiredMarker = document.getElementById('nhis-required-marker');
 
         const updateNhisField = () => {
             numberField.hidden = !enrolled.checked;
             numberInput.required = enrolled.checked;
+            requiredMarker.hidden = !enrolled.checked;
         };
 
         enrolled.addEventListener('change', updateNhisField);
@@ -149,7 +153,19 @@
         const cameraPicker = document.getElementById('camera-picker');
         const pickerLabel = document.getElementById('camera-picker-label');
         const message = document.getElementById('camera-message');
+        const photoError = document.getElementById('photo-upload-error');
+        const maxPhotoBytes = 5 * 1024 * 1024;
         let stream = null;
+
+        const validatePhotoSize = () => {
+            const file = input.files[0];
+            if (file && file.size > maxPhotoBytes) {
+                photoError.textContent = 'The patient photo must be 5 MB or smaller. Choose a smaller image and try again.';
+                return false;
+            }
+            photoError.textContent = '';
+            return true;
+        };
 
         const stopCamera = () => {
             stream?.getTracks().forEach((track) => track.stop());
@@ -166,7 +182,15 @@
             preview.hidden = false;
         };
 
-        input.addEventListener('change', () => showPreview(input.files[0]));
+        input.addEventListener('change', () => {
+            if (validatePhotoSize()) showPreview(input.files[0]);
+        });
+        input.form?.addEventListener('submit', (event) => {
+            if (!validatePhotoSize()) {
+                event.preventDefault();
+                photoError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
         startButton.addEventListener('click', async () => {
             message.textContent = '';
             if (!navigator.mediaDevices?.getUserMedia) {
@@ -212,6 +236,7 @@
             const transfer = new DataTransfer();
             transfer.items.add(new File([blob], 'patient-photo.jpg', { type: 'image/jpeg' }));
             input.files = transfer.files;
+            photoError.textContent = '';
             showPreview(input.files[0]);
             stopCamera();
         });

@@ -41,7 +41,7 @@ class PatientController extends Controller
 
             if ($result['ok']) {
                 $message .= ' '.$result['message'];
-                $flash['invite_link'] = $result['link'];
+                $flash['portal_invitation_sent'] = true;
             } else {
                 $flash['error'] = $result['message'];
             }

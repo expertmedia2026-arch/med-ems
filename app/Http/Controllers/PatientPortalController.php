@@ -12,7 +12,7 @@ class PatientPortalController extends Controller
         $result = $portal->send($patient);
 
         $flash = $result['ok']
-            ? ['success' => $result['message'], 'invite_link' => $result['link']]
+            ? ['success' => $result['message'], 'portal_invitation_sent' => true]
             : ['error' => $result['message']];
 
         return redirect()->route('patients.show', $patient)->with($flash);

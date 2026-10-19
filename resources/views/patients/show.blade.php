@@ -185,17 +185,9 @@
             @endif
 
 
-            {{-- Invitation link for local testing (shown right after sending) --}}
-            @if (session('invite_link'))
-                <div class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-900" x-data="{ copied: false }">
+            @if (session('portal_invitation_sent'))
+                <div class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-900">
                     <p class="font-medium">Portal invitation link (valid 7 days, single use)</p>
-                    <div class="mt-2 flex gap-2">
-                        <input readonly value="{{ session('invite_link') }}" x-ref="link" class="flex-1 rounded-lg border-blue-200 bg-white text-xs">
-                        <button type="button" @click="navigator.clipboard.writeText($refs.link.value); copied = true"
-                                class="rounded-lg bg-blue-700 px-3 text-xs font-medium text-white hover:bg-blue-800">
-                            <span x-text="copied ? 'Copied' : 'Copy'"></span>
-                        </button>
-                    </div>
                 </div>
             @endif
 
