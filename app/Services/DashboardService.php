@@ -9,10 +9,12 @@ use App\Models\Drug;
 use App\Models\Invoice;
 use App\Models\LabRequest;
 use App\Models\LabTest;
+use App\Models\NurseDuty;
 use App\Models\Payment;
 use App\Models\Prescription;
 use App\Models\User;
 use App\Models\Visit;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -25,6 +27,7 @@ class DashboardService
             Role::Admin => $this->admin(),
             Role::Receptionist => $this->receptionist(),
             Role::Nurse => $this->nurse(),
+            Role::ChiefNurse => $this->chiefNurse(),
             Role::Doctor => $this->doctor($user->id),
             Role::Lab => $this->lab(),
             Role::Pharmacist => $this->pharmacist(),
@@ -58,6 +61,7 @@ class DashboardService
             $this->card('Awaiting dispensing', $this->awaitingDispensing(), 'blue', 'pharmacy.index'),
             $this->card('Pharmacy patients today', $this->pharmacyPatientsToday(), 'teal', 'pharmacy.index'),
             $this->card('Dispensed today', Prescription::completed()->whereDate('dispensed_at', today())->count(), 'green', 'pharmacy.index'),
+            $this->card('Nurse duty roster', NurseDuty::whereBetween('duty_date', [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()])->count().' shifts this week', 'teal', 'nursing.roster.index'),
             $this->card('Nursing visits to finish', Visit::where('status', VisitStatus::Completed->value)
                 ->whereNull('discharged_at')
                 ->whereHas('prescriptions', fn ($query) => $query->where('requires_in_facility_administration', true))
@@ -85,8 +89,16 @@ class DashboardService
         $nurse = auth()->user();
         $departmentId = $nurse->department_id;
         $isCentralNurse = $nurse->isCentralVitalsNurse();
+        $weekStart = now()->startOfWeek(Carbon::MONDAY);
+        $weekEnd = $weekStart->copy()->addDays(6);
+        $nextDuty = NurseDuty::where('nurse_id', $nurse->id)
+            ->whereDate('duty_date', '>=', today())
+            ->orderBy('duty_date')
+            ->first();
 
         return [
+            $this->card('My shifts this week', NurseDuty::where('nurse_id', $nurse->id)->whereBetween('duty_date', [$weekStart->toDateString(), $weekEnd->toDateString()])->count(), 'teal', 'nursing.roster.index'),
+            $this->card('My next duty', $nextDuty ? $nextDuty->duty_date->format('D, d M').' · '.ucfirst($nextDuty->shift) : 'No upcoming duty', 'teal', 'nursing.roster.index'),
             $this->card('Nursing visits to finish', Visit::where('status', VisitStatus::Completed->value)
                 ->where('department_id', $departmentId ?? 0)
                 ->whereNull('discharged_at')
@@ -95,6 +107,18 @@ class DashboardService
             $this->card('Waiting for vitals', Visit::withStatus(VisitStatus::WaitingTriage)->when($departmentId && ! $isCentralNurse, fn ($query) => $query->where('department_id', $departmentId))->count(), 'amber', 'triage.index'),
             $this->card('Sent to doctor today', Visit::today()->withStatus(VisitStatus::WaitingDoctor, VisitStatus::InConsultation, VisitStatus::Completed)->when($departmentId && ! $isCentralNurse, fn ($query) => $query->where('department_id', $departmentId))->count(), 'green', 'triage.index'),
             $this->card('OPD queue', Visit::withStatus(VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor, VisitStatus::InConsultation)->when($departmentId && ! $isCentralNurse, fn ($query) => $query->where('department_id', $departmentId))->count(), 'blue'),
+        ];
+    }
+
+    private function chiefNurse(): array
+    {
+        $weekStart = now()->startOfWeek();
+        $weekEnd = $weekStart->copy()->endOfWeek();
+
+        return [
+            $this->card('Nurse roster this week', NurseDuty::whereBetween('duty_date', [$weekStart->toDateString(), $weekEnd->toDateString()])->count(), 'teal', 'nursing.roster.index'),
+            $this->card('Morning duty today', NurseDuty::whereDate('duty_date', today())->where('shift', 'morning')->count(), 'teal', 'nursing.roster.index'),
+            $this->card('Night duty today', NurseDuty::whereDate('duty_date', today())->where('shift', 'night')->count(), 'teal', 'nursing.roster.index'),
         ];
     }
 

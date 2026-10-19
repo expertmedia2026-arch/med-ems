@@ -80,4 +80,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(DoctorAvailability::class, 'doctor_id');
     }
+
+    public function nurseDuties(): HasMany
+    {
+        return $this->hasMany(NurseDuty::class, 'nurse_id');
+    }
 }

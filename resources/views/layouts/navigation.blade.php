@@ -23,6 +23,11 @@
                             {{ __('Medication administration') }}
                         </x-nav-link>
                     @endif
+                    @if (Auth::user()->hasRole('admin', 'chief_nurse', 'nurse'))
+                        <x-nav-link :href="route('nursing.roster.index')" :active="request()->routeIs('nursing.roster.*')">
+                            {{ __('Nurse Duty Roster') }}
+                        </x-nav-link>
+                    @endif
                 </div>
             </div>
 
@@ -84,6 +89,11 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('nursing.administrations.index')" :active="request()->routeIs('nursing.administrations.*')">
                     {{ __('Medication administration') }}
+                </x-responsive-nav-link>
+            @endif
+            @if (Auth::user()->hasRole('admin', 'chief_nurse', 'nurse'))
+                <x-responsive-nav-link :href="route('nursing.roster.index')" :active="request()->routeIs('nursing.roster.*')">
+                    {{ __('Nurse Duty Roster') }}
                 </x-responsive-nav-link>
             @endif
         </div>

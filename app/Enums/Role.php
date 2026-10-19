@@ -7,6 +7,7 @@ enum Role: string
     case Admin        = 'admin';
     case Receptionist = 'receptionist';
     case Nurse        = 'nurse';
+    case ChiefNurse   = 'chief_nurse';
     case Doctor       = 'doctor';
     case Lab          = 'lab';
     case Pharmacist   = 'pharmacist';
@@ -21,6 +22,7 @@ enum Role: string
             self::Lab => 'Lab Scientist',
             self::ChiefAccountant => 'Chief Accountant',
             self::ChiefPharmacist => 'Chief Pharmacist',
+            self::ChiefNurse => 'Chief Nurse',
             default   => ucfirst($this->value),
         };
     }
