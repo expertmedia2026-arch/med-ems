@@ -5,6 +5,7 @@
         $frontDesk = auth()->user()->hasRole('admin', 'receptionist');
         $doctor = auth()->user()->hasRole('doctor');
         $admin = auth()->user()->hasRole('admin');
+        $nurse = auth()->user()->hasRole('nurse');
         $input = 'mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600';
     @endphp
 
@@ -73,6 +74,16 @@
                     <p class="mt-3 text-sm">Checked in {{ $activeVisit->checked_in_at->diffForHumans() }}</p>
                     @if ($activeVisit->complaint)
                         <p class="mt-1 text-sm text-slate-600">“{{ $activeVisit->complaint }}”</p>
+                    @endif
+                </div>
+            @elseif ($activeAdmission)
+                <div class="rounded-xl border border-teal-200 bg-teal-50 p-5 shadow-sm">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-teal-800">Current inpatient</p>
+                    <p class="mt-2 font-semibold text-teal-950">{{ $activeAdmission->department->name }}</p>
+                    <p class="mt-1 text-sm text-teal-900">{{ $activeAdmission->admission_number }} · Admitted {{ $activeAdmission->admitted_at->format('d M Y') }}</p>
+                    <p class="mt-1 text-sm text-teal-900">Attending doctor: {{ $activeAdmission->attendingDoctor->name }}</p>
+                    @if ($admin || $doctor || $nurse)
+                        <a href="{{ route('admissions.show', $activeAdmission) }}" class="mt-3 inline-flex rounded-lg border border-teal-700 px-3 py-2 text-xs font-medium text-teal-800 hover:bg-white">Open inpatient record</a>
                     @endif
                 </div>
             @elseif ($frontDesk)
@@ -258,6 +269,9 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <x-badge :color="$visit->status->color()">{{ $visit->status->label() }}</x-badge>
+                            @if ($visit->status->value === 'inpatient' && $visit->admission)
+                                <a href="{{ route('admissions.show', $visit->admission) }}" class="rounded-lg border border-teal-700 px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-50">Open admission</a>
+                            @endif
                             @if (($doctor || $admin) && $visit->isLabOnly() && $visit->status->value === 'completed')
                                 <a href="{{ route('lab.report', $visit) }}" class="rounded-lg border px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-50">View results</a>
                             @elseif (($doctor || $admin) && $visit->status->value === 'completed')

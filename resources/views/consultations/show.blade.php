@@ -313,6 +313,57 @@
                     </button>
                     <p class="basis-full text-xs text-slate-500">Completing the consultation sends orders downstream. Nursing administration and patient discharge are tracked separately.</p>
                 </div>
+
+                <section class="rounded-xl border border-teal-200 bg-teal-50/60 p-6 shadow-sm">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h3 class="font-semibold text-teal-950">Admit to inpatient care</h3>
+                            <p class="mt-1 max-w-3xl text-sm text-teal-900">Admission closes this consultation and opens an inpatient record linked to the same visit, prescriptions, investigations, and clinical history.</p>
+                        </div>
+                        <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-teal-800">Doctor decision</span>
+                    </div>
+
+                    @if ($wardDepartments->isEmpty())
+                        <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">No department is currently enabled for inpatient admission. Ask an administrator to mark the appropriate department as having a ward.</p>
+                    @else
+                        <form method="POST" action="{{ route('consultations.admit', $visit) }}" class="mt-5 grid gap-4 sm:grid-cols-2">
+                            @csrf
+                            <div>
+                                <label for="admission_department" class="{{ $label }}">Ward department <span class="text-red-600">*</span></label>
+                                <select id="admission_department" name="department_id" required class="{{ $input }}">
+                                    <option value="">Select a ward department</option>
+                                    @foreach ($wardDepartments as $wardDepartment)
+                                        <option value="{{ $wardDepartment->id }}" @selected(old('department_id') == $wardDepartment->id)>{{ $wardDepartment->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('department_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div>
+                                <label for="admission_diagnosis" class="{{ $label }}">Admission diagnosis <span class="text-red-600">*</span></label>
+                                <input id="admission_diagnosis" name="admission_diagnosis" required maxlength="1000" value="{{ old('admission_diagnosis', $visit->diagnosis) }}" class="{{ $input }}">
+                                @error('admission_diagnosis')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label for="admission_reason" class="{{ $label }}">Reason inpatient care is required <span class="text-red-600">*</span></label>
+                                <textarea id="admission_reason" name="admission_reason" rows="3" required maxlength="5000" class="{{ $input }}">{{ old('admission_reason') }}</textarea>
+                                @error('admission_reason')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label for="initial_treatment_plan" class="{{ $label }}">Initial inpatient treatment plan <span class="text-red-600">*</span></label>
+                                <textarea id="initial_treatment_plan" name="initial_treatment_plan" rows="4" required maxlength="5000" class="{{ $input }}">{{ old('initial_treatment_plan') }}</textarea>
+                                @error('initial_treatment_plan')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div>
+                                <label for="expected_discharge_date" class="{{ $label }}">Expected discharge date <span class="font-normal text-slate-500">(optional)</span></label>
+                                <input id="expected_discharge_date" type="date" name="expected_discharge_date" min="{{ today()->toDateString() }}" value="{{ old('expected_discharge_date') }}" class="{{ $input }}">
+                                @error('expected_discharge_date')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div class="flex items-end justify-end">
+                                <button type="submit" onclick="return confirm('Admit this patient? The current consultation will close and an inpatient record will open.')" class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">Admit patient</button>
+                            </div>
+                        </form>
+                    @endif
+                </section>
             @endif
         </div>
 

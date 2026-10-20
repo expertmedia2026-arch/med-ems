@@ -20,7 +20,7 @@ class VisitCheckInService
         return DB::transaction(function () use ($patient, $attributes) {
             $lockedPatient = Patient::query()->lockForUpdate()->findOrFail($patient->id);
 
-            if ($lockedPatient->currentVisit()) {
+            if ($lockedPatient->activeAdmission()->exists() || $lockedPatient->currentVisit()) {
                 return null;
             }
 
@@ -46,7 +46,12 @@ class VisitCheckInService
                 return null;
             }
 
-            $visit = $appointment->patient->visits()->create([
+            $lockedPatient = Patient::query()->lockForUpdate()->findOrFail($appointment->patient_id);
+            if ($lockedPatient->activeAdmission()->exists()) {
+                return null;
+            }
+
+            $visit = $lockedPatient->visits()->create([
                 'appointment_id' => $appointment->id,
                 'type' => 'lab_only',
                 'status' => VisitStatus::LabOnly,
@@ -76,7 +81,7 @@ class VisitCheckInService
             $appointment = $this->lockScheduledAppointment($appointment);
             $lockedPatient = Patient::query()->lockForUpdate()->findOrFail($appointment->patient_id);
 
-            if ($lockedPatient->currentVisit()) {
+            if ($lockedPatient->activeAdmission()->exists() || $lockedPatient->currentVisit()) {
                 return null;
             }
 

@@ -32,10 +32,17 @@
     <div class="max-w-4xl space-y-6">
 
         @if ($inProgress)
-            <div class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
-                <p class="font-semibold">This visit is still in progress</p>
-                <p class="mt-1">Visit details, test results, and prescriptions will appear here once staff complete the visit.</p>
-            </div>
+            @if ($visit->status->value === 'inpatient')
+                <div class="rounded-xl border border-teal-200 bg-teal-50 px-5 py-4 text-sm text-teal-900">
+                    <p class="font-semibold">You are currently admitted as an inpatient</p>
+                    <p class="mt-1">Your care team is managing your hospital stay. Visit notes and results will appear here after discharge when they are ready to share.</p>
+                </div>
+            @else
+                <div class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+                    <p class="font-semibold">This visit is still in progress</p>
+                    <p class="mt-1">Visit details, test results, and prescriptions will appear here once staff complete the visit.</p>
+                </div>
+            @endif
         @else
 
             {{-- Vitals --}}
@@ -71,6 +78,13 @@
                 <div class="rounded-xl border bg-white p-6 shadow-sm">
                     <h3 class="mb-3 font-semibold">Note from your doctor</h3>
                     <p class="whitespace-pre-line text-sm text-slate-700">{{ $visit->patient_visible_note }}</p>
+                </div>
+            @endif
+
+            @if ($visit->admission?->patient_discharge_instructions)
+                <div class="rounded-xl border border-teal-200 bg-white p-6 shadow-sm">
+                    <h3 class="mb-3 font-semibold">Discharge instructions</h3>
+                    <p class="whitespace-pre-line text-sm text-slate-700">{{ $visit->admission->patient_discharge_instructions }}</p>
                 </div>
             @endif
 

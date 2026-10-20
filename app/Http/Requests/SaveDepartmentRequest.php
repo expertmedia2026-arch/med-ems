@@ -21,6 +21,7 @@ class SaveDepartmentRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:120', Rule::unique('departments', 'name')->ignore($department?->id)],
             'description' => ['nullable', 'string', 'max:500'],
+            'has_ward' => ['required', 'boolean'],
         ];
     }
 }

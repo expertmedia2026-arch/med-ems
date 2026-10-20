@@ -11,6 +11,7 @@ return [
     ['label' => 'Triage',       'route' => 'triage.index',        'active' => 'triage.*',        'roles' => ['admin', 'nurse']],
     ['label' => 'Medication administration', 'route' => 'nursing.administrations.index', 'active' => 'nursing.administrations.*', 'roles' => ['admin', 'nurse']],
     ['label' => 'Nurse Duty Roster', 'route' => 'nursing.roster.index', 'active' => 'nursing.roster.*', 'roles' => ['admin', 'chief_nurse', 'nurse']],
+    ['label' => 'Admissions', 'route' => 'admissions.index', 'active' => 'admissions.*', 'roles' => ['admin', 'doctor', 'nurse']],
     ['label' => 'Consultation', 'route' => 'consultations.index', 'active' => ['consultations.index', 'consultations.show', 'consultations.start', 'consultations.update', 'consultations.complete', 'consultations.prescriptions.*', 'consultations.lab-requests.*'], 'roles' => ['doctor']],
     ['label' => 'My consultation history', 'route' => 'consultations.history.index', 'active' => ['consultations.history.index', 'consultations.history'], 'roles' => ['doctor']],
     // ['label' => 'Laboratory', 'route' => 'lab.index',      'active' => 'lab.*',      'roles' => ['admin', 'lab', 'doctor']],

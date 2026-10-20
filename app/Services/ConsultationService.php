@@ -7,6 +7,7 @@ use App\Enums\Role;
 use App\Enums\VisitStatus;
 use App\Enums\WorkStatus;
 use App\Models\Drug;
+use App\Models\Department;
 use App\Models\LabTest;
 use App\Models\User;
 use App\Models\Visit;
@@ -67,6 +68,7 @@ class ConsultationService
                 ->withStatus(VisitStatus::Completed)->latest('checked_in_at')->take(5)->get(),
             'drugs' => Drug::active()->whereRaw('(stock_quantity - reserved_quantity) > 0')->orderBy('name')->get(),
             'tests' => LabTest::active()->orderBy('name')->get(),
+            'wardDepartments' => Department::where('has_ward', true)->orderBy('name')->get(),
         ];
     }
 

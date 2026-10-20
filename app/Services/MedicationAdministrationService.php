@@ -20,11 +20,15 @@ class MedicationAdministrationService
         $departmentId = $this->departmentScope($staff);
 
         return Visit::query()
-            ->where('status', VisitStatus::Completed->value)
+            ->whereIn('status', [VisitStatus::Completed->value, VisitStatus::Inpatient->value])
             ->whereNull('discharged_at')
-            ->when($departmentId, fn ($query) => $query->where('department_id', $departmentId))
+            ->when($departmentId, fn ($query) => $query->where(function ($scope) use ($departmentId) {
+                $scope->where(fn ($outpatient) => $outpatient->where('status', VisitStatus::Completed->value)->where('department_id', $departmentId))
+                    ->orWhere(fn ($inpatient) => $inpatient->where('status', VisitStatus::Inpatient->value)
+                        ->whereHas('admission', fn ($admission) => $admission->where('status', 'active')->where('department_id', $departmentId)));
+            }))
             ->whereHas('prescriptions', fn ($query) => $query->where('requires_in_facility_administration', true))
-            ->with(['patient', 'doctor', 'department', 'prescriptions' => fn ($query) => $query
+            ->with(['patient', 'doctor', 'department', 'admission.department', 'prescriptions' => fn ($query) => $query
                 ->where('requires_in_facility_administration', true)
                 ->with(['drug', 'dispenser', 'invoiceItem', 'stockReservation', 'administrations.nurse', 'administrationWaiver'])])
             ->oldest('closed_at')->get();
@@ -33,11 +37,11 @@ class MedicationAdministrationService
     public function visitDetails(Visit $visit, User $staff): Visit
     {
         $this->assertDepartmentAccess($visit, $staff);
-        abort_unless($visit->status === VisitStatus::Completed, 404);
+        abort_unless(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true) && ! $visit->discharged_at, 404);
         abort_unless($visit->prescriptions()->where('requires_in_facility_administration', true)->exists(), 404);
 
         return $visit->load([
-            'patient', 'doctor', 'department', 'dischargeActor', 'vitals', 'labRequests.test',
+            'patient', 'doctor', 'department', 'admission.department', 'dischargeActor', 'vitals', 'labRequests.test',
             'prescriptions' => fn ($query) => $query->where('requires_in_facility_administration', true)
                 ->with(['drug', 'dispenser', 'invoiceItem', 'stockReservation', 'administrations.nurse', 'administrationWaiver']),
         ]);
@@ -50,7 +54,7 @@ class MedicationAdministrationService
             $this->assertDepartmentAccess($visit, $nurse);
             $prescription = Prescription::query()->lockForUpdate()->findOrFail($prescription->id);
             abort_unless($prescription->visit_id === $visit->id, 404);
-            abort_unless($visit->status === VisitStatus::Completed && ! $visit->discharged_at, 422, 'This visit is not open for nursing care.');
+            abort_unless(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true) && ! $visit->discharged_at, 422, 'This visit is not open for nursing care.');
             abort_unless($prescription->requires_in_facility_administration, 422, 'This prescription is not marked for administration at the hospital.');
             abort_unless($prescription->is_paid, 422, 'The medication must be paid for before administration.');
             abort_unless($prescription->status === WorkStatus::Completed && $prescription->stockReservation?->status === 'fulfilled', 422, 'Pharmacy must dispense this medication before it can be administered.');
@@ -86,7 +90,7 @@ class MedicationAdministrationService
             $this->assertDepartmentAccess($visit, $actor);
             $prescription = Prescription::query()->lockForUpdate()->findOrFail($prescription->id);
             abort_unless($prescription->visit_id === $visit->id, 404);
-            abort_unless($visit->status === VisitStatus::Completed && ! $visit->discharged_at, 422, 'This visit is already closed.');
+            abort_unless(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true) && ! $visit->discharged_at, 422, 'This visit is already closed.');
             abort_unless($prescription->requires_in_facility_administration, 422, 'This prescription has no nursing administration requirement.');
             abort_unless($prescription->status === WorkStatus::Completed && $prescription->stockReservation()->where('status', 'fulfilled')->exists(), 422, 'Only a medicine already dispensed by pharmacy can be waived here. Resolve unfilled prescriptions with pharmacy first.');
             abort_if($prescription->administrations()->where('status', 'administered')->count() >= $prescription->required_administration_count, 422, 'All required doses are already recorded as administered.');
@@ -106,24 +110,10 @@ class MedicationAdministrationService
         return DB::transaction(function () use ($visit, $actor) {
             $visit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
             $this->assertDepartmentAccess($visit, $actor);
-            abort_unless($visit->status === VisitStatus::Completed, 422, 'The doctor must complete the consultation first.');
+            abort_unless($visit->status === VisitStatus::Completed, 422, 'Inpatient discharge must be completed from the linked admission record.');
             abort_if($visit->discharged_at, 422, 'This visit has already been discharged.');
 
-            $pending = $visit->prescriptions()
-                ->where('requires_in_facility_administration', true)
-                ->whereNull('administration_waived_at')
-                ->with('stockReservation')
-                ->withCount(['administrations as completed_administrations_count' => fn ($query) => $query->where('status', 'administered')])
-                ->get()
-                ->filter(fn (Prescription $prescription) => $prescription->status !== WorkStatus::Completed
-                    || $prescription->stockReservation?->status !== 'fulfilled'
-                    || $prescription->completed_administrations_count < $prescription->required_administration_count);
-
-            if ($pending->isNotEmpty()) {
-                throw ValidationException::withMessages([
-                    'discharge' => 'This visit still has injections awaiting pharmacy dispensing or nursing administration. Record the required doses or ask the attending doctor to review and waive the order.',
-                ]);
-            }
+            $this->assertReadyForDischarge($visit);
 
             $visit->update(['discharged_by' => $actor->id, 'discharged_at' => now()]);
 
@@ -144,8 +134,35 @@ class MedicationAdministrationService
 
     private function assertDepartmentAccess(Visit $visit, User $staff): void
     {
+        if ($staff->hasRole(Role::Doctor) && $visit->doctor_id === $staff->id) {
+            return;
+        }
+
         $departmentId = $this->departmentScope($staff);
-        abort_unless($departmentId === null || $departmentId === (int) $visit->department_id, 403,
+        $careDepartmentId = $visit->status === VisitStatus::Inpatient
+            ? ($visit->admission()->where('status', 'active')->value('department_id') ?? $visit->department_id)
+            : $visit->department_id;
+        abort_unless($departmentId === null || $departmentId === (int) $careDepartmentId, 403,
             'This visit belongs to another department. Only nurses assigned to the visit department can provide care.');
+    }
+
+
+    public function assertReadyForDischarge(Visit $visit): void
+    {
+        $pending = $visit->prescriptions()
+            ->where('requires_in_facility_administration', true)
+            ->whereNull('administration_waived_at')
+            ->with('stockReservation')
+            ->withCount(['administrations as completed_administrations_count' => fn ($query) => $query->where('status', 'administered')])
+            ->get()
+            ->filter(fn (Prescription $prescription) => $prescription->status !== WorkStatus::Completed
+                || $prescription->stockReservation?->status !== 'fulfilled'
+                || $prescription->completed_administrations_count < $prescription->required_administration_count);
+
+        if ($pending->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'discharge' => 'This patient still has medicines awaiting pharmacy dispensing or nursing administration. Resolve these orders before completing discharge.',
+            ]);
+        }
     }
 }

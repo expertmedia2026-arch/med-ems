@@ -21,13 +21,14 @@ class PatientService
     public function showData(Patient $patient): array
     {
         $patient->load([
-            'visits' => fn ($query) => $query->latest('checked_in_at')->with(['doctor', 'consultationType.department']),
+            'visits' => fn ($query) => $query->latest('checked_in_at')->with(['doctor', 'consultationType.department', 'admission.department']),
             'appointments' => fn ($query) => $query->latest('scheduled_at')->with('doctor'),
         ]);
 
         return [
             'patient' => $patient,
             'activeVisit' => $patient->currentVisit(),
+            'activeAdmission' => $patient->activeAdmission()->with(['department', 'attendingDoctor'])->first(),
             'doctors' => User::ofRole(Role::Doctor)->where('is_active', true)->with('department')->orderBy('name')->get(),
             'departments' => Department::orderBy('name')->get(),
             'consultationTypes' => ConsultationType::active()->orderBy('name')->get(),

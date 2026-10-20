@@ -37,15 +37,26 @@ class LabController extends Controller
                 ->route('lab.show', $labRequest)
                 ->with('error', 'Payment is required before a result can be entered.');
         }
+        if ($outcome === 'admission_review') {
+            return redirect()->route('lab.index')
+                ->with('success', "Result saved for {$labRequest->visit->patient->full_name} and added to the attending doctor’s admission review queue.");
+        }
         if ($outcome === 'notification_failed') {
+            $inpatient = $labRequest->visit->status->value === 'inpatient';
             return redirect()
                 ->route('lab.index')
-                ->with('error', "Result saved for {$labRequest->visit->patient->full_name}, but the result email could not be sent. Please contact the patient manually.");
+                ->with('error', "Result saved for {$labRequest->visit->patient->full_name}".($inpatient ? ' and added to the attending doctor’s admission review queue' : '').', but the result email could not be sent. Please contact the patient manually.');
         }
         if ($outcome === 'notification_missing_email') {
+            $inpatient = $labRequest->visit->status->value === 'inpatient';
             return redirect()
                 ->route('lab.index')
-                ->with('error', "Result saved for {$labRequest->visit->patient->full_name}, but no email is on file to notify them.");
+                ->with('error', "Result saved for {$labRequest->visit->patient->full_name}".($inpatient ? ' and added to the attending doctor’s admission review queue' : '').', but no email is on file to notify them.');
+        }
+
+        if ($labRequest->visit->status->value === 'inpatient') {
+            return redirect()->route('lab.index')
+                ->with('success', "Result saved for {$labRequest->visit->patient->full_name} and added to the attending doctor’s admission review queue.");
         }
 
         return redirect()

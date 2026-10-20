@@ -98,6 +98,6 @@ class PortalInvoiceService
 
     private function itemIsPayable(Invoice $invoice, InvoiceItem $item): bool
     {
-        return $item->category !== 'drug' || $invoice->visit?->status === VisitStatus::Completed;
+        return $item->category !== 'drug' || in_array($invoice->visit?->status, [VisitStatus::Completed, VisitStatus::Inpatient], true);
     }
 }

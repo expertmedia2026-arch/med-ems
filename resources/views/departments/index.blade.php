@@ -13,6 +13,7 @@
             <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                     <th class="px-4 py-3">Department</th>
+                    <th class="px-4 py-3">Ward / admissions</th>
                     <th class="px-4 py-3">Staff</th>
                     <th class="px-4 py-3">Consultation types</th>
                     <th class="px-4 py-3"></th>
@@ -25,6 +26,14 @@
                             <span class="font-medium">{{ $department->name }}</span>
                             @if ($department->description)
                                 <span class="mt-1 block text-xs text-slate-500">{{ $department->description }}</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3">
+                            @if ($department->has_ward)
+                                <span class="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800">Ward enabled</span>
+                                <span class="mt-1 block text-xs text-slate-500">{{ $department->admissions_count }} active</span>
+                            @else
+                                <span class="text-slate-400">Outpatient only</span>
                             @endif
                         </td>
                         <td class="px-4 py-3">
@@ -50,7 +59,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" class="px-4 py-10 text-center text-slate-500">No departments added yet.</td></tr>
+                    <tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">No departments added yet.</td></tr>
                 @endforelse
             </tbody>
         </table>

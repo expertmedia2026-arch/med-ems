@@ -2,7 +2,7 @@
     <x-slot name="header">Medication administration</x-slot>
 
     <p class="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-        This queue shows hospital-administered medicines after the doctor completes the consultation. Pharmacy must dispense the medicine before a nurse can record a dose.
+        This queue shows hospital-administered medicines linked to consultations and active admissions. Pharmacy must dispense the medicine before a nurse can record a dose.
     </p>
 
     <div class="overflow-x-auto rounded-xl border bg-white shadow-sm">
@@ -21,7 +21,7 @@
                             <span class="font-medium">{{ $visit->patient->full_name }}</span>
                             <span class="block font-mono text-xs text-slate-400">{{ $visit->patient->hospital_number }}</span>
                         </td>
-                        <td class="px-4 py-3">{{ $visit->department?->name ?? '—' }}</td>
+                        <td class="px-4 py-3">{{ $visit->admission?->department?->name ?? $visit->department?->name ?? '—' }}@if ($visit->status->value === 'inpatient')<span class="mt-1 block"><x-badge color="teal">Inpatient</x-badge></span>@endif</td>
                         <td class="px-4 py-3">{{ $visit->doctor?->name ?? '—' }}</td>
                         <td class="px-4 py-3">
                             <span>{{ $remaining }} dose(s) remain</span>

@@ -31,8 +31,8 @@ class PharmacyService
             'queue' => Visit::with([
                 'patient',
                 'prescriptions' => fn ($query) => $query->pending()->with(['drug', 'invoiceItem', 'stockReservation']),
-            ])->withStatus(VisitStatus::Completed)
-                ->whereHas('prescriptions', fn ($query) => $query->pending())->oldest('closed_at')->get(),
+            ])->withStatus(VisitStatus::Completed, VisitStatus::Inpatient)
+            ->whereHas('prescriptions', fn ($query) => $query->pending())->oldest('closed_at')->get(),
             'lowStock' => Drug::lowStock()->orderBy('stock_quantity')->get(),
             'dispensedToday' => $dispensedToday,
             'pharmacySummary' => $today,
@@ -149,7 +149,7 @@ class PharmacyService
 
     public function visitDetails(Visit $visit): Visit
     {
-        abort_unless($visit->status === VisitStatus::Completed, 404);
+        abort_unless(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true), 404);
 
         $this->inventory->expireReservations();
         $visit->loadMissing(['prescriptions' => fn ($query) => $query->pending()->with('invoiceItem')]);
@@ -174,7 +174,7 @@ class PharmacyService
     /** @return array{dispensed: int, skipped: array<int, string>} */
     public function dispense(Visit $visit, array $prescriptionIds, int $userId): array
     {
-        abort_unless($visit->status === VisitStatus::Completed, 403);
+        abort_unless(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true), 403);
         $dispensed = 0;
         $nursingReady = 0;
         $skipped = [];

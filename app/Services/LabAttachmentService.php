@@ -16,15 +16,24 @@ class LabAttachmentService
             return true;
         }
 
+        if ($user->hasRole(Role::Nurse)) {
+            $labRequest = $attachment->labRequest()->with(['visit.admission'])->first();
+
+            return (bool) ($labRequest?->visit?->admission
+                && (int) $labRequest->visit->admission->department_id === (int) $user->department_id);
+        }
+
         if (! $user->hasRole(Role::Doctor)) {
             return false;
         }
 
-        $labRequest = $attachment->labRequest()->with('visit')->first();
+        $labRequest = $attachment->labRequest()->with('visit.admission')->first();
 
         return (bool) ($labRequest
             && ($labRequest->requested_by === $user->id
-                || $labRequest->visit->status === VisitStatus::Completed));
+                || $labRequest->visit->status === VisitStatus::Completed
+                || ($labRequest->visit->status === VisitStatus::Inpatient
+                    && (int) $labRequest->visit->admission?->attending_doctor_id === (int) $user->id)));
     }
 
     public function delete(LabAttachment $attachment): void

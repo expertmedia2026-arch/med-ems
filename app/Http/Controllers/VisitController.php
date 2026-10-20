@@ -16,7 +16,7 @@ class VisitController extends Controller
         $visit = $checkIn->walkIn($patient, $request->validated());
 
         if (! $visit) {
-            return back()->with('error', 'This patient already has an active visit.');
+            return back()->with('error', 'This patient already has an active visit or inpatient admission.');
         }
 
         $consultationType = $visit->consultationType;
@@ -38,7 +38,7 @@ class VisitController extends Controller
             $visit = $checkIn->fromLabAppointment($appointment, $request->user()->id);
 
             if (! $visit) {
-                return back()->with('error', 'None of the booked tests are available any more. Cancel this booking and book again.');
+                return back()->with('error', 'This patient may already have an inpatient admission, or none of the booked tests are available. Review the patient record before continuing.');
             }
 
             return back()->with('success', "{$visit->patient->full_name} checked in for lab tests. Send them to the billing desk to pay for the tests.");
@@ -52,7 +52,7 @@ class VisitController extends Controller
         $visit = $checkIn->fromDoctorAppointment($appointment, $data['consultation_type_id']);
 
         if (! $visit) {
-            return back()->with('error', 'This patient already has an active visit.');
+            return back()->with('error', 'This patient already has an active visit or inpatient admission.');
         }
 
         $consultationType = $visit->consultationType;

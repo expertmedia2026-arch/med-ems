@@ -12,6 +12,11 @@ class Department extends Model
 
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        return ['has_ward' => 'boolean'];
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
@@ -25,5 +30,10 @@ class Department extends Model
     public function staffInvitations(): HasMany
     {
         return $this->hasMany(StaffInvitation::class);
+    }
+
+    public function admissions(): HasMany
+    {
+        return $this->hasMany(Admission::class);
     }
 }

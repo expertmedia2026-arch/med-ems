@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationTypeController;
@@ -165,6 +166,21 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         ->middleware('role:admin,doctor')
         ->name('consultations.history');
 
+    Route::middleware('role:admin,doctor,nurse')->prefix('admissions')->name('admissions.')->group(function () {
+        Route::get('/', [AdmissionController::class, 'index'])->name('index');
+        Route::get('{admission}', [AdmissionController::class, 'show'])->whereNumber('admission')->name('show');
+    });
+    Route::post('admissions/{admission}/lab-results/{labRequest}/review', [AdmissionController::class, 'reviewLabResult'])
+        ->middleware('role:admin,doctor')->whereNumber('admission')->whereNumber('labRequest')->name('admissions.lab-results.review');
+    Route::post('admissions/{admission}/discharge', [AdmissionController::class, 'discharge'])
+        ->middleware('role:admin,doctor')->whereNumber('admission')->name('admissions.discharge');
+    Route::post('admissions/{admission}/notes', [AdmissionController::class, 'addProgressNote'])
+        ->middleware('role:doctor,nurse')->whereNumber('admission')->name('admissions.notes.store');
+    Route::post('admissions/{admission}/vitals', [AdmissionController::class, 'recordVitals'])
+        ->middleware('role:admin,nurse')->whereNumber('admission')->name('admissions.vitals.store');
+    Route::post('admissions/{admission}/prescriptions', [AdmissionController::class, 'prescribe'])
+        ->middleware('role:doctor')->whereNumber('admission')->name('admissions.prescriptions.store');
+
     // Nurse: triage
     Route::get('nursing/roster', [NurseRosterController::class, 'index'])
         ->middleware('role:admin,chief_nurse,nurse')->name('nursing.roster.index');
@@ -195,6 +211,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         Route::post('{visit}/start', [ConsultationController::class, 'start'])->name('start');
         Route::put('{visit}', [ConsultationController::class, 'update'])->name('update');
         Route::put('{visit}/complete', [ConsultationController::class, 'complete'])->name('complete');
+        Route::post('{visit}/admit', [ConsultationController::class, 'admit'])->name('admit');
 
         Route::post('{visit}/prescriptions', [PrescriptionController::class, 'store'])->name('prescriptions.store');
         Route::delete('{visit}/prescriptions/{prescription}', [PrescriptionController::class, 'destroy'])->name('prescriptions.destroy');
@@ -225,7 +242,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
 
     // Result attachments (private files, served through the controller)
     Route::get('lab/attachments/{attachment}', [LabAttachmentController::class, 'show'])
-        ->middleware('role:admin,lab,doctor')
+        ->middleware('role:admin,lab,doctor,nurse')
         ->whereNumber('attachment')
         ->name('lab.attachments.show');
 

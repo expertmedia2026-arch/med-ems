@@ -18,6 +18,7 @@ class LabRequest extends Model
         return [
             'status'       => WorkStatus::class,
             'completed_at' => 'datetime',
+            'result_reviewed_at' => 'datetime',
         ];
     }
 
@@ -39,6 +40,11 @@ class LabRequest extends Model
     public function processor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'processed_by');
+    }
+
+    public function resultReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'result_reviewed_by');
     }
     public function scopePending($query)
     {

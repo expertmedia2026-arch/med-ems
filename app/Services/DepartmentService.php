@@ -19,6 +19,7 @@ class DepartmentService
             'users' => fn ($query) => $query->where('role', '!=', Role::Patient->value),
             'staffInvitations' => fn ($query) => $query->pending(),
             'consultationTypes',
+            'admissions' => fn ($query) => $query->where('status', 'active'),
         ])->orderBy('name')->paginate(15);
     }
 

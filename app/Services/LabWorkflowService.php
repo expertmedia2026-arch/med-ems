@@ -132,6 +132,9 @@ class LabWorkflowService
             'status' => WorkStatus::Completed,
             'processed_by' => $processor->id,
             'completed_at' => $labRequest->completed_at ?? now(),
+            'result_reviewed_by' => null,
+            'result_reviewed_at' => null,
+            'result_review_note' => null,
         ]);
 
         $visit = $labRequest->visit;
@@ -141,6 +144,11 @@ class LabWorkflowService
         }
 
         $patient = $visit->patient;
+        $isAdmissionRelated = $visit->admission()->exists();
+        if ($isAdmissionRelated) {
+            return 'admission_review';
+        }
+
         if ($patient->email) {
             try {
                 $labRequest->loadMissing(['test', 'attachments', 'visit.patient']);
@@ -154,7 +162,7 @@ class LabWorkflowService
 
                 return 'notification_failed';
             }
-        } else {
+        } elseif (! $isInpatient) {
             return 'notification_missing_email';
         }
 

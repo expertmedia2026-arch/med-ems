@@ -72,11 +72,21 @@ class Patient extends Model
         return $this->hasMany(Visit::class);
     }
 
+    public function admissions(): HasMany
+    {
+        return $this->hasMany(Admission::class);
+    }
+
+    public function activeAdmission(): HasOne
+    {
+        return $this->hasOne(Admission::class)->where('status', 'active');
+    }
+
     public function currentVisit(): ?Visit
     {
         return $this->visits()
             ->where('type', 'consultation')
-            ->where('status', '!=', VisitStatus::Completed->value)
+            ->whereNotIn('status', [VisitStatus::Completed->value, VisitStatus::Inpatient->value])
             ->latest('checked_in_at')
             ->first();
     }

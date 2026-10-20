@@ -14,7 +14,7 @@ class PortalVisitService
     public function index(Patient $patient)
     {
         $visits = $patient->visits()
-            ->with(['doctor.department', 'department', 'consultationType.department', 'labRequests.test'])
+            ->with(['doctor.department', 'department', 'consultationType.department', 'labRequests.test', 'admission'])
             ->withCount(['labRequests', 'prescriptions'])
             ->latest('checked_in_at')
             ->paginate(10);
@@ -37,6 +37,7 @@ class PortalVisitService
         $relations = [
             'doctor.department', 'department', 'consultationType.department', 'vitals', 'prescriptions.drug', 'labRequests.test',
             'invoice.items',
+            'admission',
         ];
         if ($this->labResultsVisible($visit)) {
             $relations[] = 'labRequests.attachments';

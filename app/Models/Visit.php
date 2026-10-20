@@ -89,6 +89,11 @@ class Visit extends Model
         return $this->hasOne(Invoice::class);
     }
 
+    public function admission(): HasOne
+    {
+        return $this->hasOne(Admission::class);
+    }
+
     public function isOpenFor(User $user): bool
     {
         return $this->status === VisitStatus::InConsultation

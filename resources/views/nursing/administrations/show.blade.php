@@ -138,7 +138,10 @@
     @endforelse
 
     <section class="rounded-xl border bg-white p-5 shadow-sm">
-        @if ($visit->discharged_at)
+        @if ($visit->status->value === 'inpatient' && $visit->admission)
+            <p class="text-sm text-teal-800">This patient is admitted to {{ $visit->admission->department?->name ?? 'the ward' }}. Nursing administrations are recorded here; the attending doctor completes the discharge from the admission record.</p>
+            <a href="{{ route('admissions.show', $visit->admission) }}" class="mt-3 inline-flex rounded-lg border border-teal-700 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">Open inpatient record</a>
+        @elseif ($visit->discharged_at)
             <p class="text-sm text-green-800">Discharged {{ $visit->discharged_at->format('d M Y, g:i A') }} by {{ $visit->dischargeActor?->name ?? 'staff' }}.</p>
         @elseif ($incomplete->isEmpty())
             <p class="mb-3 text-sm text-slate-600">All required nursing administrations are complete or have a documented doctor/admin waiver.</p>
