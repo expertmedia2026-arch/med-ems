@@ -10,12 +10,12 @@
         body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #e2e8f0; color: #0f172a; font-family: Arial, Helvetica, sans-serif; }
         .cards { display: flex; flex-direction: column; gap: 5mm; }
         .patient-card { position: relative; display: flex; flex-direction: column; width: 85.6mm; height: 54mm; overflow: hidden; border: .25mm solid #cbd5e1; border-radius: 3mm; background: #fff; box-shadow: 0 12px 32px rgb(15 23 42 / 18%); }
-        .accent { height: 2mm; flex: 0 0 2mm; background: #0f766e; }
+        .accent { height: 2mm; flex: 0 0 2mm; background: {{ $hospital->primary_color ?: '#0f766e' }}; }
         .card-content { display: flex; min-height: 0; flex: 1; flex-direction: column; padding: 3mm 4mm 2.5mm; }
         .hospital-header { display: flex; min-height: 8mm; align-items: center; gap: 2.5mm; border-bottom: .2mm solid #e2e8f0; padding-bottom: 1.5mm; }
         .logo { width: 8mm; height: 8mm; flex: 0 0 8mm; object-fit: contain; }
         .hospital-copy { min-width: 0; }
-        .hospital-name { overflow: hidden; color: #134e4a; font-size: 3mm; font-weight: 700; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+        .hospital-name { overflow: hidden; color: {{ $hospital->primary_color ?: '#0f766e' }}; font-size: 3mm; font-weight: 700; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
         .hospital-details { margin-top: .8mm; color: #64748b; font-size: 1.65mm; line-height: 1.25; }
         .front-layout { display: flex; min-height: 0; flex: 1; gap: 3mm; padding-top: 2mm; }
         .patient-photo { width: 22mm; height: 27mm; flex: 0 0 22mm; border: .3mm solid #dbe4ea; border-radius: 1.5mm; background: #f1f5f9; object-fit: cover; }
@@ -23,15 +23,15 @@
         .patient-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; }
         .patient-heading { color: #64748b; font-size: 1.65mm; font-weight: 700; letter-spacing: .3mm; text-transform: uppercase; }
         .patient-name { overflow: hidden; margin-top: .5mm; font-size: 3.4mm; font-weight: 700; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
-        .hospital-number { margin-top: .7mm; color: #0f766e; font-family: 'Courier New', monospace; font-size: 2.8mm; font-weight: 700; letter-spacing: .15mm; }
+        .hospital-number { margin-top: .7mm; color: {{ $hospital->primary_color ?: '#0f766e' }}; font-family: 'Courier New', monospace; font-size: 2.8mm; font-weight: 700; letter-spacing: .15mm; }
         .patient-details { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2mm 3mm; margin: 1.8mm 0 0; }
         .detail-label { color: #64748b; font-size: 1.55mm; text-transform: uppercase; }
         .detail-value { overflow: hidden; margin: .3mm 0 0; font-size: 2mm; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
         .card-footer { display: flex; justify-content: space-between; gap: 2mm; margin-top: auto; border-top: .2mm solid #e2e8f0; padding-top: 1mm; color: #64748b; font-size: 1.55mm; }
         .back-content { position: relative; align-items: center; justify-content: flex-start; gap: 1mm; padding: 2.4mm 3.5mm 2mm; text-align: center; }
         .back-content > div:first-child { width: 100%; text-align: center; }
-        .back-heading { color: #134e4a; font-size: 2.8mm; font-weight: 700; line-height: 1.1; }
-        .property-copy { width: 100%; margin-top: 1.4mm; color: #0f766e; font-size: 1.65mm; font-weight: 700; letter-spacing: .15mm; text-align: center; text-transform: uppercase; }
+        .back-heading { color: {{ $hospital->primary_color ?: '#0f766e' }}; font-size: 2.8mm; font-weight: 700; line-height: 1.1; }
+        .property-copy { width: 100%; margin-top: 1.4mm; color: {{ $hospital->primary_color ?: '#0f766e' }}; font-size: 1.65mm; font-weight: 700; letter-spacing: .15mm; text-align: center; text-transform: uppercase; }
         .back-copy { margin-top: .5mm; color: #475569; font-size: 1.55mm; line-height: 1.2; }
         .contact-details { display: grid; justify-items: center; width: 100%; gap: .45mm; margin-top: 1.2mm; color: #334155; font-size: 1.45mm; line-height: 1.15; text-align: center; }
         .contact-row { width: 100%; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
@@ -70,7 +70,7 @@
                         @if ($hospital->logo_url)
                             <img class="logo" src="{{ $hospital->logo_url }}" alt="{{ $hospital->name }} logo">
                         @else
-                            <div class="logo" aria-hidden="true" style="display:grid;place-items:center;border-radius:50%;background:#ccfbf1;color:#0f766e;font-size:5mm;font-weight:700">+</div>
+                            <div class="logo" aria-hidden="true" style="display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb, {{ $hospital->primary_color ?: '#0f766e' }} 15%, white);color:{{ $hospital->primary_color ?: '#0f766e' }};font-size:5mm;font-weight:700">+</div>
                         @endif
                         <div class="hospital-copy">
                             <div class="hospital-name">{{ $hospital->name }}</div>

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\VisitStatus;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\HospitalSetting;
 use App\Models\Patient;
 use App\Models\Payment;
 use App\Models\User;
@@ -71,6 +72,10 @@ class PortalInvoiceService
     /** @return array{status: string, url: ?string} */
     public function startOnlinePayment(Invoice $invoice, array $itemIds, User $user, OnlinePaymentService $payments): array
     {
+        if ((HospitalSetting::current()->payment_gateway ?: 'paystack') !== 'paystack') {
+            return ['status' => 'gateway_disabled', 'url' => null];
+        }
+
         $payments->refreshPending($invoice);
         $items = $this->payableItems($invoice, $itemIds);
 

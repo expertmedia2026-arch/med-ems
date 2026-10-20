@@ -134,8 +134,13 @@
             <div>
                 @if ($payable->isNotEmpty())
                     <div class="rounded-xl border bg-white p-5 shadow-sm">
-                        <h3 class="font-semibold">Pay online</h3>
-                        <p class="mt-1 text-xs text-slate-500">Tick what you want to pay for now.</p>
+                        @if ($paymentGateway === 'paystack')
+                            <h3 class="font-semibold">Pay online</h3>
+                            <p class="mt-1 text-xs text-slate-500">Tick what you want to pay for now.</p>
+                        @else
+                            <h3 class="font-semibold">Payment at the hospital</h3>
+                            <p class="mt-1 text-xs text-slate-600">Online payment is turned off. Please visit the hospital billing desk to pay these items.</p>
+                        @endif
 
                         <div class="mt-4 rounded-lg bg-teal-50 px-4 py-3">
                             <p class="text-xs text-teal-700">Amount to pay</p>
@@ -144,14 +149,10 @@
 
                         @error('item_ids')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
 
-                        <button :disabled="selected.length === 0"
-                                class="mt-5 w-full rounded-lg bg-teal-700 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">
-                            Pay securely online
-                        </button>
-
-                        <p class="mt-3 text-xs text-slate-400">
-                            You will be taken to Paystack to pay by card, bank transfer or USSD, then returned here with your receipt.
-                        </p>
+                        @if ($paymentGateway === 'paystack')
+                            <button :disabled="selected.length === 0" class="mt-5 w-full rounded-lg bg-teal-700 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">Pay securely online</button>
+                            <p class="mt-3 text-xs text-slate-400">You will be taken to Paystack to pay by card, bank transfer, or USSD, then returned here with your receipt.</p>
+                        @endif
                     </div>
                 @elseif ($balance > 0)
                     <div class="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\PaystackCallbackRequest;
 use App\Http\Requests\PortalInvoicePaymentRequest;
 use App\Models\Invoice;
+use App\Models\HospitalSetting;
 use App\Models\Payment;
 use App\Services\OnlinePaymentService;
 use App\Services\PortalInvoiceService;
@@ -25,7 +26,10 @@ class PortalInvoiceController extends Controller
         $invoices->authorizePatientInvoice($request->user()->patient_id, $invoice);
         $data = $invoices->invoiceDetails($invoice);
 
-        return view('portal.invoices.show', ['invoice' => $invoice] + $data);
+        return view('portal.invoices.show', [
+            'invoice' => $invoice,
+            'paymentGateway' => HospitalSetting::current()->payment_gateway ?: 'paystack',
+        ] + $data);
     }
 
     /** Start an online payment for the ticked items and send the patient to the gateway. */
@@ -42,6 +46,7 @@ class PortalInvoiceController extends Controller
                 'invalid_items' => 'Some selected items cannot be paid online (already paid, or not ready yet). Please try again.',
                 'pending_overlap' => 'A payment for these items is already in progress. Complete it, or try again in a few minutes.',
                 'stock_unavailable' => 'The pharmacy can no longer reserve stock for one or more selected drugs. Please contact the pharmacy before paying.',
+                'gateway_disabled' => 'Online payments are currently unavailable. Please pay at the hospital billing desk.',
                 default => 'We could not start the payment. Please try again in a moment.',
             };
 

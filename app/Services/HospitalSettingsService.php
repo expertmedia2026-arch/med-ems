@@ -26,7 +26,33 @@ class HospitalSettingsService
         $disk = Storage::disk('public');
         $privateDisk = Storage::disk('local');
         $clearSecret = (bool) ($data['clear_paystack_secret_key'] ?? false);
+        $useAccent = (bool) ($data['use_accent_color'] ?? false);
+        $useHighlight = (bool) ($data['use_highlight_color'] ?? false);
+        $hasAccentToggle = array_key_exists('use_accent_color', $data);
+        $hasHighlightToggle = array_key_exists('use_highlight_color', $data);
         unset($data['clear_paystack_secret_key'], $data['remove_logo'], $data['remove_administrator_signature']);
+        unset($data['use_accent_color'], $data['use_highlight_color']);
+
+        if (filled($data['primary_color'] ?? null)) {
+            $data['primary_color'] = strtolower($data['primary_color']);
+        }
+        if (filled($data['secondary_color'] ?? null)) {
+            $data['secondary_color'] = strtolower($data['secondary_color']);
+        }
+        if ($hasAccentToggle) {
+            $data['accent_color'] = $useAccent && filled($data['accent_color'] ?? null)
+                ? strtolower($data['accent_color'])
+                : null;
+        } elseif (filled($data['accent_color'] ?? null)) {
+            $data['accent_color'] = strtolower($data['accent_color']);
+        }
+        if ($hasHighlightToggle) {
+            $data['highlight_color'] = $useHighlight && filled($data['highlight_color'] ?? null)
+                ? strtolower($data['highlight_color'])
+                : null;
+        } elseif (filled($data['highlight_color'] ?? null)) {
+            $data['highlight_color'] = strtolower($data['highlight_color']);
+        }
 
         if ($clearSecret) {
             $data['paystack_secret_key'] = null;

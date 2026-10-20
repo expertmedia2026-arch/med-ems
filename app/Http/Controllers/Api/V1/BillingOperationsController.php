@@ -108,6 +108,7 @@ class BillingOperationsController extends Controller
             'invalid_items' => 'Some selected items cannot be paid online.',
             'pending_overlap' => 'A payment for these items is already in progress.',
             'stock_unavailable' => 'There is not enough available stock for one or more selected drug items. Contact the pharmacy.',
+            'gateway_disabled' => 'Online payments are currently unavailable. Please pay at the hospital billing desk.',
             default => 'We could not start the payment. Please try again.',
         });
 

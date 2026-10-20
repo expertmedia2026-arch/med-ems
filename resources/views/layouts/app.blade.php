@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $hospital->name }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <x-hospital-theme :hospital="$hospital" />
 </head>
 <body class="bg-slate-50 font-sans antialiased text-slate-800">
 @php

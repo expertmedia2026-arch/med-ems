@@ -157,8 +157,13 @@ class AdminController extends Controller
             'has_administrator_signature' => filled($setting->administrator_signature_path),
             'receipt_footer' => $setting->receipt_footer,
             'registration_fee' => (float) $setting->registration_fee,
+            'payment_gateway' => $setting->payment_gateway ?: 'paystack',
             'paystack_public_key' => $setting->paystack_public_key,
             'has_paystack_secret_key' => filled($setting->getRawOriginal('paystack_secret_key')),
+            'primary_color' => $setting->primary_color ?: '#0f766e',
+            'secondary_color' => $setting->secondary_color ?: '#1d4ed8',
+            'accent_color' => $setting->accent_color,
+            'highlight_color' => $setting->highlight_color,
         ];
     }
 }

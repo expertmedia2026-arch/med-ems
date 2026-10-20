@@ -4,15 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateHospitalSettingsRequest;
 use App\Services\HospitalSettingsService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class SettingsController extends Controller
 {
-    public function edit(HospitalSettingsService $settings)
+    public function edit(Request $request, HospitalSettingsService $settings)
     {
-        return view('settings.hospital', ['settings' => $settings->current()]);
+        $section = $request->route('section') ?: 'basic';
+
+        abort_unless(in_array($section, ['basic', 'payments', 'branding'], true), 404);
+
+        return view('settings.hospital', ['settings' => $settings->current(), 'section' => $section]);
     }
 
-    public function update(UpdateHospitalSettingsRequest $request, HospitalSettingsService $settings)
+    public function update(UpdateHospitalSettingsRequest $request, HospitalSettingsService $settings): RedirectResponse
     {
         $settings->update(
             $request->validated(),
@@ -22,6 +28,9 @@ class SettingsController extends Controller
             $request->boolean('remove_administrator_signature'),
         );
 
-        return redirect()->route('settings.edit')->with('success', 'Hospital settings saved.');
+        $section = $request->route('section') ?: 'basic';
+
+        return redirect()->route($section === 'basic' ? 'settings.edit' : 'settings.section', $section === 'basic' ? [] : ['section' => $section])
+            ->with('success', 'Hospital settings saved.');
     }
 }

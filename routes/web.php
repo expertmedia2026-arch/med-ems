@@ -127,6 +127,10 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
 
         Route::get('settings/hospital', [SettingsController::class, 'edit'])->name('settings.edit');
         Route::put('settings/hospital', [SettingsController::class, 'update'])->name('settings.update');
+        Route::get('settings/hospital/{section}', [SettingsController::class, 'edit'])
+            ->whereIn('section', ['basic', 'payments', 'branding'])->name('settings.section');
+        Route::put('settings/hospital/{section}', [SettingsController::class, 'update'])
+            ->whereIn('section', ['basic', 'payments', 'branding'])->name('settings.update.section');
     });
 
     // Front desk: register, edit, book, check in (defined first so /patients/create isn't read as {patient})
