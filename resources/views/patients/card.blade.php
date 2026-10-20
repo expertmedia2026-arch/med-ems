@@ -28,14 +28,22 @@
         .detail-label { color: #64748b; font-size: 1.55mm; text-transform: uppercase; }
         .detail-value { overflow: hidden; margin: .3mm 0 0; font-size: 2mm; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
         .card-footer { display: flex; justify-content: space-between; gap: 2mm; margin-top: auto; border-top: .2mm solid #e2e8f0; padding-top: 1mm; color: #64748b; font-size: 1.55mm; }
-        .back-content { position: relative; align-items: center; justify-content: space-between; text-align: center; }
-        .back-heading { color: #134e4a; font-size: 3mm; font-weight: 700; }
-        .back-copy { margin-top: 1mm; color: #475569; font-size: 1.8mm; }
-        .barcode { display: block; width: 67mm; height: 13mm; margin: 1mm auto 0; }
-        .barcode-link { max-width: 75mm; overflow: hidden; color: #64748b; font-size: 1.4mm; text-overflow: ellipsis; white-space: nowrap; }
-        .signature-block { width: 46mm; margin-top: auto; border-top: .2mm solid #94a3b8; padding-top: 1mm; color: #64748b; font-size: 1.55mm; }
-        .signature-image { display: block; width: 42mm; height: 10mm; margin: 0 auto -1mm; object-fit: contain; }
-        .signature-placeholder { height: 9mm; }
+        .back-content { position: relative; align-items: center; justify-content: flex-start; gap: 1mm; padding: 2.4mm 3.5mm 2mm; text-align: center; }
+        .back-content > div:first-child { width: 100%; text-align: center; }
+        .back-heading { color: #134e4a; font-size: 2.8mm; font-weight: 700; line-height: 1.1; }
+        .property-copy { width: 100%; margin-top: 1.4mm; color: #0f766e; font-size: 1.65mm; font-weight: 700; letter-spacing: .15mm; text-align: center; text-transform: uppercase; }
+        .back-copy { margin-top: .5mm; color: #475569; font-size: 1.55mm; line-height: 1.2; }
+        .contact-details { display: grid; justify-items: center; width: 100%; gap: .45mm; margin-top: 1.2mm; color: #334155; font-size: 1.45mm; line-height: 1.15; text-align: center; }
+        .contact-row { width: 100%; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+        .contact-address { display: -webkit-box; width: 100%; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; text-align: center; }
+        .barcode-block { width: 100%; margin-top: .4mm; text-align: center; }
+        .barcode-svg { display: flex; justify-content: center; height: 8mm; margin: .3mm auto 0; }
+        .barcode-svg svg { display: block; width: auto; max-width: 62mm; height: 8mm; }
+        .signature-block { width: 42mm; margin-top: auto; color: #475569; font-size: 1.55mm; text-align: center; }
+        .signature-image { display: block; width: 42mm; height: 6mm; margin: 0 auto .4mm; object-fit: contain; }
+        .signature-placeholder { height: 6mm; }
+        .signature-line { width: 100%; border-top: .2mm solid #64748b; }
+        .signature-label { margin-top: .5mm; font-weight: 600; }
         .no-print { margin-top: 20px; text-align: center; }
         .print-button { border: 0; border-radius: 8px; background: #0f766e; padding: 10px 20px; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
         .back-link { margin-left: 12px; color: #475569; font-size: 14px; text-decoration: none; }
@@ -100,16 +108,25 @@
                 <div class="card-content back-content">
                     <div>
                         <div class="back-heading">{{ $hospital->name }}</div>
-                        <div class="back-copy">Scan to open this patient's profile. Staff sign-in is required.</div>
+                        <div class="property-copy">Property of {{ $hospital->name }}</div>
+                        <div class="back-copy">If found, please report this card to the nearest police station or contact us:</div>
                     </div>
-                    <div>{!! $barcodeSvg !!}<div class="barcode-link">{{ $profileUrl }}</div></div>
+                    <div class="contact-details">
+                        <div class="contact-row"><strong>Hospital phone:</strong> {{ $hospital->phone ?: 'Not provided' }}</div>
+                        <div class="contact-row"><strong>Email:</strong> {{ $hospital->email ?: 'Not provided' }}</div>
+                        <div class="contact-address"><strong>Address:</strong> {{ $hospital->address ?: 'Not provided' }}</div>
+                    </div>
+                    <div class="barcode-block">
+                        <div class="barcode-svg">{!! $barcodeSvg !!}</div>
+                    </div>
                     <div class="signature-block">
                         @if ($hospital->administrator_signature_path)
                             <img class="signature-image" src="{{ $administratorSignatureUrl }}" alt="Administrator signature">
                         @else
                             <div class="signature-placeholder"></div>
                         @endif
-                        Administrator's signature
+                        <div class="signature-line"></div>
+                        <div class="signature-label">Authorized Signature</div>
                     </div>
                 </div>
             </article>
