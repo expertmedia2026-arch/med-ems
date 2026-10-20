@@ -32,8 +32,9 @@ class LabAttachmentService
         return (bool) ($labRequest
             && ($labRequest->requested_by === $user->id
                 || $labRequest->visit->status === VisitStatus::Completed
-                || ($labRequest->visit->status === VisitStatus::Inpatient
-                    && (int) $labRequest->visit->admission?->attending_doctor_id === (int) $user->id)));
+                || ($labRequest->visit->admission
+                    && ((int) $labRequest->visit->admission->attending_doctor_id === (int) $user->id
+                        || ($user->department_id && (int) $labRequest->visit->admission->department_id === (int) $user->department_id)))));
     }
 
     public function delete(LabAttachment $attachment): void

@@ -133,9 +133,14 @@ class DashboardService
 
     private function doctor(int $doctorId): array
     {
+        $departmentId = auth()->user()->department_id;
+        $admissionScope = fn ($query) => $query->where(fn ($scope) => $scope
+            ->where('attending_doctor_id', $doctorId)
+            ->when($departmentId, fn ($scope) => $scope->orWhere('department_id', $departmentId)));
+
         return [
-            $this->card('My inpatient admissions', Admission::where('status', AdmissionStatus::Active->value)->where('attending_doctor_id', $doctorId)->count(), 'teal', 'admissions.index'),
-            $this->card('Admission results to review', Admission::whereHas('visit.labRequests', fn ($query) => $query->where('status', 'completed')->whereNull('result_reviewed_at'))->where('attending_doctor_id', $doctorId)->count(), 'amber', 'admissions.index'),
+            $this->card('My department inpatients', Admission::where('status', AdmissionStatus::Active->value)->where($admissionScope)->count(), 'teal', 'admissions.index'),
+            $this->card('Admission results to review', Admission::whereHas('visit.labRequests', fn ($query) => $query->where('status', 'completed')->whereNull('result_reviewed_at'))->where($admissionScope)->count(), 'amber', 'admissions.index'),
             $this->card('Waiting for me', Visit::withStatus(VisitStatus::WaitingDoctor)
                 ->where('department_id', auth()->user()->department_id ?? 0)
                 ->where(fn ($q) => $q->whereNull('doctor_id')->orWhere('doctor_id', $doctorId))

@@ -16,7 +16,11 @@ class DischargeAdmissionRequest extends FormRequest
 
         return $admission instanceof Admission
             && $this->user()?->hasRole(Role::Admin, Role::Doctor)
-            && ($this->user()->hasRole(Role::Admin) || $admission->attending_doctor_id === $this->user()->id);
+            && ($this->user()->hasRole(Role::Admin)
+                || $admission->attending_doctor_id === $this->user()->id
+                || ($this->user()->hasRole(Role::Doctor)
+                    && $this->user()->department_id
+                    && (int) $this->user()->department_id === (int) $admission->department_id));
     }
 
     public function rules(): array

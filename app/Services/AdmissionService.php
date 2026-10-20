@@ -37,7 +37,9 @@ class AdmissionService
         $this->assertStaffDepartment($viewer);
         $base = Admission::query()
             ->with(['patient', 'department', 'attendingDoctor'])
-            ->when($viewer->hasRole(Role::Doctor), fn ($query) => $query->where('attending_doctor_id', $viewer->id))
+            ->when($viewer->hasRole(Role::Doctor), fn ($query) => $query->where(fn ($scope) => $scope
+                ->where('attending_doctor_id', $viewer->id)
+                ->when($viewer->department_id, fn ($scope) => $scope->orWhere('department_id', $viewer->department_id))))
             ->when($viewer->hasRole(Role::Nurse), fn ($query) => $query->where('department_id', $viewer->department_id))
             ->when($search, fn ($query) => $query->whereHas('patient', fn ($patient) => $patient
                 ->whereLike('hospital_number', "%{$search}%")
@@ -73,8 +75,8 @@ class AdmissionService
             ->filter(fn (LabRequest $lab) => $lab->status === WorkStatus::Completed && ! $lab->result_reviewed_at);
         $unresolvedResults = $admission->visit->labRequests
             ->filter(fn (LabRequest $lab) => $lab->status !== WorkStatus::Completed || ! $lab->result_reviewed_at);
-        $canManage = $viewer->hasRole(Role::Admin) || ($viewer->hasRole(Role::Doctor) && $admission->attending_doctor_id === $viewer->id);
-        $canPrescribe = $viewer->hasRole(Role::Doctor) && $admission->attending_doctor_id === $viewer->id;
+        $canManage = $viewer->hasRole(Role::Admin) || ($viewer->hasRole(Role::Doctor) && $this->doctorCanAttend($admission, $viewer));
+        $canPrescribe = $viewer->hasRole(Role::Doctor) && $this->doctorCanAttend($admission, $viewer);
 
         $drugs = $canPrescribe
             ? Drug::active()->whereRaw('(stock_quantity - reserved_quantity) > 0')->orderBy('name')->get()
@@ -239,20 +241,29 @@ class AdmissionService
 
     private function assertAdmissionAccess(Admission $admission, User $viewer): void
     {
-        if ($viewer->hasRole(Role::Admin)
-            || ($viewer->hasRole(Role::Doctor) && $admission->attending_doctor_id === $viewer->id)) {
+        if ($viewer->hasRole(Role::Admin)) {
+            return;
+        }
+
+        if ($viewer->hasRole(Role::Doctor) && $this->doctorCanAttend($admission, $viewer)) {
             return;
         }
 
         abort_unless($viewer->hasRole(Role::Nurse) && (int) $viewer->department_id === (int) $admission->department_id,
-            403, 'This admission belongs to another care team.');
+            403, 'Only the attending doctor, a doctor in this ward department, or a nurse assigned to this ward can access the admission.');
     }
 
     private function assertCanManage(Admission $admission, User $actor): void
     {
         abort_unless($actor->hasRole(Role::Admin)
-            || ($actor->hasRole(Role::Doctor) && $admission->attending_doctor_id === $actor->id),
-            403, 'Only the attending doctor or an administrator can manage this admission.');
+            || ($actor->hasRole(Role::Doctor) && $this->doctorCanAttend($admission, $actor)),
+            403, 'Only the attending doctor, a doctor in this ward department, or an administrator can manage this admission.');
+    }
+
+    private function doctorCanAttend(Admission $admission, User $doctor): bool
+    {
+        return $admission->attending_doctor_id === $doctor->id
+            || ($doctor->department_id && (int) $doctor->department_id === (int) $admission->department_id);
     }
 
     private function assertStaffDepartment(User $viewer): void
