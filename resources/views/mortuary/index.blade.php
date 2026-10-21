@@ -3,7 +3,7 @@
 
     <div class="space-y-6">
         <div>
-            <p class="text-sm font-semibold uppercase tracking-wide text-amber-700">Mortuary</p>
+            <p class="text-sm font-semibold uppercase tracking-wide text-teal-700">Mortuary</p>
             <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Case register</h1>
             <p class="mt-1 text-sm text-slate-500">Receive deceased patients from clinical teams, track storage, and document authorized release.</p>
         </div>
@@ -18,7 +18,7 @@
                     <option value="{{ $value }}" @selected(($filters['status'] ?? '') === $value)>{{ $label }}</option>
                 @endforeach
             </select>
-            <button class="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800">Search</button>
+            <button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">Search</button>
         </form>
 
         <section class="overflow-hidden rounded-xl border bg-white shadow-sm">
@@ -38,7 +38,7 @@
                                     @php($statusColor = $case->status === 'released' ? 'green' : ($case->status === 'received' ? 'teal' : 'amber'))
                                     <x-badge :color="$statusColor">{{ ['awaiting_transfer' => 'Awaiting transfer', 'received' => 'In mortuary', 'released' => 'Released'][$case->status] ?? ucfirst($case->status) }}</x-badge>
                                 </td>
-                                <td class="whitespace-nowrap px-5 py-4 text-right"><a href="{{ route('mortuary.show', $case) }}" class="font-semibold text-amber-800 hover:underline">Open case</a></td>
+                                <td class="whitespace-nowrap px-5 py-4 text-right"><a href="{{ route('mortuary.show', $case) }}" class="font-semibold text-teal-700 hover:underline">Open case</a></td>
                             </tr>
                         @empty
                             <tr><td colspan="6" class="px-5 py-12 text-center text-slate-500">No mortuary cases match this search.</td></tr>

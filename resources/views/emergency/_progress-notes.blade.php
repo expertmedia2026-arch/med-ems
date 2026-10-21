@@ -13,8 +13,8 @@
 @endphp
 
 @if ($visit->is_emergency)
-    <section class="overflow-hidden rounded-xl border border-rose-100 bg-white shadow-sm">
-        <div class="border-b border-rose-100 px-5 py-4 sm:px-7">
+    <section class="overflow-hidden rounded-xl border border-teal-100 bg-white shadow-sm">
+        <div class="border-b border-teal-100 px-5 py-4 sm:px-7">
             <h2 class="font-semibold text-slate-900">ER progress notes</h2>
             <p class="mt-1 text-sm text-slate-500">Time-stamped medical and nursing updates stay with this emergency visit.</p>
         </div>

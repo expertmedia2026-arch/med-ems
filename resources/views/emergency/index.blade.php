@@ -4,7 +4,7 @@
     <div class="space-y-6">
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-wide text-rose-700">Emergency department</p>
+                <p class="text-sm font-semibold uppercase tracking-wide text-teal-700">Emergency department</p>
                 <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Accident & Emergency</h1>
                 <p class="mt-1 text-sm text-slate-500">Register arrivals, prioritize triage, and follow patients through the ER.</p>
             </div>
@@ -14,7 +14,7 @@
         </div>
 
         @if (auth()->user()->canRegisterEmergencyArrival())
-            <section class="rounded-xl border border-rose-200 bg-white p-5 shadow-sm sm:p-6">
+            <section class="rounded-xl border border-teal-200 bg-white p-5 shadow-sm sm:p-6">
                 <div>
                     <h2 class="font-semibold text-slate-900">Register an ER arrival</h2>
                     <p class="mt-1 text-sm text-slate-500">
@@ -29,8 +29,8 @@
                 </div>
                 <form method="GET" action="{{ route('emergency.index') }}" class="mt-4 flex max-w-2xl gap-2">
                     <label class="sr-only" for="patient-search">Search patients</label>
-                    <input id="patient-search" name="q" type="search" value="{{ $search }}" placeholder="Search name, hospital number or phone" class="min-w-0 flex-1 rounded-lg border-slate-300 text-sm shadow-sm focus:border-rose-600 focus:ring-rose-600">
-                    <button class="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800">Search</button>
+                    <input id="patient-search" name="q" type="search" value="{{ $search }}" placeholder="Search name, hospital number or phone" class="min-w-0 flex-1 rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
+                    <button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">Search</button>
                 </form>
 
                 @if ($search !== '')
@@ -48,18 +48,18 @@
                                     @csrf
                                     <div>
                                         <label for="complaint-{{ $patient->id }}" class="sr-only">Presenting complaint for {{ $patient->full_name }}</label>
-                                        <input id="complaint-{{ $patient->id }}" name="complaint" value="{{ old('complaint') }}" required maxlength="1000" placeholder="Presenting complaint" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-rose-600 focus:ring-rose-600">
+                                        <input id="complaint-{{ $patient->id }}" name="complaint" value="{{ old('complaint') }}" required maxlength="1000" placeholder="Presenting complaint" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                                     </div>
                                     <div>
                                         <label for="arrival-{{ $patient->id }}" class="sr-only">Arrival method for {{ $patient->full_name }}</label>
-                                        <select id="arrival-{{ $patient->id }}" name="arrival_mode" required class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-rose-600 focus:ring-rose-600">
+                                        <select id="arrival-{{ $patient->id }}" name="arrival_mode" required class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                                             <option value="walk_in">Walk-in</option>
                                             <option value="ambulance">Ambulance</option>
                                             <option value="referred">Referred</option>
                                             <option value="other">Other</option>
                                         </select>
                                     </div>
-                                    <button class="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800">Start ER visit</button>
+                                    <button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">Start ER visit</button>
                                 </form>
                             </div>
                         @empty
@@ -77,12 +77,12 @@
                         @csrf
                         <div class="sm:col-span-2 lg:col-span-3">
                             <label for="unknown-complaint" class="block text-sm font-medium text-slate-700">Presenting complaint <span class="text-rose-600">*</span></label>
-                            <input id="unknown-complaint" name="complaint" value="{{ old('complaint') }}" required maxlength="1000" class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-rose-600 focus:ring-rose-600">
+                            <input id="unknown-complaint" name="complaint" value="{{ old('complaint') }}" required maxlength="1000" class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                             @error('complaint')<p class="mt-1 text-xs text-rose-700">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label for="unknown-arrival" class="block text-sm font-medium text-slate-700">Arrival method</label>
-                            <select id="unknown-arrival" name="arrival_mode" required class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-rose-600 focus:ring-rose-600">
+                            <select id="unknown-arrival" name="arrival_mode" required class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                                 @foreach (['walk_in' => 'Walk-in', 'ambulance' => 'Ambulance', 'referred' => 'Referred', 'other' => 'Other'] as $value => $label)
                                     <option value="{{ $value }}" @selected(old('arrival_mode') === $value)>{{ $label }}</option>
                                 @endforeach
@@ -91,7 +91,7 @@
                         </div>
                         <div>
                             <label for="unknown-gender" class="block text-sm font-medium text-slate-700">Sex, if known</label>
-                            <select id="unknown-gender" name="gender" required class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-rose-600 focus:ring-rose-600">
+                            <select id="unknown-gender" name="gender" required class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                                 <option value="unknown" @selected(old('gender', 'unknown') === 'unknown')>Unknown</option>
                                 <option value="male" @selected(old('gender') === 'male')>Male</option>
                                 <option value="female" @selected(old('gender') === 'female')>Female</option>
@@ -100,20 +100,20 @@
                         </div>
                         <div>
                             <label for="estimated-age" class="block text-sm font-medium text-slate-700">Approximate age</label>
-                            <input id="estimated-age" name="estimated_age" type="number" min="0" max="120" value="{{ old('estimated_age') }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-rose-600 focus:ring-rose-600">
+                            <input id="estimated-age" name="estimated_age" type="number" min="0" max="120" value="{{ old('estimated_age') }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                             @error('estimated_age')<p class="mt-1 text-xs text-rose-700">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label for="unknown-next-of-kin" class="block text-sm font-medium text-slate-700">Next of kin, if known</label>
-                            <input id="unknown-next-of-kin" name="next_of_kin_name" value="{{ old('next_of_kin_name') }}" maxlength="150" class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-rose-600 focus:ring-rose-600">
+                            <input id="unknown-next-of-kin" name="next_of_kin_name" value="{{ old('next_of_kin_name') }}" maxlength="150" class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                         </div>
                         <div>
                             <label for="unknown-next-of-kin-phone" class="block text-sm font-medium text-slate-700">Next of kin phone</label>
-                            <input id="unknown-next-of-kin-phone" name="next_of_kin_phone" value="{{ old('next_of_kin_phone') }}" maxlength="20" class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-rose-600 focus:ring-rose-600">
+                            <input id="unknown-next-of-kin-phone" name="next_of_kin_phone" value="{{ old('next_of_kin_phone') }}" maxlength="20" class="mt-1 w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                             @error('next_of_kin_phone')<p class="mt-1 text-xs text-rose-700">{{ $message }}</p>@enderror
                         </div>
                         <div class="sm:col-span-2 lg:col-span-3">
-                            <button class="rounded-lg bg-rose-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-800">Register and send for triage</button>
+                            <button class="rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">Register and send for triage</button>
                         </div>
                     </form>
                 </details>
@@ -189,8 +189,8 @@
             @if ($visits->hasPages())<div class="border-t border-slate-200 px-5 py-3">{{ $visits->links() }}</div>@endif
         </section>
 
-        <section class="overflow-hidden rounded-xl border border-amber-200 bg-white shadow-sm">
-            <div class="border-b border-amber-100 p-5">
+        <section class="overflow-hidden rounded-xl border border-teal-200 bg-white shadow-sm">
+            <div class="border-b border-teal-100 p-5">
                 <h2 class="font-semibold text-slate-900">Mortuary handoffs</h2>
                 <p class="mt-1 text-sm text-slate-500">Deceased ER cases awaiting physical transfer and receipt.</p>
             </div>
@@ -206,19 +206,19 @@
                                 @csrf
                                 <div>
                                     <label for="storage-{{ $case->id }}" class="sr-only">Mortuary storage location</label>
-                                    <input id="storage-{{ $case->id }}" name="storage_location" required maxlength="120" placeholder="Storage location" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-amber-600 focus:ring-amber-600">
+                                    <input id="storage-{{ $case->id }}" name="storage_location" required maxlength="120" placeholder="Storage location" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                                     @error('storage_location')<p class="mt-1 text-xs text-rose-700">{{ $message }}</p>@enderror
                                 </div>
                                 <div>
                                     <label for="tag-{{ $case->id }}" class="sr-only">Body tag number</label>
-                                    <input id="tag-{{ $case->id }}" name="body_tag_number" maxlength="80" placeholder="Body tag (optional)" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-amber-600 focus:ring-amber-600">
+                                    <input id="tag-{{ $case->id }}" name="body_tag_number" maxlength="80" placeholder="Body tag (optional)" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                                     @error('body_tag_number')<p class="mt-1 text-xs text-rose-700">{{ $message }}</p>@enderror
                                 </div>
                                 <div>
                                     <label for="handoff-note-{{ $case->id }}" class="sr-only">Handoff note</label>
-                                    <input id="handoff-note-{{ $case->id }}" name="handoff_note" maxlength="2000" placeholder="Handoff note (optional)" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-amber-600 focus:ring-amber-600">
+                                    <input id="handoff-note-{{ $case->id }}" name="handoff_note" maxlength="2000" placeholder="Handoff note (optional)" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                                 </div>
-                                <button class="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800">Confirm received</button>
+                                <button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">Confirm received</button>
                             </form>
                         @else
                             <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">Awaiting mortuary receipt</span>
