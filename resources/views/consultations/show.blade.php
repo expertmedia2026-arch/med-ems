@@ -58,6 +58,37 @@
         @endif
     </div>
 
+    @if ($visit->status->value === 'waiting_doctor')
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+            <p class="text-sm text-amber-950">This visit has not been opened by a doctor yet. Start it to enter the clinical workspace.</p>
+            <form method="POST" action="{{ route('consultations.start', $visit) }}">
+                @csrf
+                <button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">{{ $visit->is_emergency ? 'Start ER care' : 'Start consultation' }}</button>
+            </form>
+        </div>
+    @endif
+
+    @if ($visit->is_emergency)
+        <div class="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-950">
+            <strong>Active ER episode.</strong> Save notes and orders as care proceeds. The visit remains open until you choose an outcome or admit the patient.
+        </div>
+        @if ($visit->emergencyObservations->isNotEmpty())
+            <section class="mb-6 overflow-hidden rounded-xl border border-rose-100 bg-white shadow-sm">
+                <div class="border-b border-rose-100 px-5 py-3"><h3 class="font-semibold text-slate-900">ER observation history</h3></div>
+                <div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-5 py-3">Recorded</th><th class="px-5 py-3">Vitals</th><th class="px-5 py-3">Notes</th><th class="px-5 py-3">By</th></tr></thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach ($visit->emergencyObservations as $observation)
+                            <tr><td class="whitespace-nowrap px-5 py-3">{{ $observation->recorded_at->format('d M, g:i A') }}</td><td class="px-5 py-3">{{ $observation->temperature ? $observation->temperature.'°C · ' : '' }}{{ $observation->pulse ? 'P '.$observation->pulse.' · ' : '' }}{{ $observation->blood_pressure ? 'BP '.$observation->blood_pressure.' · ' : '' }}{{ $observation->spo2 ? 'SpO₂ '.$observation->spo2.'%' : '' }}</td><td class="px-5 py-3">{{ $observation->notes ?: '—' }}</td><td class="px-5 py-3">{{ $observation->recorder?->name ?? '—' }}</td></tr>
+                        @endforeach
+                    </tbody>
+                </table></div>
+            </section>
+        @endif
+    @endif
+
+    <div class="mb-6">@include('emergency._progress-notes', ['visit' => $visit])</div>
+
     <div class="grid gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
 
@@ -89,12 +120,41 @@
                             <textarea name="patient_visible_note" rows="4" class="{{ $input }}">{{ old('patient_visible_note', $visit->patient_visible_note) }}</textarea>
                             <p class="mt-1 text-xs text-slate-500">Only this note is shown to the patient in their visit view after the consultation is completed.</p>
                         </div>
+                        @if ($visit->is_emergency)
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label class="{{ $label }}" for="disposition">ER outcome <span class="text-red-600">*</span></label>
+                                    <select id="disposition" name="disposition" class="{{ $input }}">
+                                        <option value="">Choose an outcome when completing</option>
+                                        <option value="discharged" @selected(old('disposition', $visit->disposition) === 'discharged')>Discharged</option>
+                                        <option value="transferred" @selected(old('disposition', $visit->disposition) === 'transferred')>Transferred</option>
+                                        <option value="deceased" @selected(old('disposition', $visit->disposition) === 'deceased')>Deceased in ER</option>
+                                    </select>
+                                    @error('disposition')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                                <div>
+                                    <label class="{{ $label }}" for="disposition_note">Transfer details <span class="text-xs font-normal text-slate-500">(required for transfer)</span></label>
+                                    <input id="disposition_note" name="disposition_note" maxlength="2000" value="{{ old('disposition_note', $visit->disposition_note) }}" placeholder="Receiving facility and handover details" class="{{ $input }}">
+                                    @error('disposition_note')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                                <div>
+                                    <label class="{{ $label }}" for="deceased_at">Date and time of death <span class="text-xs font-normal text-slate-500">(required if deceased)</span></label>
+                                    <input id="deceased_at" name="deceased_at" type="datetime-local" max="{{ now()->format('Y-m-d\\TH:i') }}" value="{{ old('deceased_at') }}" class="{{ $input }}">
+                                    @error('deceased_at')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-500">Choose an ER outcome before completing the visit. Use “Admit to inpatient care” for admission. A deceased outcome will need a mortuary handoff.</p>
+                        @endif
                     </form>
                 @else
                     <dl class="space-y-3 text-sm">
                         <div><dt class="text-slate-500">Complaint</dt><dd class="font-medium">{{ $visit->complaint ?: '—' }}</dd></div>
                         <div><dt class="text-slate-500">Diagnosis</dt><dd class="font-medium">{{ $visit->diagnosis ?: '—' }}</dd></div>
                         <div><dt class="text-slate-500">Clinical notes</dt><dd class="whitespace-pre-line">{{ $visit->clinical_notes ?: '—' }}</dd></div>
+                        @if ($visit->is_emergency)
+                            <div><dt class="text-slate-500">ER outcome</dt><dd class="font-medium">{{ $visit->disposition ? ucfirst($visit->disposition) : '—' }}</dd></div>
+                            @if ($visit->disposition_note)<div><dt class="text-slate-500">Outcome details</dt><dd class="whitespace-pre-line">{{ $visit->disposition_note }}</dd></div>@endif
+                        @endif
                         @if ($visit->patient_visible_note)
                             <div><dt class="text-slate-500">Note shared with patient</dt><dd class="whitespace-pre-line">{{ $visit->patient_visible_note }}</dd></div>
                         @endif
@@ -112,7 +172,7 @@
                             <thead class="text-left text-xs uppercase text-slate-500">
                                 <tr>
                                     <th class="py-2 pr-4">Drug</th><th class="pr-4">Dosage</th><th class="pr-4">Frequency</th>
-                                    <th class="pr-4">Duration</th><th class="pr-4">Qty</th><th class="pr-4">Status</th><th></th>
+                                    <th class="pr-4">Duration</th><th class="pr-4">Qty</th><th class="pr-4">Charge</th><th class="pr-4">Status</th><th></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -123,6 +183,7 @@
                                         <td class="pr-4">{{ $rx->frequency }}</td>
                                         <td class="pr-4">{{ $rx->duration }}</td>
                                         <td class="pr-4">{{ $rx->status->value === 'completed' ? ($rx->dispensable_quantity ?? $rx->quantity).' supplied / '.$rx->quantity : ($rx->dispensable_quantity ?? $rx->quantity).' reserved / '.$rx->quantity }}</td>
+                                        <td class="pr-4">{{ $rx->invoiceItem ? '₦'.number_format((float) $rx->invoiceItem->total, 2) : '—' }}</td>
                                         <td class="pr-4"><x-badge :color="$rx->status->value === 'pending' ? 'amber' : 'green'">{{ $rx->status->value === 'pending' ? 'Pending' : 'Dispensed' }}</x-badge></td>
                                         <td class="text-right">
                                             @if ($rx->requires_in_facility_administration)
@@ -155,7 +216,7 @@
                                 <option value="">Select drug…</option>
                                 @foreach ($drugs as $drug)
                                     <option value="{{ $drug->id }}" @selected(old('drug_id') == $drug->id)>
-                                        {{ $drug->display_name }}: {{ $drug->available_quantity }} available
+                                        {{ $drug->display_name }}: {{ $drug->available_quantity }} available · ₦{{ number_format((float) $drug->unit_price, 2) }} / unit
                                     </option>
                                 @endforeach
                             </select>
@@ -191,7 +252,7 @@
                         <div class="sm:col-span-2 rounded-lg border border-slate-200 bg-white p-3">
                             <label class="flex items-start gap-3 text-sm">
                                 <input type="checkbox" name="requires_in_facility_administration" value="1"
-                                       @checked(old('requires_in_facility_administration'))
+                                       @checked(old('requires_in_facility_administration', $visit->is_emergency))
                                        class="mt-0.5 rounded border-slate-300 text-teal-700 focus:ring-teal-600">
                                 <span>
                                     <span class="font-medium">Give this medicine at the hospital</span>
@@ -306,12 +367,12 @@
                         Save notes
                     </button>
                     <button form="visit-form" formaction="{{ route('consultations.complete', $visit) }}"
-                            onclick="return confirm('Complete the doctor consultation? Prescriptions and lab requests will go to pharmacy and lab. Hospital-administered injections will then appear in the nursing queue; the nurse records doses before discharge.')"
+                            onclick="return confirm('{{ $visit->is_emergency ? 'Close ER care with the selected outcome?' : 'Complete the consultation and send orders to pharmacy and lab?' }}')"
                             @disabled($outstandingLabRequests->isNotEmpty())
                             class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">
-                        Complete consultation
+                        {{ $visit->is_emergency ? 'Complete ER visit' : 'Complete consultation' }}
                     </button>
-                    <p class="basis-full text-xs text-slate-500">Completing the consultation sends orders downstream. Nursing administration and patient discharge are tracked separately.</p>
+                    <p class="basis-full text-xs text-slate-500">{{ $visit->is_emergency ? 'ER care stays active while the doctor records notes, orders, and outcome. Required medicines must be dispensed and administered before discharge.' : 'Completing the consultation sends orders downstream. Nursing administration and patient discharge are tracked separately.' }}</p>
                 </div>
 
                 <section class="rounded-xl border border-teal-200 bg-teal-50/60 p-6 shadow-sm">

@@ -41,7 +41,8 @@
                             @php
                                 $total   = $visit->prescriptions->count();
                                 $paid    = $visit->prescriptions->filter(fn ($rx) => $rx->is_paid)->count();
-                                $allPaid = $paid === $total;
+                                $allPaid = $paid === $total || $visit->is_emergency;
+                                $canDispense = $paid > 0 || $visit->is_emergency;
                             @endphp
                             <tr>
                                 <td class="px-4 py-3">
@@ -52,14 +53,14 @@
                                     {{ $total }} drug(s)
                                     <span class="block text-xs text-slate-400">{{ $visit->prescriptions->pluck('drug.name')->join(', ') }}</span>
                                     <span class="block text-xs {{ $allPaid ? 'text-green-700' : 'text-amber-700' }}">
-                                        {{ $paid }} of {{ $total }} paid
+                                        {{ $visit->is_emergency ? 'Emergency · dispense without upfront payment' : "{$paid} of {$total} paid" }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3">{{ $visit->closed_at->diffForHumans(short: true) }}</td>
+                                <td class="px-4 py-3">{{ ($visit->closed_at ?? $visit->checked_in_at)->diffForHumans(short: true) }}</td>
                                 <td class="px-4 py-3 text-right">
                                     <a href="{{ route('pharmacy.show', $visit) }}"
-                                       class="rounded-lg px-3 py-1.5 text-xs font-medium {{ $paid > 0 ? 'bg-teal-700 text-white hover:bg-teal-800' : 'border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100' }}">
-                                        {{ $paid > 0 ? 'Dispense' : 'View (unpaid)' }}
+                                       class="rounded-lg px-3 py-1.5 text-xs font-medium {{ $canDispense ? 'bg-teal-700 text-white hover:bg-teal-800' : 'border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100' }}">
+                                        {{ $canDispense ? 'Dispense' : 'View (unpaid)' }}
                                     </a>
                                 </td>
                             </tr>

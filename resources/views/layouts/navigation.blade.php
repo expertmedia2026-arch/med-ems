@@ -15,6 +15,11 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    @if (Auth::user()->canAccessEmergency())
+                        <x-nav-link :href="route('emergency.index')" :active="request()->routeIs('emergency.*')">
+                            {{ __('Accident & Emergency') }}
+                        </x-nav-link>
+                    @endif
                     @if (Auth::user()->hasRole('admin', 'nurse'))
                         <x-nav-link :href="route('triage.index')" :active="request()->routeIs('triage.*')">
                             {{ __('Central Vitals') }}
@@ -83,6 +88,11 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+            @if (Auth::user()->canAccessEmergency())
+                <x-responsive-nav-link :href="route('emergency.index')" :active="request()->routeIs('emergency.*')">
+                    {{ __('Accident & Emergency') }}
+                </x-responsive-nav-link>
+            @endif
             @if (Auth::user()->hasRole('admin', 'nurse'))
                 <x-responsive-nav-link :href="route('triage.index')" :active="request()->routeIs('triage.*')">
                     {{ __('Central Vitals') }}

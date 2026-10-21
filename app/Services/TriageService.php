@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Visit;
 use App\Enums\Role;
 use App\Models\Department;
+use App\Models\EmergencyObservation;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -18,7 +19,9 @@ class TriageService
     {
         $this->assertDepartmentAccess($visit, $staff);
         abort_unless(
-            in_array($visit->status, [VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor]),
+            in_array($visit->status, $visit->is_emergency
+                ? [VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor, VisitStatus::InConsultation]
+                : [VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor]),
             403,
             'Vitals can no longer be edited for this visit.'
         );
@@ -46,7 +49,10 @@ class TriageService
                         ->orWhere('phone', 'like', "%{$search}%"));
             }));
 
-        $waitingQuery = $queue(VisitStatus::WaitingTriage)->oldest('checked_in_at');
+        $waitingQuery = $queue(VisitStatus::WaitingTriage)
+            ->orderByDesc('is_emergency')
+            ->orderByRaw("CASE triage_priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'moderate' THEN 2 WHEN 'low' THEN 3 ELSE 4 END")
+            ->oldest('checked_in_at');
         $doneQuery = $queue(VisitStatus::WaitingDoctor)->today()->latest('updated_at');
         $waiting = $paginate
             ? $waitingQuery->paginate(15, ['*'], 'waiting_page')->withQueryString()
@@ -55,7 +61,7 @@ class TriageService
             ? $doneQuery->paginate(10, ['*'], 'ready_page')->withQueryString()
             : $doneQuery->get();
         $waiting->each(function (Visit $visit) {
-            if (! $visit->invoice) {
+            if (! $visit->is_emergency && ! $visit->invoice) {
                 $this->billing->invoiceFor($visit);
                 $visit->load('invoice.items');
             }
@@ -75,17 +81,26 @@ class TriageService
 
     public function loadVitalsData(Visit $visit): Visit
     {
-        return $visit->load(['patient', 'doctor', 'department', 'vitals']);
+        return $visit->load(['patient', 'doctor', 'department', 'vitals', 'emergencyObservations.recorder', 'emergencyProgressNotes.author']);
     }
 
     public function recordVitals(Visit $visit, array $data, User $nurse): void
     {
         $complaint = $data['complaint'] ?? null;
-        unset($data['complaint']);
+        $priority = $data['triage_priority'] ?? null;
+        unset($data['complaint'], $data['triage_priority']);
 
-        DB::transaction(function () use ($visit, $data, $complaint, $nurse) {
+        DB::transaction(function () use ($visit, $data, $complaint, $priority, $nurse) {
             $visit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
             $this->assertVitalsEditable($visit, $nurse);
+
+            if ($visit->is_emergency) {
+                EmergencyObservation::create($data + [
+                    'visit_id' => $visit->id,
+                    'recorded_by' => $nurse->id,
+                    'recorded_at' => now(),
+                ]);
+            }
 
             $visit->vitals()->updateOrCreate(
                 ['visit_id' => $visit->id],
@@ -93,8 +108,10 @@ class TriageService
             );
 
             $visit->update(array_filter([
-                'status' => VisitStatus::WaitingDoctor,
+                'status' => $visit->status === VisitStatus::WaitingTriage ? VisitStatus::WaitingDoctor : null,
                 'complaint' => $complaint,
+                'triage_priority' => $visit->is_emergency && $priority ? $priority : null,
+                'triaged_at' => $visit->is_emergency && ! $visit->triaged_at ? now() : null,
             ]));
         });
     }

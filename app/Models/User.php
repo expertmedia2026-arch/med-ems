@@ -61,6 +61,32 @@ class User extends Authenticatable
         return preg_match('/\\bOPD\\b|^outpatient(?:\\s|$)/i', $departmentName) === 1;
     }
 
+    public function isEmergencyDepartmentStaff(): bool
+    {
+        $departmentName = trim((string) $this->department?->name);
+
+        return preg_match('/accident\\s*(?:&|and)\\s*emergency|emergency department/i', $departmentName) === 1;
+    }
+
+    public function canAccessEmergency(): bool
+    {
+        return $this->hasRole(Role::Admin, Role::Receptionist)
+            || ($this->hasRole(Role::Nurse) && ($this->isCentralVitalsNurse() || $this->isEmergencyDepartmentStaff()))
+            || ($this->hasRole(Role::Doctor) && $this->isEmergencyDepartmentStaff());
+    }
+
+    public function canRegisterEmergencyArrival(): bool
+    {
+        return $this->hasRole(Role::Admin, Role::Receptionist)
+            || ($this->hasRole(Role::Nurse) && ($this->isCentralVitalsNurse() || $this->isEmergencyDepartmentStaff()));
+    }
+
+    public function canReceiveEmergencyMortuaryHandoff(): bool
+    {
+        return $this->hasRole(Role::Admin)
+            || ($this->hasRole(Role::Nurse) && ($this->isCentralVitalsNurse() || $this->isEmergencyDepartmentStaff()));
+    }
+
     public function scopeOfRole($query, Role $role)
     {
         return $query->where('role', $role->value);

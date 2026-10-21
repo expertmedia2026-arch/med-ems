@@ -17,8 +17,10 @@ class Visit extends Model
     {
         return [
             'status' => VisitStatus::class,
+            'is_emergency' => 'boolean',
             'checked_in_at' => 'datetime',
             'consulted_at' => 'datetime',
+            'triaged_at' => 'datetime',
             'closed_at' => 'datetime',
             'discharged_at' => 'datetime',
         ];
@@ -69,6 +71,16 @@ class Visit extends Model
         return $this->hasOne(Vital::class);
     }
 
+    public function emergencyObservations(): HasMany
+    {
+        return $this->hasMany(EmergencyObservation::class)->latest('recorded_at');
+    }
+
+    public function emergencyProgressNotes(): HasMany
+    {
+        return $this->hasMany(EmergencyProgressNote::class)->latest();
+    }
+
     public function prescriptions(): HasMany
     {
         return $this->hasMany(Prescription::class);
@@ -94,6 +106,11 @@ class Visit extends Model
         return $this->hasOne(Admission::class);
     }
 
+    public function mortuaryCase(): HasOne
+    {
+        return $this->hasOne(MortuaryCase::class);
+    }
+
     public function isOpenFor(User $user): bool
     {
         return $this->status === VisitStatus::InConsultation
@@ -103,6 +120,10 @@ class Visit extends Model
     protected function consultationPaid(): Attribute
     {
         return Attribute::get(function () {
+            if ($this->is_emergency) {
+                return true;
+            }
+
             $item = $this->invoice?->items->firstWhere('category', 'consultation');
 
             return (bool) $item?->is_paid;

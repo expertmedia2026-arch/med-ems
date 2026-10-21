@@ -21,7 +21,7 @@ class PatientService
     public function showData(Patient $patient): array
     {
         $patient->load([
-            'visits' => fn ($query) => $query->latest('checked_in_at')->with(['doctor', 'consultationType.department', 'admission.department']),
+            'visits' => fn ($query) => $query->latest('checked_in_at')->with(['doctor', 'consultationType.department', 'admission.department', 'mortuaryCase']),
             'appointments' => fn ($query) => $query->latest('scheduled_at')->with('doctor'),
         ]);
 
@@ -66,7 +66,11 @@ class PatientService
     {
         $photo = $attributes['photo'] ?? null;
         unset($attributes['photo']);
-        $patient->update($attributes + ['dob_estimated' => false]);
+        $identityWasUpdated = $patient->identity_status === 'unidentified'
+            && filled($attributes['first_name'] ?? null)
+            && filled($attributes['last_name'] ?? null)
+            && mb_strtolower($attributes['first_name']) !== 'unknown';
+        $patient->update($attributes + ['dob_estimated' => false] + ($identityWasUpdated ? ['identity_status' => 'identified'] : []));
 
         app(PatientPhotoService::class)->replace($patient, $photo instanceof UploadedFile ? $photo : null);
 

@@ -7,6 +7,7 @@ use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationTypeController;
 use App\Http\Controllers\CsvTransferController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmergencyController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DoctorAvailabilityController;
 use App\Http\Controllers\FinanceController;
@@ -88,6 +89,18 @@ Route::middleware(['auth', 'auth.session', 'active', 'role:patient'])->prefix('p
 // ---------------- Staff ----------------
 Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::middleware('role:admin,receptionist,nurse,doctor')->group(function () {
+        Route::get('emergency', [EmergencyController::class, 'index'])->name('emergency.index');
+        Route::post('emergency/patients/{patient}', [EmergencyController::class, 'store'])
+            ->middleware('role:admin,receptionist,nurse')->name('emergency.store');
+        Route::post('emergency/unidentified', [EmergencyController::class, 'storeUnidentified'])
+            ->middleware('role:admin,receptionist,nurse')->name('emergency.unidentified.store');
+        Route::post('emergency/visits/{visit}/notes', [EmergencyController::class, 'addProgressNote'])
+            ->middleware('role:doctor,nurse')->whereNumber('visit')->name('emergency.notes.store');
+        Route::post('emergency/mortuary/{mortuaryCase}/receive', [EmergencyController::class, 'receiveMortuaryCase'])
+            ->middleware('role:admin,nurse')->whereNumber('mortuaryCase')->name('emergency.mortuary.receive');
+    });
 
     Route::get('data/{dataset}/export', [CsvTransferController::class, 'export'])->name('data.export');
     Route::post('data/{dataset}/import', [CsvTransferController::class, 'import'])->name('data.import');

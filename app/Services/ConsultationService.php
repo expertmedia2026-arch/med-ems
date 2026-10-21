@@ -19,6 +19,8 @@ class ConsultationService
     public function __construct(
         private readonly BillingService $billing,
         private readonly DrugInventoryService $inventory,
+        private readonly MortuaryCaseService $mortuary,
+        private readonly MedicationAdministrationService $medicationAdministration,
     ) {}
 
     public function queueFor(User $doctor)
@@ -29,6 +31,8 @@ class ConsultationService
             ->withStatus(VisitStatus::WaitingDoctor, VisitStatus::InConsultation)
             ->where('department_id', $doctor->department_id)
             ->where(fn ($query) => $query->whereNull('doctor_id')->orWhere('doctor_id', $doctor->id))
+            ->orderByDesc('is_emergency')
+            ->orderByRaw("CASE triage_priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'moderate' THEN 2 WHEN 'low' THEN 3 ELSE 4 END")
             ->oldest('checked_in_at')->get();
     }
 
@@ -56,7 +60,7 @@ class ConsultationService
         abort_if($visit->status === VisitStatus::WaitingTriage, 404);
 
         $visit->load([
-            'patient', 'vitals', 'prescriptions.drug', 'prescriptions.invoiceItem', 'prescriptions.stockReservation', 'prescriptions.administrations.nurse', 'prescriptions.administrationWaiver',
+            'patient', 'vitals', 'emergencyObservations.recorder', 'emergencyProgressNotes.author', 'prescriptions.drug', 'prescriptions.invoiceItem', 'prescriptions.stockReservation', 'prescriptions.administrations.nurse', 'prescriptions.administrationWaiver',
             'labRequests.test', 'labRequests.attachments', 'labRequests.invoiceItem',
         ]);
 
@@ -111,8 +115,10 @@ class ConsultationService
     public function complete(Visit $visit, array $notes, User $doctor): void
     {
         abort_unless($visit->isOpenFor($doctor), 403, 'This consultation is not open for editing.');
+        $deceasedAt = $notes['deceased_at'] ?? null;
+        unset($notes['deceased_at']);
 
-        DB::transaction(function () use ($visit, $notes, $doctor) {
+        DB::transaction(function () use ($visit, $notes, $doctor, $deceasedAt) {
             $visit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
             abort_unless($visit->isOpenFor($doctor), 403, 'This consultation is not open for editing.');
 
@@ -122,7 +128,8 @@ class ConsultationService
                 ->lockForUpdate()
                 ->get();
 
-            if ($outstandingLabs->isNotEmpty()) {
+            $deceasedEmergency = $visit->is_emergency && ($notes['disposition'] ?? null) === 'deceased';
+            if ($outstandingLabs->isNotEmpty() && ! $deceasedEmergency) {
                 $testNames = $outstandingLabs->map(fn ($request) => $request->test?->name ?? 'Requested test')->join(', ');
 
                 throw ValidationException::withMessages([
@@ -130,8 +137,15 @@ class ConsultationService
                 ]);
             }
 
+            if ($visit->is_emergency && ($notes['disposition'] ?? null) === 'discharged') {
+                $this->medicationAdministration->assertReadyForDischarge($visit);
+            }
+
             $visit->update($notes + ['status' => VisitStatus::Completed, 'closed_at' => now()]);
             $visit->appointment?->update(['status' => AppointmentStatus::Completed]);
+            if ($deceasedEmergency) {
+                $this->mortuary->openFromEmergency($visit, $doctor, $deceasedAt);
+            }
             $this->billing->syncFor($visit);
         });
     }

@@ -31,8 +31,11 @@ class PharmacyService
             'queue' => Visit::with([
                 'patient',
                 'prescriptions' => fn ($query) => $query->pending()->with(['drug', 'invoiceItem', 'stockReservation']),
-            ])->withStatus(VisitStatus::Completed, VisitStatus::Inpatient)
-            ->whereHas('prescriptions', fn ($query) => $query->pending())->oldest('closed_at')->get(),
+            ])->where(fn ($query) => $query
+                ->whereIn('status', [VisitStatus::Completed->value, VisitStatus::Inpatient->value])
+                ->orWhere(fn ($emergency) => $emergency->where('is_emergency', true)->where('status', VisitStatus::InConsultation->value)))
+            ->whereHas('prescriptions', fn ($query) => $query->pending())
+            ->orderByRaw('COALESCE(closed_at, checked_in_at) asc')->get(),
             'lowStock' => Drug::lowStock()->orderBy('stock_quantity')->get(),
             'dispensedToday' => $dispensedToday,
             'pharmacySummary' => $today,
@@ -149,12 +152,13 @@ class PharmacyService
 
     public function visitDetails(Visit $visit): Visit
     {
-        abort_unless(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true), 404);
+        abort_unless(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true)
+            || ($visit->is_emergency && $visit->status === VisitStatus::InConsultation), 404);
 
         $this->inventory->expireReservations();
         $visit->loadMissing(['prescriptions' => fn ($query) => $query->pending()->with('invoiceItem')]);
         foreach ($visit->prescriptions as $prescription) {
-            if ($prescription->is_paid) {
+            if ($prescription->is_paid || $visit->is_emergency) {
                 $this->inventory->ensurePrescriptionReserved($prescription, null);
             }
         }
@@ -174,7 +178,8 @@ class PharmacyService
     /** @return array{dispensed: int, skipped: array<int, string>} */
     public function dispense(Visit $visit, array $prescriptionIds, int $userId): array
     {
-        abort_unless(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true), 403);
+        abort_unless(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true)
+            || ($visit->is_emergency && $visit->status === VisitStatus::InConsultation), 403);
         $dispensed = 0;
         $nursingReady = 0;
         $skipped = [];
@@ -184,7 +189,7 @@ class PharmacyService
                 ->whereIn('id', array_unique($prescriptionIds))->orderBy('drug_id')->get();
 
             foreach ($items as $prescription) {
-                if (! $prescription->is_paid) {
+                if (! $prescription->is_paid && ! $visit->is_emergency) {
                     $skipped[] = "{$prescription->drug->name} (not paid)";
 
                     continue;

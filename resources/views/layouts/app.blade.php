@@ -12,7 +12,9 @@
 @php
     $user = auth()->user();
     $menu = collect(config('menu'))->filter(
-        fn ($item) => $item['roles'] === '*' || $user->hasRole(...$item['roles'])
+        fn ($item) => isset($item['permission'])
+            ? $user->{$item['permission']}()
+            : ($item['roles'] === '*' || $user->hasRole(...$item['roles']))
     );
 @endphp
 

@@ -13,6 +13,9 @@
         <p class="text-sm text-slate-500">
             {{ ucfirst($patient->gender) }} · {{ $patient->age }} yrs · Prescribed by {{ $visit->doctor?->name ?? '—' }}
         </p>
+        @if ($visit->is_emergency)
+            <p class="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-900">Active ER care · dispense prescribed medicines without waiting for payment. The charges remain on the patient’s invoice.</p>
+        @endif
 
         @if ($patient->allergies)
             <p class="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
@@ -23,7 +26,7 @@
 
     @if ($pending->isNotEmpty())
        @php
-            $dispensable = $pending->filter(fn ($rx) => $rx->is_paid
+            $dispensable = $pending->filter(fn ($rx) => ($rx->is_paid || $visit->is_emergency)
                 && $rx->stockReservation?->status === 'reserved'
                 && $rx->stockReservation->quantity >= ($rx->dispensable_quantity ?? $rx->quantity));
     @endphp
@@ -38,7 +41,7 @@
                         $reservedQuantity = $rx->stockReservation?->status === 'reserved' ? $rx->stockReservation->quantity : 0;
                         $dispenseQuantity = $rx->dispensable_quantity ?? $rx->quantity;
                         $inStock = $reservedQuantity >= $dispenseQuantity;
-                        $ok      = $inStock && $rx->is_paid;
+                        $ok      = $inStock && ($rx->is_paid || $visit->is_emergency);
                     @endphp
                     <li class="flex items-start gap-3 px-5 py-4">
                         <input type="checkbox" name="prescription_ids[]" value="{{ $rx->id }}"
@@ -60,6 +63,8 @@
                         <div class="space-y-1 text-right">
                             @if ($rx->is_paid)
                                 <x-badge color="green">Paid</x-badge>
+                            @elseif ($visit->is_emergency)
+                                <x-badge color="red">Emergency · bill later</x-badge>
                             @else
                                 <x-badge color="amber">Awaiting payment</x-badge>
                             @endif

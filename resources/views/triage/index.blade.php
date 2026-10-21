@@ -12,7 +12,7 @@
                     </span>
                     <div>
                         <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Central Vitals</h1>
-                        <p class="mt-1 text-sm text-slate-500">OPD intake station · Record observations and route patients to their doctor.</p>
+                        <p class="mt-1 text-sm text-slate-500">Record observations and route patients to their doctor. Emergency visits are prioritized and do not wait for billing.</p>
                     </div>
                 </div>
             </div>
@@ -57,7 +57,7 @@
                 <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
                     <div>
                         <h2 class="font-semibold text-slate-900">Patients awaiting vitals</h2>
-                        <p class="mt-1 text-sm text-slate-500">Oldest check-ins appear first. Unpaid visits stay in the queue until payment is recorded.</p>
+                        <p class="mt-1 text-sm text-slate-500">Oldest check-ins appear first. Routine visits wait for payment; emergency patients proceed to triage and stabilization immediately.</p>
                     </div>
                     <form method="GET" action="{{ route('triage.index') }}" class="grid gap-2 sm:grid-cols-[minmax(14rem,1fr)_auto_auto]">
                         <label class="sr-only" for="q">Search patients</label>
@@ -88,7 +88,7 @@
                     <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                         <tr>
                             <th class="px-5 py-3">Patient</th>
-                            <th class="px-5 py-3">Visit</th>
+                            <th class="px-5 py-3">Visit / priority</th>
                             <th class="px-5 py-3">Care team</th>
                             <th class="px-5 py-3">Checked in</th>
                             <th class="px-5 py-3">Payment</th>
@@ -117,7 +117,10 @@
                                     </div>
                                 </td>
                                 <td class="min-w-48 px-5 py-4">
-                                    <span class="font-medium text-slate-800">{{ $visit->department?->name ?? 'Outpatient' }}</span>
+                                    <span class="font-medium text-slate-800">{{ $visit->is_emergency ? 'Accident & Emergency' : ($visit->department?->name ?? 'Outpatient') }}</span>
+                                    @if ($visit->is_emergency)
+                                        <span class="mt-1 block"><x-badge color="red">ER · {{ $visit->triage_priority ? ucfirst($visit->triage_priority) : 'Needs triage' }}</x-badge></span>
+                                    @endif
                                     <span class="mt-1 block max-w-64 truncate text-xs text-slate-500" title="{{ $visit->complaint }}">{{ $visit->complaint ?: 'No presenting complaint recorded' }}</span>
                                 </td>
                                 <td class="whitespace-nowrap px-5 py-4">
@@ -129,7 +132,9 @@
                                     <span class="mt-1 block text-xs {{ $isOverdue ? 'text-rose-600' : 'text-slate-400' }}">{{ $waitMinutes }} min wait</span>
                                 </td>
                                 <td class="whitespace-nowrap px-5 py-4">
-                                    @if ($visit->consultation_paid)
+                                    @if ($visit->is_emergency)
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">Emergency · stabilize first</span>
+                                    @elseif ($visit->consultation_paid)
                                         <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Cleared</span>
                                     @else
                                         <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800"><span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>Awaiting payment</span>

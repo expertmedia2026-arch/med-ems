@@ -39,6 +39,17 @@ class DashboardService
             default => [],
         };
 
+        if ($user->canAccessEmergency()) {
+            $cards[] = $this->card(
+                'Active ER visits',
+                Visit::where('is_emergency', true)
+                    ->whereIn('status', [VisitStatus::WaitingTriage->value, VisitStatus::WaitingDoctor->value, VisitStatus::InConsultation->value])
+                    ->count(),
+                'red',
+                'emergency.index',
+            );
+        }
+
         $queue = $user->hasRole(Role::Admin, Role::Receptionist, Role::Nurse, Role::Doctor)
             ? Visit::with(['patient', 'doctor', 'department'])
                 ->withStatus(VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor, VisitStatus::InConsultation)

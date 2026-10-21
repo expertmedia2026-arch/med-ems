@@ -17,6 +17,7 @@ class Patient extends Model
         return [
             'date_of_birth' => 'date',
             'dob_estimated' => 'boolean',
+            'identity_status' => 'string',
             'is_nhis' => 'boolean',
             'registration_paid_at' => 'datetime',
 
@@ -39,7 +40,9 @@ class Patient extends Model
 
     protected function fullName(): Attribute
     {
-        return Attribute::get(fn () => "{$this->first_name} {$this->last_name}");
+        return Attribute::get(fn () => $this->identity_status === 'unidentified'
+            ? 'Unidentified patient'
+            : "{$this->first_name} {$this->last_name}");
     }
 
     protected function photoUrl(): Attribute
@@ -49,7 +52,7 @@ class Patient extends Model
 
     protected function age(): Attribute
     {
-        return Attribute::get(fn () => $this->date_of_birth?->age);
+        return Attribute::get(fn () => $this->identity_status === 'unidentified' ? null : $this->date_of_birth?->age);
     }
 
     public function scopeSearch($query, ?string $term)

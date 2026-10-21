@@ -33,7 +33,7 @@
                             <span class="grid h-16 w-16 place-items-center rounded-full border border-white/30 bg-white/10 text-lg font-semibold">{{ mb_substr($patient->first_name, 0, 1).mb_substr($patient->last_name, 0, 1) }}</span>
                         @endif
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider text-teal-100">OPD · {{ $visit->department?->name ?? 'Outpatient' }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-teal-100">{{ $visit->is_emergency ? 'Accident & Emergency' : 'OPD · '.($visit->department?->name ?? 'Outpatient') }}</p>
                             <h1 class="mt-1 text-xl font-semibold sm:text-2xl">{{ $patient->full_name }}</h1>
                             <p class="mt-1 font-mono text-sm text-teal-100">{{ $patient->hospital_number }}</p>
                         </div>
@@ -45,6 +45,12 @@
                     </div>
                 </div>
             </div>
+
+            @if ($visit->is_emergency)
+                <div class="border-b border-rose-100 bg-rose-50 px-5 py-3 text-sm text-rose-900 sm:px-7">
+                    Emergency visit · record each observation as a new entry. Triage and stabilization proceed without waiting for payment.
+                </div>
+            @endif
 
             <div class="grid gap-px bg-slate-200 sm:grid-cols-3">
                 <div class="bg-white px-5 py-3 sm:px-7">
@@ -80,6 +86,32 @@
             @endif
         </section>
 
+        @if ($visit->is_emergency && $visit->emergencyObservations->isNotEmpty())
+            <section class="overflow-hidden rounded-xl border border-rose-100 bg-white shadow-sm">
+                <div class="border-b border-rose-100 px-5 py-4 sm:px-7">
+                    <h2 class="font-semibold text-slate-900">ER observation history</h2>
+                    <p class="mt-1 text-sm text-slate-500">Each saved assessment is retained with the staff member and time.</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-5 py-3">Recorded</th><th class="px-5 py-3">Vitals</th><th class="px-5 py-3">Notes</th><th class="px-5 py-3">Recorded by</th></tr></thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach ($visit->emergencyObservations as $observation)
+                                <tr>
+                                    <td class="whitespace-nowrap px-5 py-3">{{ $observation->recorded_at->format('d M Y, g:i A') }}</td>
+                                    <td class="px-5 py-3">{{ $observation->temperature ? $observation->temperature.'°C · ' : '' }}{{ $observation->pulse ? 'P '.$observation->pulse.' · ' : '' }}{{ $observation->blood_pressure ? 'BP '.$observation->blood_pressure.' · ' : '' }}{{ $observation->spo2 ? 'SpO₂ '.$observation->spo2.'%' : '' }}</td>
+                                    <td class="px-5 py-3">{{ $observation->notes ?: '—' }}</td>
+                                    <td class="px-5 py-3">{{ $observation->recorder?->name ?? '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        @endif
+
+        @include('emergency._progress-notes', ['visit' => $visit])
+
         <form method="POST" action="{{ route('triage.store', $visit) }}"
               x-data="{ w: @js(old('weight', $vitals?->weight)), h: @js(old('height', $vitals?->height)) }"
               class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -88,7 +120,7 @@
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <h2 class="font-semibold text-slate-900">Nursing assessment</h2>
-                        <p class="mt-1 text-sm text-slate-500">Enter the observations taken during this visit. Temperature and pulse are required.</p>
+                    <p class="mt-1 text-sm text-slate-500">Enter the observations taken during this visit. Temperature and pulse are required for routine visits; emergency readings can be saved when unavailable.</p>
                     </div>
                     <span class="hidden rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800 sm:inline-flex">Central Vitals</span>
                 </div>
@@ -98,13 +130,13 @@
                 <div class="grid gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
                     @foreach ($fields as [$name, $label, $unit, $step, $min, $max])
                         <div>
-                            <label for="{{ $name }}" class="block text-sm font-medium text-slate-700">{{ $label }}@if (in_array($name, ['temperature', 'pulse'])) <span class="text-rose-600">*</span>@endif</label>
+                            <label for="{{ $name }}" class="block text-sm font-medium text-slate-700">{{ $label }}@if (! $visit->is_emergency && in_array($name, ['temperature', 'pulse'])) <span class="text-rose-600">*</span>@endif</label>
                             <div class="relative mt-1">
                                 <input id="{{ $name }}" name="{{ $name }}" type="number" step="{{ $step }}" min="{{ $min }}" max="{{ $max }}"
                                        value="{{ old($name, $vitals?->{$name}) }}"
                                        @if ($name === 'weight') x-model="w" @endif
                                        @if ($name === 'height') x-model="h" @endif
-                                       @required(in_array($name, ['temperature', 'pulse']))
+                                       @required(! $visit->is_emergency && in_array($name, ['temperature', 'pulse']))
                                        class="block w-full rounded-lg border-slate-300 pr-14 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
                                 <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400">{{ $unit }}</span>
                             </div>
@@ -112,6 +144,19 @@
                         </div>
                     @endforeach
                 </div>
+
+                @if ($visit->is_emergency && $visit->status->value === 'waiting_triage')
+                    <div class="mt-5 max-w-sm">
+                        <label for="triage_priority" class="block text-sm font-medium text-slate-700">Triage priority <span class="text-rose-600">*</span></label>
+                        <select id="triage_priority" name="triage_priority" required class="{{ $input }}">
+                            <option value="">Select priority…</option>
+                            @foreach (['critical' => 'Critical', 'high' => 'High', 'moderate' => 'Moderate', 'low' => 'Low'] as $value => $label)
+                                <option value="{{ $value }}" @selected(old('triage_priority', $visit->triage_priority) === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('triage_priority')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                    </div>
+                @endif
 
                 <div class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 px-4 py-3">
                     <p class="text-sm text-slate-600">Body mass index <span class="ml-1 text-xs text-slate-400">calculated from weight and height</span></p>
@@ -138,7 +183,7 @@
                 <div class="flex items-center justify-end gap-3">
                     <a href="{{ route('triage.index') }}" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-white">Cancel</a>
                     <button class="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2">
-                        Save and send to doctor
+                        {{ $visit->is_emergency && $visit->status->value !== 'waiting_triage' ? 'Save new observations' : 'Save and send to doctor' }}
                         <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 0 1 .02-1.06L10.94 10 7.23 6.29a.75.75 0 1 1 1.06-1.06l4.24 4.24a.75.75 0 0 1 0 1.06l-4.24 4.24a.75.75 0 0 1-1.08 0Z" clip-rule="evenodd"/></svg>
                     </button>
                 </div>

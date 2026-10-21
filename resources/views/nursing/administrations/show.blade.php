@@ -9,7 +9,7 @@
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-5 shadow-sm">
         <div>
             <p class="font-medium">{{ $visit->patient->full_name }} <span class="font-mono text-sm text-slate-500">{{ $visit->patient->hospital_number }}</span></p>
-            <p class="mt-1 text-sm text-slate-500">Department: {{ $visit->department?->name ?? '—' }} · Doctor: {{ $visit->doctor?->name ?? '—' }} · Consultation completed {{ $visit->closed_at?->format('d M Y, g:i A') }}</p>
+            <p class="mt-1 text-sm text-slate-500">Department: {{ $visit->department?->name ?? '—' }} · Doctor: {{ $visit->doctor?->name ?? '—' }} · {{ $visit->is_emergency ? 'ER care started' : 'Consultation completed' }} {{ ($visit->closed_at ?? $visit->checked_in_at)?->format('d M Y, g:i A') }}</p>
         </div>
         <a href="{{ route('nursing.administrations.index') }}" class="text-sm text-teal-700 hover:underline">← Nursing queue</a>
     </div>
@@ -26,7 +26,7 @@
                 <h2 class="font-semibold text-blue-950">Consultation details</h2>
                 <p class="mt-0.5 text-xs text-blue-800">For nursing reference · view only</p>
             </div>
-            <span class="text-xs text-slate-600">Seen by {{ $visit->doctor?->name ?? '—' }} · {{ $visit->closed_at?->format('d M Y, g:i A') }}</span>
+            <span class="text-xs text-slate-600">{{ $visit->is_emergency ? 'ER care in progress' : 'Seen by '.($visit->doctor?->name ?? '—').' · '.$visit->closed_at?->format('d M Y, g:i A') }}</span>
         </div>
         <div class="grid gap-5 p-5 lg:grid-cols-2">
             <dl class="space-y-3 text-sm">
@@ -70,6 +70,8 @@
             </div>
         </div>
     </section>
+
+    <div class="mb-6">@include('emergency._progress-notes', ['visit' => $visit])</div>
 
     @forelse ($visit->prescriptions as $rx)
         <section class="mb-5 rounded-xl border bg-white p-5 shadow-sm">
@@ -138,7 +140,10 @@
     @endforelse
 
     <section class="rounded-xl border bg-white p-5 shadow-sm">
-        @if ($visit->status->value === 'inpatient' && $visit->admission)
+        @if ($visit->is_emergency && $visit->status->value === 'in_consultation')
+            <p class="text-sm text-rose-900">ER care remains open. Continue recording observations and medication doses; the attending doctor records the ER outcome when care is complete.</p>
+            <a href="{{ route('triage.show', $visit) }}" class="mt-3 inline-flex rounded-lg border border-rose-700 px-4 py-2 text-sm font-medium text-rose-800 hover:bg-rose-50">Record ER observations</a>
+        @elseif ($visit->status->value === 'inpatient' && $visit->admission)
             <p class="text-sm text-teal-800">This patient is admitted to {{ $visit->admission->department?->name ?? 'the ward' }}. Nursing administrations are recorded here; the attending doctor completes the discharge from the admission record.</p>
             <a href="{{ route('admissions.show', $visit->admission) }}" class="mt-3 inline-flex rounded-lg border border-teal-700 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">Open inpatient record</a>
         @elseif ($visit->discharged_at)

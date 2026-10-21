@@ -23,11 +23,16 @@
                     <p class="font-mono text-sm text-teal-700">{{ $patient->hospital_number }}</p>
                     <h2 class="text-2xl font-semibold">{{ $patient->full_name }}</h2>
                     <p class="text-slate-500">
+                        @if ($patient->identity_status === 'unidentified')
+                            <span class="font-semibold text-amber-700">Identity unconfirmed</span>
+                            @if ($patient->age !== null) · Approx. {{ $patient->age }} yrs @endif
+                        @else
                         {{ ucfirst($patient->gender) }} · {{ $patient->dob_estimated ? '~' : '' }}{{ $patient->age }} yrs
                         @if ($patient->dob_estimated)
                             · <span class="text-amber-700">Date of birth not confirmed</span>
                         @else
                             · DOB {{ $patient->date_of_birth->format('d M Y') }}
+                        @endif
                         @endif
                     </p>
                     </div>
@@ -60,8 +65,11 @@
                 <div class="rounded-xl border bg-white p-5 shadow-sm">
                     <p class="text-sm text-slate-500">Current visit</p>
                     <div class="mt-2"><x-badge :color="$activeVisit->status->color()">{{ $activeVisit->status->label() }}</x-badge></div>
+                    @if ($activeVisit->is_emergency)
+                        <p class="mt-2 text-sm font-semibold text-rose-700">Accident & Emergency · {{ $activeVisit->triage_priority ? ucfirst($activeVisit->triage_priority).' priority' : 'Triage pending' }}</p>
+                    @endif
                     
-                    @if ($activeVisit->status->value === 'waiting_triage' && ! $activeVisit->consultation_paid)
+                    @if (! $activeVisit->is_emergency && $activeVisit->status->value === 'waiting_triage' && ! $activeVisit->consultation_paid)
                         <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                             Consultation charge not paid yet. Send the patient to the billing desk.
                         </p>
@@ -269,6 +277,13 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <x-badge :color="$visit->status->color()">{{ $visit->status->label() }}</x-badge>
+                            @if ($visit->is_emergency)
+                                <x-badge color="red">Accident & Emergency</x-badge>
+                                @if ($visit->disposition)<span class="text-xs text-slate-500">Outcome: {{ ucfirst($visit->disposition) }}</span>@endif
+                                @if ($visit->mortuaryCase)
+                                    <span class="text-xs text-slate-500">Mortuary: {{ $visit->mortuaryCase->case_number }} · {{ str_replace('_', ' ', ucfirst($visit->mortuaryCase->status)) }}</span>
+                                @endif
+                            @endif
                             @if ($visit->status->value === 'inpatient' && $visit->admission)
                                 <a href="{{ route('admissions.show', $visit->admission) }}" class="rounded-lg border border-teal-700 px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-50">Open admission</a>
                             @endif

@@ -2,13 +2,13 @@
     <x-slot name="header">Medication administration</x-slot>
 
     <p class="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-        This queue shows hospital-administered medicines linked to consultations and active admissions. Pharmacy must dispense the medicine before a nurse can record a dose.
+        This queue shows medicines linked to consultations and admissions. Pharmacy must dispense each medicine before a nurse records it; active ER medicines can be dispensed and administered before billing.
     </p>
 
     <div class="overflow-x-auto rounded-xl border bg-white shadow-sm">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                <tr><th class="px-4 py-3">Patient</th><th class="px-4 py-3">Department</th><th class="px-4 py-3">Assigned doctor</th><th class="px-4 py-3">Injections</th><th class="px-4 py-3">Consultation completed</th><th class="px-4 py-3"></th></tr>
+                <tr><th class="px-4 py-3">Patient</th><th class="px-4 py-3">Department</th><th class="px-4 py-3">Assigned doctor</th><th class="px-4 py-3">Injections</th><th class="px-4 py-3">Care started</th><th class="px-4 py-3"></th></tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
                 @forelse ($visits as $visit)
@@ -26,8 +26,9 @@
                         <td class="px-4 py-3">
                             <span>{{ $remaining }} dose(s) remain</span>
                             @if ($notDispensed)<span class="block text-xs text-amber-700">{{ $notDispensed }} prescription(s) awaiting pharmacy</span>@endif
+                            @if ($visit->is_emergency)<span class="mt-1 block"><x-badge color="red">Active ER</x-badge></span>@endif
                         </td>
-                        <td class="px-4 py-3">{{ $visit->closed_at?->format('d M Y, g:i A') }}</td>
+                        <td class="px-4 py-3">{{ ($visit->closed_at ?? $visit->checked_in_at)?->format('d M Y, g:i A') }}</td>
                         <td class="px-4 py-3 text-right"><a href="{{ route('nursing.administrations.show', $visit) }}" class="font-medium text-teal-700 hover:underline">Open care record →</a></td>
                     </tr>
                 @empty

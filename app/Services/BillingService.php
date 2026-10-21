@@ -116,7 +116,7 @@ class BillingService
     /** Authoritative check used by the triage gate. */
     public function consultationPaid(Visit $visit): bool
     {
-        if ($visit->isLabOnly()) {
+        if ($visit->isLabOnly() || $visit->is_emergency) {
             return true;
         }
 

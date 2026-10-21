@@ -117,6 +117,7 @@ class AdmissionService
             $visit->update([
                 'diagnosis' => $data['admission_diagnosis'],
                 'status' => VisitStatus::Inpatient,
+                'disposition' => $visit->is_emergency ? 'admitted' : null,
                 'closed_at' => now(),
             ]);
             $visit->appointment?->update(['status' => AppointmentStatus::Completed]);
