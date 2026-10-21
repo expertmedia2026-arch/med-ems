@@ -11,6 +11,16 @@ class ResetDemoDataSeeder extends Seeder
     public function run(): void
     {
         foreach ([
+            'mortuary_case_events',
+            'mortuary_cases',
+            'emergency_progress_notes',
+            'emergency_observations',
+            'admission_vitals',
+            'admission_notes',
+            'admissions',
+            'medication_administrations',
+            'prescription_stock_reservations',
+            'drug_stock_movements',
             'online_payments',
             'personal_access_tokens',
             'patient_invitations',

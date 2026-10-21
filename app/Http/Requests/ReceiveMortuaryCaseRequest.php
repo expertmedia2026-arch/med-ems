@@ -15,6 +15,7 @@ class ReceiveMortuaryCaseRequest extends FormRequest
     {
         return [
             'storage_location' => ['required', 'string', 'max:120'],
+            'body_tag_number' => ['nullable', 'string', 'max:80', 'unique:mortuary_cases,body_tag_number'],
             'handoff_note' => ['nullable', 'string', 'max:2000'],
         ];
     }

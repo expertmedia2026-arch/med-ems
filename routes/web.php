@@ -19,6 +19,7 @@ use App\Http\Controllers\LabReferralController;
 use App\Http\Controllers\LabRequestController;
 use App\Http\Controllers\LabTestController;
 use App\Http\Controllers\NursingAdministrationController;
+use App\Http\Controllers\MortuaryController;
 use App\Http\Controllers\NurseRosterController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PatientMediaController;
@@ -89,6 +90,14 @@ Route::middleware(['auth', 'auth.session', 'active', 'role:patient'])->prefix('p
 // ---------------- Staff ----------------
 Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::middleware('role:admin,mortuary_attendant')->prefix('mortuary')->name('mortuary.')->group(function () {
+        Route::get('/', [MortuaryController::class, 'index'])->name('index');
+        Route::get('{mortuaryCase}', [MortuaryController::class, 'show'])->whereNumber('mortuaryCase')->name('show');
+        Route::post('{mortuaryCase}/receive', [MortuaryController::class, 'receive'])->whereNumber('mortuaryCase')->name('receive');
+        Route::post('{mortuaryCase}/move', [MortuaryController::class, 'move'])->whereNumber('mortuaryCase')->name('move');
+        Route::post('{mortuaryCase}/release', [MortuaryController::class, 'release'])->whereNumber('mortuaryCase')->name('release');
+    });
 
     Route::middleware('role:admin,receptionist,nurse,doctor')->group(function () {
         Route::get('emergency', [EmergencyController::class, 'index'])->name('emergency.index');

@@ -202,12 +202,17 @@
                             <p class="mt-1 text-xs text-slate-500">{{ $case->patient->hospital_number }} · Deceased {{ $case->deceased_at->format('d M Y, g:i A') }}</p>
                         </div>
                         @if (auth()->user()->canReceiveEmergencyMortuaryHandoff())
-                            <form method="POST" action="{{ route('emergency.mortuary.receive', $case) }}" class="grid w-full gap-3 sm:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_auto] lg:max-w-3xl">
+                            <form method="POST" action="{{ route('emergency.mortuary.receive', $case) }}" class="grid w-full gap-3 sm:grid-cols-[minmax(11rem,1fr)_minmax(11rem,1fr)_minmax(9rem,.7fr)_auto] lg:max-w-5xl">
                                 @csrf
                                 <div>
                                     <label for="storage-{{ $case->id }}" class="sr-only">Mortuary storage location</label>
                                     <input id="storage-{{ $case->id }}" name="storage_location" required maxlength="120" placeholder="Storage location" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-amber-600 focus:ring-amber-600">
                                     @error('storage_location')<p class="mt-1 text-xs text-rose-700">{{ $message }}</p>@enderror
+                                </div>
+                                <div>
+                                    <label for="tag-{{ $case->id }}" class="sr-only">Body tag number</label>
+                                    <input id="tag-{{ $case->id }}" name="body_tag_number" maxlength="80" placeholder="Body tag (optional)" class="w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-amber-600 focus:ring-amber-600">
+                                    @error('body_tag_number')<p class="mt-1 text-xs text-rose-700">{{ $message }}</p>@enderror
                                 </div>
                                 <div>
                                     <label for="handoff-note-{{ $case->id }}" class="sr-only">Handoff note</label>

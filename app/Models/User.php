@@ -83,8 +83,13 @@ class User extends Authenticatable
 
     public function canReceiveEmergencyMortuaryHandoff(): bool
     {
-        return $this->hasRole(Role::Admin)
+        return $this->hasRole(Role::Admin, Role::MortuaryAttendant)
             || ($this->hasRole(Role::Nurse) && ($this->isCentralVitalsNurse() || $this->isEmergencyDepartmentStaff()));
+    }
+
+    public function canAccessMortuary(): bool
+    {
+        return $this->hasRole(Role::Admin, Role::MortuaryAttendant);
     }
 
     public function scopeOfRole($query, Role $role)

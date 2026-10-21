@@ -55,6 +55,11 @@ class DepartmentStaffSeeder extends Seeder
             ['name' => Department::PHARMACY_NAME],
             ['description' => 'Medication dispensing, inventory, and pharmacy oversight.'],
         );
+        $emergencyDepartment = Department::updateOrCreate(
+            ['name' => 'Accident & Emergency'],
+            ['description' => 'Emergency assessment and urgent care.'],
+        );
+        Department::where('name', 'General Medicine')->update(['has_ward' => true]);
 
         foreach (self::DEPARTMENTS as $departmentIndex => [$name, $description]) {
             $department = Department::updateOrCreate(['name' => $name], ['description' => $description]);
@@ -124,5 +129,34 @@ class DepartmentStaffSeeder extends Seeder
                 ],
             );
         }
+
+        foreach ([
+            ['Dr. ER Demo', 'er.doctor@hms.test', Role::Doctor],
+            ['Nurse ER Demo', 'er.nurse@hms.test', Role::Nurse],
+        ] as [$name, $email, $role]) {
+            User::updateOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $name,
+                    'role' => $role,
+                    'department_id' => $emergencyDepartment->id,
+                    'password' => 'password',
+                    'email_verified_at' => now(),
+                    'is_active' => true,
+                ],
+            );
+        }
+
+        User::updateOrCreate(
+            ['email' => 'mortuary@hms.test'],
+            [
+                'name' => 'Mortuary Attendant Demo',
+                'role' => Role::MortuaryAttendant,
+                'department_id' => null,
+                'password' => 'password',
+                'email_verified_at' => now(),
+                'is_active' => true,
+            ],
+        );
     }
 }

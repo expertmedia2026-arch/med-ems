@@ -14,6 +14,7 @@ enum Role: string
     case Accountant   = 'accountant';
     case ChiefAccountant = 'chief_accountant';
     case ChiefPharmacist = 'chief_pharmacist';
+    case MortuaryAttendant = 'mortuary_attendant';
     case Patient      = 'patient';
 
     public function label(): string
@@ -23,6 +24,7 @@ enum Role: string
             self::ChiefAccountant => 'Chief Accountant',
             self::ChiefPharmacist => 'Chief Pharmacist',
             self::ChiefNurse => 'Chief Nurse',
+            self::MortuaryAttendant => 'Mortuary Attendant',
             default   => ucfirst($this->value),
         };
     }

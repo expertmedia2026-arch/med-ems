@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MortuaryCase extends Model
 {
@@ -14,6 +15,7 @@ class MortuaryCase extends Model
         return [
             'deceased_at' => 'datetime',
             'received_at' => 'datetime',
+            'released_at' => 'datetime',
         ];
     }
 
@@ -35,5 +37,15 @@ class MortuaryCase extends Model
     public function receivedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'received_by');
+    }
+
+    public function releasedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'released_by');
+    }
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(MortuaryCaseEvent::class)->latest('occurred_at');
     }
 }

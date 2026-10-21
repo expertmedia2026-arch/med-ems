@@ -41,7 +41,8 @@ class DemoWorkflowSeeder extends Seeder
     public function run(): void
     {
         $patients = Patient::orderBy('id')->get();
-        $departments = Department::orderBy('id')->get();
+        // Seed routine outpatient workflows only for departments with configured consultation types.
+        $departments = Department::whereHas('consultationTypes')->orderBy('id')->get();
         $doctors = User::ofRole(Role::Doctor)->orderBy('department_id')->get()->groupBy('department_id');
         $nurses = User::ofRole(Role::Nurse)->orderBy('department_id')->get()->groupBy('department_id');
         $tests = LabTest::active()->orderBy('id')->get();
