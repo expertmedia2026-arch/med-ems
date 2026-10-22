@@ -75,11 +75,13 @@
                                             @endunless
                                         </td>
                                         <td class="px-3 py-3">
-                                            {{ $item->description }}
-                                            <x-badge :color="$catColor[$item->category] ?? 'slate'" class="ml-2">{{ ucfirst($item->category) }}</x-badge>
+                                            {{ $item->descriptionForBilling() }}
+                                            @unless ($item->category === 'drug')
+                                                <x-badge :color="$catColor[$item->category] ?? 'slate'" class="ml-2">{{ ucfirst($item->category) }}</x-badge>
+                                            @endunless
                                         </td>
-                                        <td class="px-3 py-3 text-right">{{ $item->quantity }}</td>
-                                        <td class="px-3 py-3 text-right">₦{{ number_format($item->unit_price, 2) }}</td>
+                                        <td class="px-3 py-3 text-right">{{ $item->category === 'drug' ? '—' : $item->quantity }}</td>
+                                        <td class="px-3 py-3 text-right">{{ $item->category === 'drug' ? '—' : '₦'.number_format($item->unit_price, 2) }}</td>
                                         <td class="px-3 py-3 text-right font-medium">₦{{ number_format($item->total, 2) }}</td>
                                         <td class="px-4 py-3">
                                             @if ($item->payment)

@@ -45,9 +45,9 @@ class PaymentReceiptResource extends JsonResource
             'created_at' => $payment->created_at->toIso8601String(),
             'date_label' => $payment->created_at->format('d M Y, g:i A'),
             'items' => $payment->items->map(fn ($item) => [
-                'description' => $isPatient ? $item->descriptionForPatient() : $item->description,
-                'quantity' => $isPatient && $item->category === 'drug' ? null : $item->quantity,
-                'quantity_label' => $item->quantity > 1 && ! ($isPatient && $item->category === 'drug') ? '× '.$item->quantity : null,
+                'description' => $isPatient ? $item->descriptionForPatient() : $item->descriptionForBilling(),
+                'quantity' => $item->category === 'drug' ? null : $item->quantity,
+                'quantity_label' => $item->quantity > 1 && $item->category !== 'drug' ? '× '.$item->quantity : null,
                 'amount' => (float) $item->total,
                 'amount_label' => '₦'.number_format((float) $item->total, 2),
             ])->values(),

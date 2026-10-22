@@ -25,9 +25,9 @@ class InvoiceResource extends JsonResource
             ] : null),
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($item) => [
                 'id' => $item->id,
-                'description' => $isPatient ? $item->descriptionForPatient() : $item->description,
+                'description' => $isPatient ? $item->descriptionForPatient() : $item->descriptionForBilling(),
                 'category' => $item->category,
-                'quantity' => $isPatient && $item->category === 'drug' ? null : $item->quantity,
+                'quantity' => $item->category === 'drug' ? null : $item->quantity,
                 'total' => (float) $item->total,
                 'is_paid' => $item->is_paid,
             ])->values()),

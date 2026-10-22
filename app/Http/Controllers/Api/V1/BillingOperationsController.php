@@ -72,7 +72,7 @@ class BillingOperationsController extends Controller
             'created_at' => $payment->created_at->toIso8601String(),
             'patient' => $payment->invoice->patient?->full_name,
             'invoice_number' => $payment->invoice->invoice_number,
-            'items' => $payment->items->map(fn ($item) => ['description' => $item->description, 'total' => (float) $item->total])->values(),
+            'items' => $payment->items->map(fn ($item) => ['description' => $item->descriptionForBilling(), 'total' => (float) $item->total])->values(),
             'printable' => [
                 'content_type' => 'text/html; charset=UTF-8',
                 'html' => view('billing.receipt', compact('payment'))->render(),

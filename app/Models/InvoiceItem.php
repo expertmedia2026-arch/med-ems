@@ -50,6 +50,12 @@ class InvoiceItem extends Model
         return $this->category === 'drug' ? 'Drug' : $this->description;
     }
 
+    /** Keep the dispensed medicine name out of cashier-facing invoice details. */
+    public function descriptionForBilling(): string
+    {
+        return $this->category === 'drug' ? 'Drug' : $this->description;
+    }
+
     public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class);
