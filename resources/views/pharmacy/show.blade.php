@@ -88,7 +88,7 @@
                 </button>
                 <a href="{{ route('pharmacy.index') }}" class="text-sm text-slate-500 hover:underline">Back to queue</a>
                 @if ($dispensable->isEmpty())
-                    <span class="text-xs text-amber-700">Nothing can be dispensed yet: items are unpaid or out of stock.</span>
+                    <span class="text-xs text-amber-700">Nothing can be dispensed yet: {{ $visit->is_emergency ? 'items may be out of stock.' : 'items are unpaid or out of stock.' }}</span>
                 @endif
             </div>
         </form>

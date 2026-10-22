@@ -16,7 +16,7 @@ class BillingOperationsService
     public function indexData(?string $status, ?string $term): array
     {
         return [
-            'invoices' => Invoice::with('patient')
+            'invoices' => Invoice::with(['patient', 'visit'])
                 ->withCount(['items as unpaid_items_count' => fn ($query) => $query->whereNull('payment_id')->where('total', '>', 0)])
                 ->when($term, fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->search($term)))
                 ->when(in_array($status, ['unpaid', 'partial', 'paid'], true), fn ($query) => $query->where('status', $status))

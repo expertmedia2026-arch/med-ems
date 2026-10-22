@@ -70,7 +70,12 @@
                             <span class="font-mono text-teal-800">{{ $invoice->invoice_number }}</span>
                             <span class="block text-xs text-slate-400">{{ $invoice->created_at->format('d M, g:i A') }}</span>
                         </td>
-                        <td class="px-4 py-3 font-medium">{{ $invoice->patient->full_name }}</td>
+                        <td class="px-4 py-3 font-medium">
+                            {{ $invoice->patient->full_name }}
+                            @if ($invoice->visit?->is_emergency)
+                                <span class="mt-1 block"><x-badge color="red">ER visit</x-badge></span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-right">₦{{ number_format($invoice->total, 2) }}</td>
                         <td class="px-4 py-3 text-right">₦{{ number_format($invoice->amount_paid, 2) }}</td>
                         <td class="px-4 py-3 text-right font-semibold">₦{{ number_format($invoice->balance, 2) }}</td>

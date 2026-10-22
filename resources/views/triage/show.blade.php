@@ -24,7 +24,7 @@
         </a>
 
         <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div class="bg-gradient-to-r from-teal-800 to-teal-700 px-5 py-5 text-white sm:px-7">
+            <div class="bg-teal-900 px-5 py-5 text-white sm:px-7">
                 <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                     <div class="flex items-center gap-4">
                         @if ($patient->photo_url)

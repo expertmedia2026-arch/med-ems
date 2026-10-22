@@ -41,6 +41,7 @@ class UpdateHospitalSettingsRequest extends FormRequest
             'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'administrator_signature' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'registration_fee' => ['required', 'numeric', 'min:0', 'max:99999999'],
+            'emergency_fee' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
             'paystack_public_key' => ['nullable', 'string', 'max:255'],
             'paystack_secret_key' => ['nullable', 'string', 'max:1000'],
             'clear_paystack_secret_key' => ['boolean'],
@@ -64,6 +65,7 @@ class UpdateHospitalSettingsRequest extends FormRequest
             'payments' => [
                 'payment_gateway' => ['required', Rule::in(['paystack', 'manual'])],
                 'registration_fee' => ['required', 'numeric', 'min:0', 'max:99999999'],
+                'emergency_fee' => ['required', 'numeric', 'min:0', 'max:99999999'],
                 'paystack_public_key' => ['nullable', 'string', 'max:255'],
                 'paystack_secret_key' => ['nullable', 'string', 'max:1000'],
                 'clear_paystack_secret_key' => ['boolean'],

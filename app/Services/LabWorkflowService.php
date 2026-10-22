@@ -112,8 +112,8 @@ class LabWorkflowService
             return 'locked';
         }
 
-        $labRequest->loadMissing('invoiceItem');
-        if (! $labRequest->is_paid) {
+        $labRequest->loadMissing(['invoiceItem', 'visit']);
+        if (! $labRequest->is_paid && ! $labRequest->visit->is_emergency) {
             return 'unpaid';
         }
 

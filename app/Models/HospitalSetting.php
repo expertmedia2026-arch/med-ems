@@ -15,6 +15,7 @@ class HospitalSetting extends Model
     {
         return [
             'registration_fee' => 'decimal:2',
+            'emergency_fee' => 'decimal:2',
             'paystack_secret_key' => 'encrypted',
         ];
     }

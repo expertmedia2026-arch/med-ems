@@ -35,6 +35,31 @@ class BillingService
         return $invoice;
     }
 
+    /** Add the configured ER attendance charge once when a new emergency visit is registered. */
+    public function addEmergencyAttendanceFee(Visit $visit): ?Invoice
+    {
+        if (! $visit->is_emergency) {
+            return null;
+        }
+
+        $fee = (float) HospitalSetting::current()->emergency_fee;
+        if ($fee <= 0) {
+            return null;
+        }
+
+        $invoice = $this->invoiceFor($visit);
+        if (! $invoice->items()->where('category', 'emergency')->exists()) {
+            $invoice->items()->create([
+                'category' => 'emergency',
+                'description' => 'Emergency department attendance fee',
+                'quantity' => 1,
+                'unit_price' => $fee,
+            ]);
+        }
+
+        return $invoice->fresh();
+    }
+
     /** Add any lab tests and drugs not yet on the invoice (safe to call repeatedly). */
     public function syncFor(Visit $visit, bool $includeRegistrationFee = false): Invoice
     {

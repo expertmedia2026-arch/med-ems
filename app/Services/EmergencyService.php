@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 class EmergencyService
 {
+    public function __construct(private readonly BillingService $billing) {}
+
     public function queue()
     {
         return Visit::query()
@@ -47,7 +49,10 @@ class EmergencyService
                 return null;
             }
 
-            return $this->createVisit($patient, $data, $staff);
+            $visit = $this->createVisit($patient, $data, $staff);
+            $this->billing->addEmergencyAttendanceFee($visit);
+
+            return $visit;
         });
     }
 
@@ -66,7 +71,10 @@ class EmergencyService
                 'next_of_kin_phone' => $data['next_of_kin_phone'] ?? null,
             ]);
 
-            return $this->createVisit($patient, $data, $staff);
+            $visit = $this->createVisit($patient, $data, $staff);
+            $this->billing->addEmergencyAttendanceFee($visit);
+
+            return $visit;
         });
     }
 
