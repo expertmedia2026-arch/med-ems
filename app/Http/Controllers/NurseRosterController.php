@@ -23,15 +23,15 @@ class NurseRosterController extends Controller
         return view('nursing.roster.index', $roster->indexData($request->user(), $weekStart, $request->only(['department', 'search'])));
     }
 
-    public function update(StoreNurseRosterRequest $request, User $nurse, NurseRosterService $roster)
+    public function update(StoreNurseRosterRequest $request, User $staff, NurseRosterService $roster)
     {
         $validated = $request->validated();
-        $roster->saveWeek($nurse, $validated, $request->user());
+        $roster->saveWeek($staff, $validated, $request->user());
 
         return redirect()->route('nursing.roster.index', array_merge(
             ['week' => $validated['week_start']],
             $request->only(['department', 'search', 'page']),
         ))
-            ->with('success', "Roster saved for {$nurse->name}.");
+            ->with('success', "Roster saved for {$staff->name}.");
     }
 }

@@ -15,6 +15,20 @@
     @error('description')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
 </div>
 
+@isset($hodOptions)
+    <div class="mt-5">
+        <label for="hod_id" class="{{ $label }}">Head of department (HOD)</label>
+        <select id="hod_id" name="hod_id" class="{{ $input }}">
+            <option value="">No HOD assigned</option>
+            @foreach ($hodOptions as $staffMember)
+                <option value="{{ $staffMember->id }}" @selected((string) old('hod_id', $department->hod_id) === (string) $staffMember->id)>{{ $staffMember->name }} · {{ $staffMember->role->label() }}</option>
+            @endforeach
+        </select>
+        <p class="mt-1 text-xs text-slate-500">The HOD can create and update shifts for active staff in this department.</p>
+        @error('hod_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+    </div>
+@endisset
+
 <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
     <input type="hidden" name="has_ward" value="0">
     <label class="flex items-start gap-3">

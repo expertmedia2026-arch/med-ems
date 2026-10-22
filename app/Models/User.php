@@ -116,4 +116,19 @@ class User extends Authenticatable
     {
         return $this->hasMany(NurseDuty::class, 'nurse_id');
     }
+
+    public function staffDuties(): HasMany
+    {
+        return $this->hasMany(StaffDuty::class);
+    }
+
+    public function canManageStaffRoster(): bool
+    {
+        if ($this->hasRole(Role::Admin, Role::ChiefNurse, Role::ChiefPharmacist)) {
+            return true;
+        }
+
+        return $this->department_id !== null
+            && $this->department()->where('hod_id', $this->id)->exists();
+    }
 }

@@ -15,7 +15,7 @@ class DepartmentService
 
     public function index()
     {
-        return Department::withCount([
+        return Department::with('headOfDepartment')->withCount([
             'users' => fn ($query) => $query->where('role', '!=', Role::Patient->value),
             'staffInvitations' => fn ($query) => $query->pending(),
             'consultationTypes',

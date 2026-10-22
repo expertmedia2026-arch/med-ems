@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Services\DepartmentService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use App\Enums\Role;
 
 class DepartmentController extends Controller
 {
@@ -31,7 +32,9 @@ class DepartmentController extends Controller
 
     public function edit(Department $department): View
     {
-        return view('departments.edit', compact('department'));
+        $hodOptions = $department->users()->where('is_active', true)->where('role', '!=', Role::Patient->value)->orderBy('name')->get();
+
+        return view('departments.edit', compact('department', 'hodOptions'));
     }
 
     public function update(SaveDepartmentRequest $request, Department $department, DepartmentService $departments): RedirectResponse

@@ -13,11 +13,22 @@ class StoreNurseRosterRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $nurse = $this->route('nurse');
+        $staffMember = $this->route('staff');
 
-        return $this->user()?->hasRole(Role::Admin, Role::ChiefNurse)
-            && $nurse instanceof User
-            && $nurse->hasRole(Role::Nurse);
+        $manager = $this->user();
+        if (! $manager?->canManageStaffRoster() || ! $staffMember instanceof User || ! $staffMember->is_active || $staffMember->hasRole(Role::Patient)) {
+            return false;
+        }
+
+        if ($manager->hasRole(Role::Admin)) {
+            return true;
+        }
+
+        if ($manager->hasRole(Role::ChiefNurse)) {
+            return $staffMember->hasRole(Role::Nurse);
+        }
+
+        return $manager->department_id !== null && $staffMember->department_id === $manager->department_id;
     }
 
     public function rules(): array
@@ -51,7 +62,7 @@ class StoreNurseRosterRequest extends FormRequest
             $overlap = array_values(array_filter($overlap, fn ($day) => $day >= 1 && $day <= 7));
             if ($overlap !== []) {
                 $labels = collect($overlap)->map(fn ($day) => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][$day - 1])->join(', ');
-                $validator->errors()->add('night_days', "A nurse can work only one 12-hour shift per day. Remove the overlapping day(s): {$labels}.");
+                $validator->errors()->add('night_days', "A staff member can work only one 12-hour shift per day. Remove the overlapping day(s): {$labels}.");
             }
         }];
     }

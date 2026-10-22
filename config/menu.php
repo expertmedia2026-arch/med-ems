@@ -12,7 +12,7 @@ return [
     ['label' => 'My Availability', 'route' => 'doctor.availability.index', 'active' => 'doctor.availability.*', 'roles' => ['doctor']],
     ['label' => 'Triage',       'route' => 'triage.index',        'active' => 'triage.*',        'roles' => ['admin', 'nurse']],
     ['label' => 'Medication administration', 'route' => 'nursing.administrations.index', 'active' => 'nursing.administrations.*', 'roles' => ['admin', 'nurse']],
-    ['label' => 'Nurse Duty Roster', 'route' => 'nursing.roster.index', 'active' => 'nursing.roster.*', 'roles' => ['admin', 'chief_nurse', 'nurse']],
+    ['label' => 'Staff Duty Roster', 'route' => 'nursing.roster.index', 'active' => 'nursing.roster.*', 'roles' => ['admin', 'receptionist', 'nurse', 'chief_nurse', 'doctor', 'lab', 'pharmacist', 'chief_pharmacist', 'accountant', 'chief_accountant', 'mortuary_attendant']],
     ['label' => 'Admissions', 'route' => 'admissions.index', 'active' => 'admissions.*', 'roles' => ['admin', 'doctor', 'nurse']],
     ['label' => 'Consultation', 'route' => 'consultations.index', 'active' => ['consultations.index', 'consultations.show', 'consultations.start', 'consultations.update', 'consultations.complete', 'consultations.prescriptions.*', 'consultations.lab-requests.*'], 'roles' => ['doctor']],
     ['label' => 'My consultation history', 'route' => 'consultations.history.index', 'active' => ['consultations.history.index', 'consultations.history'], 'roles' => ['doctor']],

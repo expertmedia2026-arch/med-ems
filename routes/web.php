@@ -208,11 +208,11 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
     Route::post('admissions/{admission}/prescriptions', [AdmissionController::class, 'prescribe'])
         ->middleware('role:doctor')->whereNumber('admission')->name('admissions.prescriptions.store');
 
-    // Nurse: triage
+    // Department staff duty roster
     Route::get('nursing/roster', [NurseRosterController::class, 'index'])
-        ->middleware('role:admin,chief_nurse,nurse')->name('nursing.roster.index');
-    Route::put('nursing/roster/{nurse}', [NurseRosterController::class, 'update'])
-        ->middleware('role:admin,chief_nurse')->whereNumber('nurse')->name('nursing.roster.update');
+        ->middleware('role:admin,receptionist,nurse,chief_nurse,doctor,lab,pharmacist,chief_pharmacist,accountant,chief_accountant,mortuary_attendant')->name('nursing.roster.index');
+    Route::put('nursing/roster/{staff}', [NurseRosterController::class, 'update'])
+        ->middleware('role:admin,receptionist,nurse,chief_nurse,doctor,lab,pharmacist,chief_pharmacist,accountant,chief_accountant,mortuary_attendant')->whereNumber('staff')->name('nursing.roster.update');
 
     Route::middleware('role:admin,nurse')->prefix('triage')->name('triage.')->group(function () {
         Route::get('/', [TriageController::class, 'index'])->name('index');
