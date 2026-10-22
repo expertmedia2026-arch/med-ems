@@ -111,6 +111,7 @@
         @endif
 
         @include('emergency._progress-notes', ['visit' => $visit])
+        @include('emergency._items-used', ['visit' => $visit, 'emergencyStockItems' => $emergencyStockItems])
 
         <form method="POST" action="{{ route('triage.store', $visit) }}"
               x-data="{ w: @js(old('weight', $vitals?->weight)), h: @js(old('height', $vitals?->height)) }"

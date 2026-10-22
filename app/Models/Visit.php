@@ -86,6 +86,16 @@ class Visit extends Model
         return $this->hasMany(Prescription::class);
     }
 
+    public function emergencyMedicationUses(): HasMany
+    {
+        return $this->hasMany(EmergencyMedicationUse::class);
+    }
+
+    public function emergencyItemUses(): HasMany
+    {
+        return $this->hasMany(EmergencyItemUse::class)->latest();
+    }
+
     public function medicationAdministrations(): HasMany
     {
         return $this->hasMany(MedicationAdministration::class);

@@ -53,5 +53,10 @@ class Drug extends Model
         return $this->hasMany(DrugStockMovement::class);
     }
 
+    public function emergencyStock(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(EmergencyPharmacyStock::class);
+    }
+
 
 }

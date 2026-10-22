@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\ApiResponseEnvelope;
 use App\Http\Middleware\EnsureNotPatient;
+use App\Http\Middleware\EnsureMainPharmacyAccess;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'active' => EnsureUserIsActive::class,
             'staff' => EnsureNotPatient::class,
+            'main.pharmacy' => EnsureMainPharmacyAccess::class,
             'auth.session' => AuthenticateSession::class,
 
         ]);

@@ -88,6 +88,9 @@
     @endif
 
     <div class="mb-6">@include('emergency._progress-notes', ['visit' => $visit])</div>
+    @if ($visit->is_emergency)
+        <div class="mb-6">@include('emergency._items-used', ['visit' => $visit, 'emergencyStockItems' => $emergencyStockItems])</div>
+    @endif
 
     <div class="grid gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">

@@ -7,6 +7,7 @@ use App\Http\Requests\TriageQueueRequest;
 use App\Models\Visit;
 use App\Services\BillingService;
 use App\Services\TriageService;
+use App\Services\EmergencyPharmacyService;
 
 class TriageController extends Controller
 {
@@ -15,7 +16,7 @@ class TriageController extends Controller
         return view('triage.index', $triage->indexData($request->user(), $request->validated()));
     }
 
-    public function show(Visit $visit, BillingService $billing, TriageService $triage)
+    public function show(Visit $visit, BillingService $billing, TriageService $triage, EmergencyPharmacyService $emergencyPharmacy)
     {
         $triage->assertVitalsEditable($visit, request()->user());
 
@@ -25,7 +26,10 @@ class TriageController extends Controller
 
         $visit = $triage->loadVitalsData($visit);
 
-        return view('triage.show', compact('visit'));
+        return view('triage.show', [
+            'visit' => $visit,
+            'emergencyStockItems' => $visit->is_emergency ? $emergencyPharmacy->useOptions() : collect(),
+        ]);
     }
 
     public function store(RecordVitalsRequest $request, Visit $visit, BillingService $billing, TriageService $triage)

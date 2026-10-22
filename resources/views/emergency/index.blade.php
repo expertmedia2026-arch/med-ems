@@ -8,6 +8,9 @@
                 <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Accident &amp; Emergency (A&amp;E)</h1>
                 <p class="mt-1 text-sm text-slate-500">Register arrivals, prioritize triage, and follow patients through A&amp;E.</p>
             </div>
+            @if (auth()->user()->canAccessEmergencyPharmacy())
+                <a href="{{ route('emergency.pharmacy.index') }}" class="rounded-lg border border-rose-700 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50">A&amp;E Pharmacy and stock</a>
+            @endif
             @if (auth()->user()->hasRole('admin', 'nurse'))
                 <a href="{{ route('triage.index') }}" class="rounded-lg border border-teal-700 bg-white px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-50">Open triage queue</a>
             @endif

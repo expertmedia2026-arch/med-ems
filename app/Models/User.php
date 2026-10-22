@@ -131,4 +131,25 @@ class User extends Authenticatable
         return $this->department_id !== null
             && $this->department()->where('hod_id', $this->id)->exists();
     }
+
+    public function canManageEmergencyPharmacy(): bool
+    {
+        if ($this->hasRole(Role::Admin, Role::ChiefPharmacist)) {
+            return true;
+        }
+
+        $departmentName = trim((string) $this->department?->name);
+        $isEmergencyDepartment = preg_match('/accident\s*(?:&|and)\s*emergency|emergency department/i', $departmentName) === 1;
+
+        return ($isEmergencyDepartment && $this->hasRole(Role::Pharmacist))
+            || ($isEmergencyDepartment && $this->department()->where('hod_id', $this->id)->exists());
+    }
+
+    public function canAccessEmergencyPharmacy(): bool
+    {
+        $isMainPharmacyStaff = $this->hasRole(Role::Pharmacist)
+            && strcasecmp((string) $this->department?->name, Department::PHARMACY_NAME) === 0;
+
+        return $this->canAccessEmergency() || $this->canManageEmergencyPharmacy() || $isMainPharmacyStaff;
+    }
 }

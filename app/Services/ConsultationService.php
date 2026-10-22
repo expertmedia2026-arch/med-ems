@@ -21,6 +21,7 @@ class ConsultationService
         private readonly DrugInventoryService $inventory,
         private readonly MortuaryCaseService $mortuary,
         private readonly MedicationAdministrationService $medicationAdministration,
+        private readonly EmergencyPharmacyService $emergencyPharmacy,
     ) {}
 
     public function queueFor(User $doctor)
@@ -60,7 +61,7 @@ class ConsultationService
         abort_if($visit->status === VisitStatus::WaitingTriage, 404);
 
         $visit->load([
-            'patient', 'vitals', 'emergencyObservations.recorder', 'emergencyProgressNotes.author', 'prescriptions.drug', 'prescriptions.invoiceItem', 'prescriptions.stockReservation', 'prescriptions.administrations.nurse', 'prescriptions.administrationWaiver',
+            'patient', 'vitals', 'emergencyObservations.recorder', 'emergencyProgressNotes.author', 'emergencyMedicationUses.drug', 'emergencyMedicationUses.recorder', 'emergencyMedicationUses.invoiceItem', 'emergencyItemUses.item', 'emergencyItemUses.recorder', 'emergencyItemUses.invoiceItem', 'prescriptions.drug', 'prescriptions.invoiceItem', 'prescriptions.stockReservation', 'prescriptions.administrations.nurse', 'prescriptions.administrationWaiver',
             'labRequests.test', 'labRequests.attachments', 'labRequests.invoiceItem',
         ]);
 
@@ -73,6 +74,7 @@ class ConsultationService
             'drugs' => Drug::active()->whereRaw('(stock_quantity - reserved_quantity) > 0')->orderBy('name')->get(),
             'tests' => LabTest::active()->orderBy('name')->get(),
             'wardDepartments' => Department::where('has_ward', true)->orderBy('name')->get(),
+            'emergencyStockItems' => $visit->is_emergency ? $this->emergencyPharmacy->useOptions() : collect(),
         ];
     }
 

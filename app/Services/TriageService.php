@@ -81,7 +81,7 @@ class TriageService
 
     public function loadVitalsData(Visit $visit): Visit
     {
-        return $visit->load(['patient', 'doctor', 'department', 'vitals', 'emergencyObservations.recorder', 'emergencyProgressNotes.author']);
+        return $visit->load(['patient', 'doctor', 'department', 'vitals', 'emergencyObservations.recorder', 'emergencyProgressNotes.author', 'emergencyMedicationUses.drug', 'emergencyMedicationUses.recorder', 'emergencyMedicationUses.invoiceItem', 'emergencyItemUses.item', 'emergencyItemUses.recorder', 'emergencyItemUses.invoiceItem']);
     }
 
     public function recordVitals(Visit $visit, array $data, User $nurse): void

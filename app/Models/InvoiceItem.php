@@ -47,13 +47,13 @@ class InvoiceItem extends Model
 
     public function descriptionForPatient(): string
     {
-        return $this->category === 'drug' ? 'Drug' : $this->description;
+        return in_array($this->category, ['drug', 'emergency_item'], true) ? ($this->category === 'drug' ? 'Drug' : 'A&E item') : $this->description;
     }
 
     /** Keep the dispensed medicine name out of cashier-facing invoice details. */
     public function descriptionForBilling(): string
     {
-        return $this->category === 'drug' ? 'Drug' : $this->description;
+        return in_array($this->category, ['drug', 'emergency_item'], true) ? ($this->category === 'drug' ? 'Drug' : 'A&E item') : $this->description;
     }
 
     public function payment(): BelongsTo

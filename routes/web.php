@@ -8,6 +8,7 @@ use App\Http\Controllers\ConsultationTypeController;
 use App\Http\Controllers\CsvTransferController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmergencyController;
+use App\Http\Controllers\EmergencyPharmacyController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DoctorAvailabilityController;
 use App\Http\Controllers\FinanceController;
@@ -111,6 +112,14 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         Route::post('emergency/mortuary/{mortuaryCase}/receive', [EmergencyController::class, 'receiveMortuaryCase'])
             ->middleware('role:admin,nurse')->whereNumber('mortuaryCase')->name('emergency.mortuary.receive');
     });
+
+    Route::get('emergency/pharmacy', [EmergencyPharmacyController::class, 'index'])->name('emergency.pharmacy.index');
+    Route::post('emergency/pharmacy/items', [EmergencyPharmacyController::class, 'storeItem'])->name('emergency.pharmacy.items.store');
+    Route::put('emergency/pharmacy/items/{emergencyPharmacyItem}', [EmergencyPharmacyController::class, 'update'])->whereNumber('emergencyPharmacyItem')->name('emergency.pharmacy.items.update');
+    Route::post('emergency/pharmacy/items/{emergencyPharmacyItem}/restock', [EmergencyPharmacyController::class, 'restock'])->whereNumber('emergencyPharmacyItem')->name('emergency.pharmacy.items.restock');
+    Route::patch('emergency/pharmacy/items/{emergencyPharmacyItem}/status', [EmergencyPharmacyController::class, 'toggle'])->whereNumber('emergencyPharmacyItem')->name('emergency.pharmacy.items.status');
+    Route::post('emergency/visits/{visit}/items-used', [EmergencyPharmacyController::class, 'recordUse'])
+        ->middleware('role:admin,nurse,doctor')->whereNumber('visit')->name('emergency.items-used.store');
 
     Route::get('data/{dataset}/export', [CsvTransferController::class, 'export'])->name('data.export');
     Route::post('data/{dataset}/import', [CsvTransferController::class, 'import'])->name('data.import');
@@ -291,7 +300,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         ->name('lab.update');
 
     // Pharmacy
-    Route::middleware('role:admin,pharmacist,chief_pharmacist')->prefix('pharmacy')->name('pharmacy.')->group(function () {
+    Route::middleware(['role:admin,pharmacist,chief_pharmacist', 'main.pharmacy'])->prefix('pharmacy')->name('pharmacy.')->group(function () {
         Route::get('/', [PharmacyController::class, 'index'])->name('index');
         Route::get('audit', [PharmacyController::class, 'audit'])->middleware('role:admin,chief_pharmacist')->name('audit');
         Route::get('inventory', [PharmacyController::class, 'inventory'])->name('inventory');
