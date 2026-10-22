@@ -131,8 +131,8 @@ class DepartmentStaffSeeder extends Seeder
         }
 
         foreach ([
-            ['Dr. ER Demo', 'er.doctor@hms.test', Role::Doctor],
-            ['Nurse ER Demo', 'er.nurse@hms.test', Role::Nurse],
+            ['Dr. A&E Demo', 'er.doctor@hms.test', Role::Doctor],
+            ['Nurse A&E Demo', 'er.nurse@hms.test', Role::Nurse],
         ] as [$name, $email, $role]) {
             User::updateOrCreate(
                 ['email' => $email],

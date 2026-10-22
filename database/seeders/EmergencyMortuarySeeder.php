@@ -37,8 +37,8 @@ class EmergencyMortuarySeeder extends Seeder
         );
         $ward->update(['has_ward' => true]);
 
-        $doctor = $this->staff('er.doctor@hms.test', 'Dr. ER Demo', Role::Doctor, $emergency);
-        $nurse = $this->staff('er.nurse@hms.test', 'Nurse ER Demo', Role::Nurse, $emergency);
+        $doctor = $this->staff('er.doctor@hms.test', 'Dr. A&E Demo', Role::Doctor, $emergency);
+        $nurse = $this->staff('er.nurse@hms.test', 'Nurse A&E Demo', Role::Nurse, $emergency);
         $mortuaryAttendant = $this->staff('mortuary@hms.test', 'Mortuary Attendant Demo', Role::MortuaryAttendant);
         $receptionist = User::firstOrCreate(
             ['email' => 'reception@hms.test'],
@@ -60,11 +60,11 @@ class EmergencyMortuarySeeder extends Seeder
         DB::transaction(function () use ($emergency, $ward, $doctor, $nurse, $wardDoctor, $receptionist, $mortuaryAttendant, $drug, $test) {
 
             $specs = [
-                ['key' => 'triage', 'first' => 'ER Demo', 'last' => 'Needs Triage', 'status' => VisitStatus::WaitingTriage, 'priority' => null, 'elapsed' => 12],
-                ['key' => 'doctor-queue', 'first' => 'ER Demo', 'last' => 'Doctor Queue', 'status' => VisitStatus::WaitingDoctor, 'priority' => 'high', 'elapsed' => 38],
-                ['key' => 'active-care', 'first' => 'ER Demo', 'last' => 'Active Care', 'status' => VisitStatus::InConsultation, 'priority' => 'moderate', 'elapsed' => 95],
-                ['key' => 'admitted', 'first' => 'ER Demo', 'last' => 'Inpatient Transfer', 'status' => VisitStatus::Inpatient, 'priority' => 'high', 'elapsed' => 310],
-                ['key' => 'discharged', 'first' => 'ER Demo', 'last' => 'Discharged', 'status' => VisitStatus::Completed, 'priority' => 'low', 'elapsed' => 470, 'disposition' => 'discharged'],
+                ['key' => 'triage', 'first' => 'A&E Demo', 'last' => 'Needs Triage', 'status' => VisitStatus::WaitingTriage, 'priority' => null, 'elapsed' => 12],
+                ['key' => 'doctor-queue', 'first' => 'A&E Demo', 'last' => 'Doctor Queue', 'status' => VisitStatus::WaitingDoctor, 'priority' => 'high', 'elapsed' => 38],
+                ['key' => 'active-care', 'first' => 'A&E Demo', 'last' => 'Active Care', 'status' => VisitStatus::InConsultation, 'priority' => 'moderate', 'elapsed' => 95],
+                ['key' => 'admitted', 'first' => 'A&E Demo', 'last' => 'Inpatient Transfer', 'status' => VisitStatus::Inpatient, 'priority' => 'high', 'elapsed' => 310],
+                ['key' => 'discharged', 'first' => 'A&E Demo', 'last' => 'Discharged', 'status' => VisitStatus::Completed, 'priority' => 'low', 'elapsed' => 470, 'disposition' => 'discharged'],
                 ['key' => 'mortuary-awaiting', 'first' => 'Mortuary Demo', 'last' => 'Awaiting Transfer', 'status' => VisitStatus::Completed, 'priority' => 'critical', 'elapsed' => 205, 'disposition' => 'deceased', 'mortuary' => 'awaiting_transfer'],
                 ['key' => 'mortuary-received', 'first' => 'Mortuary Demo', 'last' => 'In Storage', 'status' => VisitStatus::Completed, 'priority' => 'critical', 'elapsed' => 610, 'disposition' => 'deceased', 'mortuary' => 'received'],
                 ['key' => 'mortuary-released', 'first' => 'Mortuary Demo', 'last' => 'Released', 'status' => VisitStatus::Completed, 'priority' => 'critical', 'elapsed' => 990, 'disposition' => 'deceased', 'mortuary' => 'released'],
@@ -90,9 +90,9 @@ class EmergencyMortuarySeeder extends Seeder
                         'arrival_mode' => $index % 2 === 0 ? 'ambulance' : 'walk_in',
                         'triage_priority' => $spec['priority'],
                         'triaged_at' => $hasBeenTriaged ? $checkedInAt->copy()->addMinutes(12) : null,
-                        'complaint' => 'DEMO ER workflow: '.strtolower($spec['last']).'.',
-                        'diagnosis' => $hasDoctor ? 'Demo assessment recorded for ER workflow.' : null,
-                        'clinical_notes' => $hasDoctor ? 'Seeded demo record. Use this visit to review the ER workflow screens.' : null,
+                        'complaint' => 'DEMO A&E workflow: '.strtolower($spec['last']).'.',
+                        'diagnosis' => $hasDoctor ? 'Demo assessment recorded for A&E workflow.' : null,
+                        'clinical_notes' => $hasDoctor ? 'Seeded demo record. Use this visit to review the A&E workflow screens.' : null,
                         'checked_in_at' => $checkedInAt,
                         'consulted_at' => $hasDoctor ? $checkedInAt->copy()->addMinutes(20) : null,
                         'closed_at' => $isClosed ? $checkedInAt->copy()->addMinutes(54) : null,
@@ -121,7 +121,7 @@ class EmergencyMortuarySeeder extends Seeder
                             'admitted_by' => $doctor->id,
                             'status' => AdmissionStatus::Active,
                             'admitted_at' => $checkedInAt->copy()->addMinutes(54),
-                            'admission_reason' => 'Seeded ER demo transfer to inpatient care.',
+                            'admission_reason' => 'Seeded A&E demo transfer to inpatient care.',
                             'admission_diagnosis' => 'Demo diagnosis requiring inpatient observation.',
                             'initial_treatment_plan' => 'Continue observation and treatment on the General Medicine ward.',
                             'expected_discharge_date' => now()->addDays(2)->toDateString(),
@@ -159,7 +159,7 @@ class EmergencyMortuarySeeder extends Seeder
 
     private function staff(string $email, string $name, Role $role, ?Department $department = null): User
     {
-        return User::firstOrCreate(
+        return User::updateOrCreate(
             ['email' => $email],
             [
                 'name' => $name,
@@ -204,7 +204,7 @@ class EmergencyMortuarySeeder extends Seeder
                 'spo2' => 95,
                 'weight' => 68,
                 'height' => 170,
-                'notes' => 'DEMO: Initial ER assessment; continue repeat observations.',
+                'notes' => 'DEMO: Initial A&E assessment; continue repeat observations.',
             ],
         );
 
@@ -228,7 +228,7 @@ class EmergencyMortuarySeeder extends Seeder
     private function seedActiveTreatment(Visit $visit, User $doctor, Drug $drug, LabTest $test): void
     {
         Prescription::firstOrCreate(
-            ['visit_id' => $visit->id, 'instructions' => 'DEMO ER order: record nursing administration.'],
+            ['visit_id' => $visit->id, 'instructions' => 'DEMO A&E order: record nursing administration.'],
             [
                 'drug_id' => $drug->id,
                 'prescribed_by' => $doctor->id,
@@ -256,7 +256,7 @@ class EmergencyMortuarySeeder extends Seeder
             'visit_id' => $visit->id,
             'author_id' => $nurse->id,
             'note_type' => 'nursing',
-            'note' => 'DEMO: Patient monitored in ER; repeat observations documented.',
+            'note' => 'DEMO: Patient monitored in A&E; repeat observations documented.',
         ]);
         EmergencyProgressNote::create([
             'visit_id' => $visit->id,
@@ -276,7 +276,7 @@ class EmergencyMortuarySeeder extends Seeder
             $case = $service->receive($case, [
                 'storage_location' => $location,
                 'body_tag_number' => $tagNumber,
-                'handoff_note' => 'DEMO: Body identity and ER handoff checked on receipt.',
+                'handoff_note' => 'DEMO: Body identity and A&E handoff checked on receipt.',
             ], $attendant);
         }
 

@@ -11,16 +11,16 @@
             </div>
             <div class="grid gap-5 p-5 sm:grid-cols-2 sm:p-7">
                 <dl class="space-y-3 text-sm">
-                    <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Source</dt><dd class="mt-1 text-slate-800">{{ $case->source === 'walk_in' ? 'External walk-in' : ($case->visit?->is_emergency ? 'Hospital ER' : 'Hospital') }}</dd></div>
+                    <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Source</dt><dd class="mt-1 text-slate-800">{{ $case->source === 'walk_in' ? 'External walk-in' : ($case->visit?->is_emergency ? 'Hospital A&E' : 'Hospital') }}</dd></div>
                     @if ($case->visit)
                         <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Presenting complaint / clinical handoff</dt><dd class="mt-1 whitespace-pre-line text-slate-800">{{ $case->visit->complaint ?: '—' }}</dd></div>
-                        <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">ER doctor</dt><dd class="mt-1 text-slate-800">{{ $case->visit->doctor?->name ?? $case->openedBy?->name ?? '—' }}</dd></div>
+                        <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">A&E doctor</dt><dd class="mt-1 text-slate-800">{{ $case->visit->doctor?->name ?? $case->openedBy?->name ?? '—' }}</dd></div>
                     @else
                         <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Approximate age</dt><dd class="mt-1 text-slate-800">{{ $case->deceased_age !== null ? $case->deceased_age.' years' : 'Not recorded' }}</dd></div>
                         <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Depositor / contact</dt><dd class="mt-1 text-slate-800">{{ $case->external_contact_name ?: 'Not recorded' }} · {{ $case->external_contact_phone ?: 'No phone' }}</dd></div>
                         @if ($case->external_contact_address)<div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Contact address</dt><dd class="mt-1 text-slate-800">{{ $case->external_contact_address }}</dd></div>@endif
                     @endif
-                    <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">ER handoff note</dt><dd class="mt-1 whitespace-pre-line text-slate-800">{{ $case->handoff_note ?: 'No additional handoff note.' }}</dd></div>
+                    <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">A&E handoff note</dt><dd class="mt-1 whitespace-pre-line text-slate-800">{{ $case->handoff_note ?: 'No additional handoff note.' }}</dd></div>
                 </dl>
                 <dl class="grid grid-cols-2 gap-3 text-sm">
                     <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Next of kin</dt><dd class="mt-1 text-slate-800">{{ $case->patient->next_of_kin_name ?: 'Not recorded' }}</dd></div>
@@ -33,7 +33,7 @@
         @if ($case->invoice)
             <section class="overflow-hidden rounded-xl border bg-white shadow-sm">
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 sm:px-6">
-                    <div><h2 class="font-semibold text-slate-900">Linked invoice</h2><p class="mt-1 text-sm text-slate-500">Mortuary charges are added as custody time accrues. The total and balance include other ER charges when linked to a hospital visit.</p></div>
+                    <div><h2 class="font-semibold text-slate-900">Linked invoice</h2><p class="mt-1 text-sm text-slate-500">Mortuary charges are added as custody time accrues. The total and balance include other A&E charges when linked to a hospital visit.</p></div>
                     <div class="text-right"><p class="font-mono text-sm text-teal-700">{{ $case->invoice->invoice_number }}</p><p class="mt-1 text-sm font-semibold text-slate-900">Total ₦{{ number_format($case->invoice->total, 2) }} · Balance ₦{{ number_format($case->invoice->balance, 2) }}</p></div>
                 </div>
                 <div class="overflow-x-auto">

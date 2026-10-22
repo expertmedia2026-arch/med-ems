@@ -35,7 +35,7 @@ class BillingService
         return $invoice;
     }
 
-    /** Add the configured ER attendance charge once when a new emergency visit is registered. */
+    /** Add the configured A&E attendance charge once when a new emergency visit is registered. */
     public function addEmergencyAttendanceFee(Visit $visit): ?Invoice
     {
         if (! $visit->is_emergency) {
@@ -51,7 +51,7 @@ class BillingService
         if (! $invoice->items()->where('category', 'emergency')->exists()) {
             $invoice->items()->create([
                 'category' => 'emergency',
-                'description' => 'Emergency department attendance fee',
+                'description' => 'A&E attendance fee',
                 'quantity' => 1,
                 'unit_price' => $fee,
             ]);

@@ -65,7 +65,7 @@
                                 <x-badge color="amber">Awaiting payment</x-badge>
                             @else
                                 @if ($canProcess && $req->visit->is_emergency && ! $req->is_paid)
-                                    <x-badge color="red">ER · bill later</x-badge>
+                                    <x-badge color="red">A&E · bill later</x-badge>
                                 @endif
                                 <a href="{{ route('lab.show', $req) }}"
                                    class="rounded-lg {{ $canProcess ? 'bg-teal-700 text-white hover:bg-teal-800' : 'border border-teal-700 text-teal-700 hover:bg-teal-50' }} px-3 py-1.5 text-xs font-medium">

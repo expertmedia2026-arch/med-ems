@@ -89,7 +89,7 @@
         @if ($visit->is_emergency && $visit->emergencyObservations->isNotEmpty())
             <section class="overflow-hidden rounded-xl border border-rose-100 bg-white shadow-sm">
                 <div class="border-b border-rose-100 px-5 py-4 sm:px-7">
-                    <h2 class="font-semibold text-slate-900">ER observation history</h2>
+                    <h2 class="font-semibold text-slate-900">A&E observation history</h2>
                     <p class="mt-1 text-sm text-slate-500">Each saved assessment is retained with the staff member and time.</p>
                 </div>
                 <div class="overflow-x-auto">

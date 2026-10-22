@@ -119,7 +119,7 @@
                                 <td class="min-w-48 px-5 py-4">
                                     <span class="font-medium text-slate-800">{{ $visit->is_emergency ? 'Accident & Emergency' : ($visit->department?->name ?? 'Outpatient') }}</span>
                                     @if ($visit->is_emergency)
-                                        <span class="mt-1 block"><x-badge color="red">ER · {{ $visit->triage_priority ? ucfirst($visit->triage_priority) : 'Needs triage' }}</x-badge></span>
+                                        <span class="mt-1 block"><x-badge color="red">A&E · {{ $visit->triage_priority ? ucfirst($visit->triage_priority) : 'Needs triage' }}</x-badge></span>
                                     @endif
                                     <span class="mt-1 block max-w-64 truncate text-xs text-slate-500" title="{{ $visit->complaint }}">{{ $visit->complaint ?: 'No presenting complaint recorded' }}</span>
                                 </td>

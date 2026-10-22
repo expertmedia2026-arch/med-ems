@@ -18,10 +18,10 @@ class EmergencyProgressNoteService
             VisitStatus::WaitingTriage,
             VisitStatus::WaitingDoctor,
             VisitStatus::InConsultation,
-        ], true), 422, 'ER progress notes can only be added while emergency care is active.');
+        ], true), 422, 'A&E progress notes can only be added while emergency care is active.');
 
         if ($author->hasRole(Role::Doctor)) {
-            abort_unless($visit->isOpenFor($author), 403, 'Only the attending ER doctor can add a medical progress note.');
+            abort_unless($visit->isOpenFor($author), 403, 'Only the attending A&E doctor can add a medical progress note.');
         }
 
         return $visit->emergencyProgressNotes()->create([

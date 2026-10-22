@@ -17,7 +17,7 @@
                     </x-nav-link>
                     @if (Auth::user()->canAccessEmergency())
                         <x-nav-link :href="route('emergency.index')" :active="request()->routeIs('emergency.*')">
-                            {{ __('Accident & Emergency') }}
+                            {{ __('A&E') }}
                         </x-nav-link>
                     @endif
                     @if (Auth::user()->hasRole('admin', 'nurse'))
@@ -90,7 +90,7 @@
             </x-responsive-nav-link>
             @if (Auth::user()->canAccessEmergency())
                 <x-responsive-nav-link :href="route('emergency.index')" :active="request()->routeIs('emergency.*')">
-                    {{ __('Accident & Emergency') }}
+                    {{ __('A&E') }}
                 </x-responsive-nav-link>
             @endif
             @if (Auth::user()->hasRole('admin', 'nurse'))

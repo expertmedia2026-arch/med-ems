@@ -41,7 +41,7 @@ class DashboardService
 
         if ($user->canAccessEmergency()) {
             $cards[] = $this->card(
-                'Active ER visits',
+                'Active A&E visits',
                 Visit::where('is_emergency', true)
                     ->whereIn('status', [VisitStatus::WaitingTriage->value, VisitStatus::WaitingDoctor->value, VisitStatus::InConsultation->value])
                     ->count(),

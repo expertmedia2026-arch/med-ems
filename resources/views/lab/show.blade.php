@@ -90,11 +90,11 @@
             <a href="{{ route('lab.index') }}" class="mt-5 inline-block text-sm text-teal-700 hover:underline">Back</a>
 
         @elseif ($canProcess && ($labRequest->is_paid || $visit->is_emergency))
-            {{-- Paid tests and urgent ER tests can be entered or updated. --}}
+            {{-- Paid tests and urgent A&E tests can be entered or updated. --}}
             @if ($visit->is_emergency && ! $labRequest->is_paid)
                 <div class="mb-5 rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-900">
                     <p class="font-semibold">Emergency care · process without upfront payment</p>
-                    <p class="mt-1">The test charge remains outstanding on the patient’s ER invoice for the billing desk.</p>
+                    <p class="mt-1">The test charge remains outstanding on the patient’s A&E invoice for the billing desk.</p>
                 </div>
             @endif
             @if ($labRequest->attachments->isNotEmpty())

@@ -7,7 +7,7 @@ return [
     ['label' => 'Departments', 'route' => 'departments.index', 'active' => 'departments.*', 'roles' => ['admin']],
     ['label' => 'Consultation Pricing', 'route' => 'consultation-types.index', 'active' => 'consultation-types.*', 'roles' => ['admin']],
     ['label' => 'Appointments', 'route' => 'appointments.index', 'active' => 'appointments.*', 'roles' => ['admin', 'receptionist', 'doctor']],
-    ['label' => 'Accident & Emergency', 'route' => 'emergency.index', 'active' => 'emergency.*', 'roles' => ['admin', 'receptionist', 'nurse', 'doctor'], 'permission' => 'canAccessEmergency'],
+    ['label' => 'A&E', 'route' => 'emergency.index', 'active' => 'emergency.*', 'roles' => ['admin', 'receptionist', 'nurse', 'doctor'], 'permission' => 'canAccessEmergency'],
     ['label' => 'Mortuary', 'route' => 'mortuary.index', 'active' => 'mortuary.*', 'roles' => ['admin', 'mortuary_attendant'], 'permission' => 'canAccessMortuary'],
     ['label' => 'My Availability', 'route' => 'doctor.availability.index', 'active' => 'doctor.availability.*', 'roles' => ['doctor']],
     ['label' => 'Triage',       'route' => 'triage.index',        'active' => 'triage.*',        'roles' => ['admin', 'nurse']],

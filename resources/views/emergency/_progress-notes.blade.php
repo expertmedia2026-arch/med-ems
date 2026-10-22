@@ -15,7 +15,7 @@
 @if ($visit->is_emergency)
     <section class="overflow-hidden rounded-xl border border-teal-100 bg-white shadow-sm">
         <div class="border-b border-teal-100 px-5 py-4 sm:px-7">
-            <h2 class="font-semibold text-slate-900">ER progress notes</h2>
+            <h2 class="font-semibold text-slate-900">A&E progress notes</h2>
             <p class="mt-1 text-sm text-slate-500">Time-stamped medical and nursing updates stay with this emergency visit.</p>
         </div>
         @if ($canAddErNote)
@@ -41,7 +41,7 @@
                     </div>
                 </li>
             @empty
-                <li class="px-5 py-8 text-center text-sm text-slate-500">No ER progress notes have been recorded yet.</li>
+                <li class="px-5 py-8 text-center text-sm text-slate-500">No A&E progress notes have been recorded yet.</li>
             @endforelse
         </ol>
     </section>

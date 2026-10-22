@@ -14,7 +14,7 @@
             {{ ucfirst($patient->gender) }} · {{ $patient->age }} yrs · Prescribed by {{ $visit->doctor?->name ?? '—' }}
         </p>
         @if ($visit->is_emergency)
-            <p class="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-900">Active ER care · dispense prescribed medicines without waiting for payment. The charges remain on the patient’s invoice.</p>
+            <p class="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-900">Active A&E care · dispense prescribed medicines without waiting for payment. The charges remain on the patient’s invoice.</p>
         @endif
 
         @if ($patient->allergies)

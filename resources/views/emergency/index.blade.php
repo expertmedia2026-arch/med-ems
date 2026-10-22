@@ -1,12 +1,12 @@
 <x-app-layout>
-    <x-slot name="header">Accident & Emergency</x-slot>
+    <x-slot name="header">Accident & Emergency (A&amp;E)</x-slot>
 
     <div class="space-y-6">
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-wide text-teal-700">Emergency department</p>
-                <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Accident & Emergency</h1>
-                <p class="mt-1 text-sm text-slate-500">Register arrivals, prioritize triage, and follow patients through the ER.</p>
+                <p class="text-sm font-semibold uppercase tracking-wide text-teal-700">A&amp;E department</p>
+                <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Accident &amp; Emergency (A&amp;E)</h1>
+                <p class="mt-1 text-sm text-slate-500">Register arrivals, prioritize triage, and follow patients through A&amp;E.</p>
             </div>
             @if (auth()->user()->hasRole('admin', 'nurse'))
                 <a href="{{ route('triage.index') }}" class="rounded-lg border border-teal-700 bg-white px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-50">Open triage queue</a>
@@ -16,7 +16,7 @@
         @if (auth()->user()->canRegisterEmergencyArrival())
             <section class="rounded-xl border border-teal-200 bg-white p-5 shadow-sm sm:p-6">
                 <div>
-                    <h2 class="font-semibold text-slate-900">Register an ER arrival</h2>
+                    <h2 class="font-semibold text-slate-900">Register an A&amp;E arrival</h2>
                     <p class="mt-1 text-sm text-slate-500">
                         Find the patient record first. If they are new,
                         @if (auth()->user()->hasRole('admin', 'receptionist'))
@@ -24,7 +24,7 @@
                         @else
                             register them with the front desk
                         @endif
-                        , then return here to start the ER visit.
+                        , then return here to start the A&amp;E visit.
                     </p>
                 </div>
                 <form method="GET" action="{{ route('emergency.index') }}" class="mt-4 flex max-w-2xl gap-2">
@@ -59,11 +59,11 @@
                                             <option value="other">Other</option>
                                         </select>
                                     </div>
-                                    <button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">Start ER visit</button>
+                                    <button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">Start A&amp;E visit</button>
                                 </form>
                             </div>
                         @empty
-                            <p class="p-5 text-sm text-slate-500">No matching patient found. Register the patient before starting the ER visit.</p>
+                            <p class="p-5 text-sm text-slate-500">No matching patient found. Register the patient before starting the A&amp;E visit.</p>
                         @endforelse
                     </div>
                     @error('complaint')<p class="mt-2 text-sm text-rose-700">{{ $message }}</p>@enderror
@@ -122,7 +122,7 @@
 
         <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 p-5">
-                <h2 class="font-semibold text-slate-900">Active ER visits</h2>
+                <h2 class="font-semibold text-slate-900">Active A&amp;E visits</h2>
                 <p class="mt-1 text-sm text-slate-500">Visits needing triage or clinical follow-up appear first, ordered by recorded triage priority.</p>
             </div>
             <div class="overflow-x-auto">
@@ -163,7 +163,7 @@
                                     @elseif ($visit->status->value === 'waiting_doctor' && auth()->user()->hasRole('doctor'))
                                         <form method="POST" action="{{ route('consultations.start', $visit) }}">
                                             @csrf
-                                            <button class="font-semibold text-teal-700 hover:underline">Start ER care</button>
+                                            <button class="font-semibold text-teal-700 hover:underline">Start A&amp;E care</button>
                                         </form>
                                     @elseif ($visit->status->value === 'in_consultation' && auth()->user()->hasRole('doctor'))
                                         <a href="{{ route('consultations.show', $visit) }}" class="font-semibold text-teal-700 hover:underline">Open consultation</a>
@@ -181,7 +181,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="px-5 py-12 text-center text-slate-500">No active ER visits.</td></tr>
+                            <tr><td colspan="6" class="px-5 py-12 text-center text-slate-500">No active A&amp;E visits.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -192,7 +192,7 @@
         <section class="overflow-hidden rounded-xl border border-teal-200 bg-white shadow-sm">
             <div class="border-b border-teal-100 p-5">
                 <h2 class="font-semibold text-slate-900">Mortuary handoffs</h2>
-                <p class="mt-1 text-sm text-slate-500">Deceased ER cases awaiting physical transfer and receipt.</p>
+                <p class="mt-1 text-sm text-slate-500">Deceased A&amp;E cases awaiting physical transfer and receipt.</p>
             </div>
             <div class="divide-y divide-slate-100">
                 @forelse ($mortuaryHandoffs as $case)
@@ -225,7 +225,7 @@
                         @endif
                     </div>
                 @empty
-                    <p class="px-5 py-8 text-center text-sm text-slate-500">No ER cases are awaiting mortuary receipt.</p>
+                    <p class="px-5 py-8 text-center text-sm text-slate-500">No A&amp;E cases are awaiting mortuary receipt.</p>
                 @endforelse
             </div>
         </section>

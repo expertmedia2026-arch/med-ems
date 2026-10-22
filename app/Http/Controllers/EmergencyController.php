@@ -40,7 +40,7 @@ class EmergencyController extends Controller
         $visit = $emergency->checkIn($patient, $request->validated(), $request->user());
 
         if (! $visit) {
-            return back()->with('error', 'This patient already has an active visit or inpatient admission. Review their record before creating another ER visit.');
+            return back()->with('error', 'This patient already has an active visit or inpatient admission. Review their record before creating another A&E visit.');
         }
 
         return redirect()->route('emergency.index')
@@ -66,6 +66,6 @@ class EmergencyController extends Controller
     {
         $notes->add($visit, $request->validated('note'), $request->user());
 
-        return back()->with('success', 'ER progress note added to the visit record.');
+        return back()->with('success', 'A&E progress note added to the visit record.');
     }
 }

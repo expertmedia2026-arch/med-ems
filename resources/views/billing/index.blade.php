@@ -73,7 +73,7 @@
                         <td class="px-4 py-3 font-medium">
                             {{ $invoice->patient->full_name }}
                             @if ($invoice->visit?->is_emergency)
-                                <span class="mt-1 block"><x-badge color="red">ER visit</x-badge></span>
+                                <span class="mt-1 block"><x-badge color="red">A&E visit</x-badge></span>
                             @elseif ($invoice->mortuaryCase)
                                 <span class="mt-1 block"><x-badge color="teal">Mortuary · {{ $invoice->mortuaryCase->case_number }}</x-badge></span>
                             @endif

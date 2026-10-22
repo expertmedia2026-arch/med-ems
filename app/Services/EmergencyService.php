@@ -64,7 +64,7 @@ class EmergencyService
             $estimatedAge = $data['estimated_age'] ?? null;
             $patient = Patient::create([
                 'first_name' => 'Unknown',
-                'last_name' => 'ER Arrival',
+                'last_name' => 'A&E Arrival',
                 'gender' => $data['gender'],
                 'date_of_birth' => $estimatedAge === null ? now()->toDateString() : now()->subYears($estimatedAge)->toDateString(),
                 'dob_estimated' => true,
