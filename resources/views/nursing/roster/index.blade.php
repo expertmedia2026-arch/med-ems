@@ -3,7 +3,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ $isManager ? 'Department staff roster' : 'My duty roster' }}</h2>
-                <p class="mt-1 text-sm text-gray-500">{{ $isManager ? 'Assign weekly morning and night shifts to staff in your roster scope.' : 'See your assigned shifts and the colleagues working alongside you.' }}</p>
+                <p class="mt-1 text-sm text-gray-500">{{ $isManager ? 'Assign shifts by role: doctors have one 24-hour duty each week; other staff use morning and night shifts.' : 'See your assigned shifts and the colleagues working alongside you.' }}</p>
             </div>
             <span class="rounded-full bg-teal-50 px-3 py-1.5 text-sm font-medium text-teal-800">{{ $scheduledShifts }} {{ $isManager ? 'shifts scheduled' : 'shifts assigned this week' }}</span>
         </div>
@@ -46,8 +46,9 @@
                 <div class="mt-5 grid gap-3 text-sm sm:grid-cols-2">
                     <div class="rounded-lg bg-teal-50 px-4 py-3 text-teal-900"><span class="font-semibold">Morning shift:</span> 07:00–19:00 · 12 hours</div>
                     <div class="rounded-lg bg-slate-100 px-4 py-3 text-slate-800"><span class="font-semibold">Night shift:</span> 19:00–07:00 · 12 hours</div>
+                    <div class="rounded-lg bg-indigo-50 px-4 py-3 text-indigo-900 sm:col-span-2"><span class="font-semibold">Doctor duty:</span> one 24-hour assignment on one selected day each week</div>
                 </div>
-                <p class="mt-3 text-xs text-gray-500">One shift may be assigned per staff member each day. Night shift is recorded against the date it begins.</p>
+                <p class="mt-3 text-xs text-gray-500">Doctors can have one 24-hour duty date in the week. Other staff can have one 12-hour shift per day. Night shifts are recorded against the date they begin.</p>
             </section>
 
             @unless ($isManager)
@@ -55,7 +56,7 @@
                     <h3 class="font-semibold text-gray-900">My assigned shifts</h3>
                     <div class="mt-3 flex flex-wrap gap-2">
                         @forelse ($myDuties->sortBy('duty_date') as $duty)
-                            <span class="rounded-full bg-teal-50 px-3 py-1.5 text-sm font-medium text-teal-800">{{ $duty->duty_date->format('D, d M') }} · {{ ucfirst($duty->shift) }}</span>
+                            <span class="rounded-full bg-teal-50 px-3 py-1.5 text-sm font-medium text-teal-800">{{ $duty->duty_date->format('D, d M') }} · {{ $duty->shift === '24_hour' ? '24-hour duty' : ucfirst($duty->shift) }}</span>
                         @empty
                             <p class="text-sm text-gray-500">No shifts have been assigned to you for this week.</p>
                         @endforelse
@@ -73,14 +74,14 @@
                 </div>
                 <div class="mt-4 overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500"><tr><th class="px-3 py-2">Day</th><th class="px-3 py-2">Date</th><th class="px-3 py-2">Morning · 07:00–19:00</th><th class="px-3 py-2">Night · 19:00–07:00</th></tr></thead>
+                        <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500"><tr><th class="px-3 py-2">Day</th><th class="px-3 py-2">Date</th><th class="px-3 py-2">Morning · 07:00–19:00</th><th class="px-3 py-2">Night · 19:00–07:00</th><th class="px-3 py-2">Doctor · 24 hours</th></tr></thead>
                         <tbody class="divide-y divide-gray-100">
                             @foreach ($days as $day)
                                 @php $dateKey = $day['date']->toDateString(); @endphp
                                 <tr>
                                     <td class="px-3 py-2 font-medium text-gray-800">{{ $day['name'] }}</td>
                                     <td class="px-3 py-2 text-gray-500">{{ $day['date']->format('d M') }}</td>
-                                    @foreach (['morning', 'night'] as $shiftName)
+                                    @foreach (['morning', 'night', '24_hour'] as $shiftName)
                                         @php
                                             $shiftCoverage = $coverage->get($dateKey.':'.$shiftName);
                                             $myShift = $myDuties->first(fn ($duty) => $duty->duty_date->toDateString() === $dateKey && $duty->shift === $shiftName);
@@ -140,6 +141,7 @@
                     $useOldInput = (int) old('_staff_id') === $staffMember->id;
                     $oldMorning = $useOldInput ? array_map('intval', (array) old('morning_days', [])) : [];
                     $oldNight = $useOldInput ? array_map('intval', (array) old('night_days', [])) : [];
+                    $oldDoctorDay = $useOldInput ? old('doctor_day') : null;
                 @endphp
                 <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-5 py-4">
@@ -170,21 +172,49 @@
                                         <p class="text-sm font-semibold text-gray-800">{{ $day['name'] }}</p>
                                         <p class="text-xs text-gray-500">{{ $day['date']->format('d M') }}</p>
                                     </div>
-                                    @foreach ([['value' => 'morning', 'label' => 'Morning'], ['value' => 'night', 'label' => 'Night']] as $shift)
+                                    @if ($staffMember->hasRole('doctor'))
                                         @php
-                                            $checked = $useOldInput
-                                                ? in_array($day['number'], $shift['value'] === 'morning' ? $oldMorning : $oldNight, true)
-                                                : $memberDuties->contains(fn ($duty) => $duty->duty_date->toDateString() === $day['date']->toDateString() && $duty->shift === $shift['value']);
+                                            $doctorDuty = $memberDuties->first(fn ($duty) => $duty->shift === '24_hour');
+                                            $checked = $useOldInput ? (string) $oldDoctorDay === (string) $day['number'] : $doctorDuty?->duty_date->toDateString() === $day['date']->toDateString();
                                         @endphp
-                                        <label class="mb-2 flex items-center gap-2 rounded-lg border {{ $checked ? 'border-teal-200 bg-teal-50 text-teal-900' : 'border-gray-200 text-gray-600' }} px-2.5 py-2 text-xs hover:bg-teal-50">
-                                            <input type="checkbox" name="{{ $shift['value'] }}_days[]" value="{{ $day['number'] }}" @checked($checked) @disabled(! $isManager) class="rounded border-gray-300 text-teal-700 shadow-sm focus:ring-teal-600 disabled:opacity-70">
-                                            <span>{{ $shift['label'] }}@if ($checked) <span class="font-semibold">· Assigned</span>@endif</span>
-                                        </label>
-                                    @endforeach
+                                        @if ($checked)
+                                            <div class="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-2 text-center text-xs font-semibold text-indigo-900">24-hour duty</div>
+                                        @elseif (! $isManager)
+                                            <div class="px-2.5 py-2 text-center text-xs text-gray-300">—</div>
+                                        @endif
+                                    @else
+                                        @foreach ([['value' => 'morning', 'label' => 'Morning'], ['value' => 'night', 'label' => 'Night']] as $shift)
+                                            @php
+                                                $checked = $useOldInput
+                                                    ? in_array($day['number'], $shift['value'] === 'morning' ? $oldMorning : $oldNight, true)
+                                                    : $memberDuties->contains(fn ($duty) => $duty->duty_date->toDateString() === $day['date']->toDateString() && $duty->shift === $shift['value']);
+                                            @endphp
+                                            <label class="mb-2 flex items-center gap-2 rounded-lg border {{ $checked ? 'border-teal-200 bg-teal-50 text-teal-900' : 'border-gray-200 text-gray-600' }} px-2.5 py-2 text-xs hover:bg-teal-50">
+                                                <input type="checkbox" name="{{ $shift['value'] }}_days[]" value="{{ $day['number'] }}" @checked($checked) @disabled(! $isManager) class="rounded border-gray-300 text-teal-700 shadow-sm focus:ring-teal-600 disabled:opacity-70">
+                                                <span>{{ $shift['label'] }}@if ($checked) <span class="font-semibold">· Assigned</span>@endif</span>
+                                            </label>
+                                        @endforeach
+                                    @endif
                                 </div>
                             @endforeach
                         </div>
                     </div>
+                    @if ($staffMember->hasRole('doctor') && $isManager)
+                        <div class="border-t border-gray-100 px-5 py-4">
+                            @php
+                                $doctorDuty = $memberDuties->first(fn ($duty) => $duty->shift === '24_hour');
+                                $selectedDoctorDay = $useOldInput ? $oldDoctorDay : ($doctorDuty ? $doctorDuty->duty_date->dayOfWeekIso : '');
+                            @endphp
+                            <label class="block max-w-sm text-sm font-medium text-gray-700">Doctor’s 24-hour duty this week
+                                <select name="doctor_day" class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
+                                    <option value="">No duty assigned</option>
+                                    @foreach ($days as $day)
+                                        <option value="{{ $day['number'] }}" @selected((string) $selectedDoctorDay === (string) $day['number'])>{{ $day['name'] }} · {{ $day['date']->format('d M') }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        </div>
+                    @endif
                     @if ($isManager)
                         <div class="flex justify-end border-t border-gray-100 px-5 py-3">
                             <button type="submit" class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2">Save {{ $staffMember->name }}’s roster</button>

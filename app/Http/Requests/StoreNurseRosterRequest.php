@@ -33,11 +33,15 @@ class StoreNurseRosterRequest extends FormRequest
 
     public function rules(): array
     {
+        $staffMember = $this->route('staff');
+        $isDoctor = $staffMember instanceof User && $staffMember->hasRole(Role::Doctor);
+
         return [
             'week_start' => ['required', 'date_format:Y-m-d'],
-            'morning_days' => ['sometimes', 'array'],
+            'doctor_day' => [$isDoctor ? 'sometimes' : 'prohibited', 'nullable', 'integer', Rule::in(range(1, 7))],
+            'morning_days' => [$isDoctor ? 'prohibited' : 'sometimes', 'array'],
             'morning_days.*' => ['integer', Rule::in(range(1, 7))],
-            'night_days' => ['sometimes', 'array'],
+            'night_days' => [$isDoctor ? 'prohibited' : 'sometimes', 'array'],
             'night_days.*' => ['integer', Rule::in(range(1, 7))],
         ];
     }

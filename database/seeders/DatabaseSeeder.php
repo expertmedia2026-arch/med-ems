@@ -9,6 +9,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(ResetDemoDataSeeder::class);
+        $this->call(DemoHospitalFeesSeeder::class);
         $this->call(DepartmentStaffSeeder::class);
         $this->call(ConsultationPricingSeeder::class);
         $this->call(PatientSeeder::class);
@@ -16,5 +17,6 @@ class DatabaseSeeder extends Seeder
         $this->call(DemoWorkflowSeeder::class);
         $this->call(EmergencyMortuarySeeder::class);
         $this->call(EmergencyPharmacySeeder::class);
+        $this->call(DemoStaffRosterSeeder::class);
     }
 }

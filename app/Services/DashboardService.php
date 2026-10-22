@@ -48,7 +48,7 @@ class DashboardService
 
             array_unshift($cards,
                 $this->card('My shifts this week', StaffDuty::where('user_id', $user->id)->whereBetween('duty_date', [$weekStart->toDateString(), $weekEnd->toDateString()])->count(), 'teal', 'nursing.roster.index'),
-                $this->card('My next shift', $nextShift ? $nextShift->duty_date->format('D, d M').' · '.ucfirst($nextShift->shift) : 'No upcoming shift', 'teal', 'nursing.roster.index'),
+                $this->card('My next shift', $nextShift ? $nextShift->duty_date->format('D, d M').' · '.($nextShift->shift === '24_hour' ? '24-hour duty' : ucfirst($nextShift->shift)) : 'No upcoming shift', 'teal', 'nursing.roster.index'),
             );
         }
 

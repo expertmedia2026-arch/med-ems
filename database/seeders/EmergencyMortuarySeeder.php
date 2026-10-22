@@ -101,6 +101,9 @@ class EmergencyMortuarySeeder extends Seeder
                     ],
                 );
 
+                // Match the live check-in flow so seeded A&E visits carry the configured attendance fee.
+                app(BillingService::class)->addEmergencyAttendanceFee($visit);
+
                 if ($hasBeenTriaged) {
                     $this->seedVitals($visit, $nurse, $checkedInAt);
                 }

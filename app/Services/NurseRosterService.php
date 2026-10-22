@@ -118,17 +118,34 @@ class NurseRosterService
 
         $week = Carbon::parse($data['week_start'])->startOfWeek(Carbon::MONDAY);
         $weekEnd = $week->copy()->addDays(6);
+        $isDoctor = $staffMember->hasRole(Role::Doctor);
+        $doctorDay = isset($data['doctor_day']) ? (int) $data['doctor_day'] : null;
         $morningDays = collect($data['morning_days'] ?? [])->map(fn ($day) => (int) $day)->unique();
         $nightDays = collect($data['night_days'] ?? [])->map(fn ($day) => (int) $day)->unique();
 
-        abort_if($morningDays->intersect($nightDays)->isNotEmpty(), 422, 'A staff member cannot be assigned both shifts on the same day.');
+        abort_if($isDoctor && ($morningDays->isNotEmpty() || $nightDays->isNotEmpty()), 422, 'Doctors are assigned one 24-hour duty per week.');
+        abort_if($isDoctor && $doctorDay !== null && ($doctorDay < 1 || $doctorDay > 7), 422, 'Choose one valid day for the doctor’s 24-hour duty.');
+        abort_if(! $isDoctor && $morningDays->intersect($nightDays)->isNotEmpty(), 422, 'A staff member cannot be assigned both shifts on the same day.');
         abort_if($morningDays->merge($nightDays)->contains(fn ($day) => $day < 1 || $day > 7), 422, 'Choose a valid day of the week.');
 
-        DB::transaction(function () use ($staffMember, $assignedBy, $week, $weekEnd, $morningDays, $nightDays) {
+        DB::transaction(function () use ($staffMember, $assignedBy, $week, $weekEnd, $morningDays, $nightDays, $isDoctor, $doctorDay) {
             User::query()->lockForUpdate()->findOrFail($staffMember->id);
             StaffDuty::query()->where('user_id', $staffMember->id)
                 ->whereBetween('duty_date', [$week->toDateString(), $weekEnd->toDateString()])
                 ->delete();
+
+            if ($isDoctor) {
+                if ($doctorDay !== null) {
+                    StaffDuty::create([
+                        'user_id' => $staffMember->id,
+                        'duty_date' => $week->copy()->addDays($doctorDay - 1)->toDateString(),
+                        'shift' => '24_hour',
+                        'assigned_by' => $assignedBy->id,
+                    ]);
+                }
+
+                return;
+            }
 
             foreach ([['days' => $morningDays, 'shift' => 'morning'], ['days' => $nightDays, 'shift' => 'night']] as $assignment) {
                 foreach ($assignment['days'] as $day) {
