@@ -158,6 +158,8 @@ class AdminController extends Controller
             'receipt_footer' => $setting->receipt_footer,
             'registration_fee' => (float) $setting->registration_fee,
             'emergency_fee' => (float) $setting->emergency_fee,
+            'mortuary_intake_fee' => (float) $setting->mortuary_intake_fee,
+            'mortuary_daily_storage_fee' => (float) $setting->mortuary_daily_storage_fee,
             'payment_gateway' => $setting->payment_gateway ?: 'paystack',
             'paystack_public_key' => $setting->paystack_public_key,
             'has_paystack_secret_key' => filled($setting->getRawOriginal('paystack_secret_key')),

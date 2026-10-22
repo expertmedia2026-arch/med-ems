@@ -21,6 +21,7 @@ class EmergencyController extends Controller
 
         $search = trim($request->string('q')->value());
         $patients = $search === '' ? collect() : Patient::query()
+            ->where('identity_status', '!=', 'external_mortuary')
             ->search($search)
             ->orderBy('last_name')
             ->limit(10)

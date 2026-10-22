@@ -6,7 +6,7 @@
         $input    = 'mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600';
         $unpaid   = $invoice->items->filter(fn ($i) => ! $i->is_paid);
         $balance  = round($invoice->balance, 2);
-        $catColor = ['consultation' => 'blue', 'lab' => 'amber', 'drug' => 'green'];
+        $catColor = ['consultation' => 'blue', 'lab' => 'amber', 'drug' => 'green', 'mortuary' => 'teal'];
     @endphp
 
     <div class="mb-6 rounded-xl border bg-white p-5 shadow-sm">
@@ -18,6 +18,8 @@
                 <p class="text-sm text-slate-500">
                     @if ($invoice->visit)
                         {{ $invoice->visit->doctor ? 'Doctor: ' . $invoice->visit->doctor->name . ' · ' : '' }}Visit {{ $invoice->visit->checked_in_at->format('d M Y') }}
+                    @elseif ($invoice->mortuaryCase)
+                        Mortuary case {{ $invoice->mortuaryCase->case_number }}{{ $invoice->mortuaryCase->source === 'walk_in' ? ' · External walk-in' : ' · Hospital' }}
                     @else
                         Registration
                     @endif

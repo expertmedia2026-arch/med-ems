@@ -11,8 +11,15 @@
             </div>
             <div class="grid gap-5 p-5 sm:grid-cols-2 sm:p-7">
                 <dl class="space-y-3 text-sm">
-                    <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Presenting complaint / clinical handoff</dt><dd class="mt-1 whitespace-pre-line text-slate-800">{{ $case->visit->complaint ?: '—' }}</dd></div>
-                    <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">ER doctor</dt><dd class="mt-1 text-slate-800">{{ $case->visit->doctor?->name ?? $case->openedBy?->name ?? '—' }}</dd></div>
+                    <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Source</dt><dd class="mt-1 text-slate-800">{{ $case->source === 'walk_in' ? 'External walk-in' : ($case->visit?->is_emergency ? 'Hospital ER' : 'Hospital') }}</dd></div>
+                    @if ($case->visit)
+                        <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Presenting complaint / clinical handoff</dt><dd class="mt-1 whitespace-pre-line text-slate-800">{{ $case->visit->complaint ?: '—' }}</dd></div>
+                        <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">ER doctor</dt><dd class="mt-1 text-slate-800">{{ $case->visit->doctor?->name ?? $case->openedBy?->name ?? '—' }}</dd></div>
+                    @else
+                        <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Approximate age</dt><dd class="mt-1 text-slate-800">{{ $case->deceased_age !== null ? $case->deceased_age.' years' : 'Not recorded' }}</dd></div>
+                        <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Depositor / contact</dt><dd class="mt-1 text-slate-800">{{ $case->external_contact_name ?: 'Not recorded' }} · {{ $case->external_contact_phone ?: 'No phone' }}</dd></div>
+                        @if ($case->external_contact_address)<div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Contact address</dt><dd class="mt-1 text-slate-800">{{ $case->external_contact_address }}</dd></div>@endif
+                    @endif
                     <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">ER handoff note</dt><dd class="mt-1 whitespace-pre-line text-slate-800">{{ $case->handoff_note ?: 'No additional handoff note.' }}</dd></div>
                 </dl>
                 <dl class="grid grid-cols-2 gap-3 text-sm">
@@ -22,6 +29,27 @@
                 </dl>
             </div>
         </section>
+
+        @if ($case->invoice)
+            <section class="overflow-hidden rounded-xl border bg-white shadow-sm">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 sm:px-6">
+                    <div><h2 class="font-semibold text-slate-900">Linked invoice</h2><p class="mt-1 text-sm text-slate-500">Mortuary charges are added as custody time accrues. The total and balance include other ER charges when linked to a hospital visit.</p></div>
+                    <div class="text-right"><p class="font-mono text-sm text-teal-700">{{ $case->invoice->invoice_number }}</p><p class="mt-1 text-sm font-semibold text-slate-900">Total ₦{{ number_format($case->invoice->total, 2) }} · Balance ₦{{ number_format($case->invoice->balance, 2) }}</p></div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-100 text-sm"><thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-5 py-3">Charge</th><th class="px-5 py-3 text-right">Qty</th><th class="px-5 py-3 text-right">Unit fee</th><th class="px-5 py-3 text-right">Total</th><th class="px-5 py-3">Status</th></tr></thead><tbody class="divide-y divide-slate-100">
+                        @forelse ($case->invoice->items->where('category', 'mortuary') as $item)
+                            <tr><td class="px-5 py-3">{{ $item->description }}</td><td class="px-5 py-3 text-right">{{ $item->quantity }}</td><td class="px-5 py-3 text-right">₦{{ number_format($item->unit_price, 2) }}</td><td class="px-5 py-3 text-right">₦{{ number_format($item->total, 2) }}</td><td class="px-5 py-3">{{ $item->is_paid ? 'Paid' : 'Awaiting payment' }}</td></tr>
+                        @empty
+                            <tr><td colspan="5" class="px-5 py-5 text-center text-slate-500">No mortuary charges have been added.</td></tr>
+                        @endforelse
+                    </tbody></table>
+                </div>
+                @if (auth()->user()->hasRole('admin', 'accountant', 'receptionist'))
+                    <div class="border-t px-5 py-3 text-right"><a href="{{ route('billing.show', $case->invoice) }}" class="text-sm font-semibold text-teal-700 hover:underline">Open linked invoice and collect payment →</a></div>
+                @endif
+            </section>
+        @endif
 
         @if ($case->status === 'awaiting_transfer')
             <section class="rounded-xl border border-teal-200 bg-white p-5 shadow-sm sm:p-6">

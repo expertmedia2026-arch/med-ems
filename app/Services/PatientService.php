@@ -15,7 +15,7 @@ class PatientService
 {
     public function index(?string $term)
     {
-        return Patient::search($term)->latest()->paginate(10)->withQueryString();
+        return Patient::where('identity_status', '!=', 'external_mortuary')->search($term)->latest()->paginate(10)->withQueryString();
     }
 
     public function showData(Patient $patient): array

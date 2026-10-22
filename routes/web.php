@@ -93,6 +93,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
 
     Route::middleware('role:admin,mortuary_attendant')->prefix('mortuary')->name('mortuary.')->group(function () {
         Route::get('/', [MortuaryController::class, 'index'])->name('index');
+        Route::post('walk-in', [MortuaryController::class, 'storeWalkIn'])->name('walk-in.store');
         Route::get('{mortuaryCase}', [MortuaryController::class, 'show'])->whereNumber('mortuaryCase')->name('show');
         Route::post('{mortuaryCase}/receive', [MortuaryController::class, 'receive'])->whereNumber('mortuaryCase')->name('receive');
         Route::post('{mortuaryCase}/move', [MortuaryController::class, 'move'])->whereNumber('mortuaryCase')->name('move');

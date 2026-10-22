@@ -43,6 +43,8 @@ class EmergencyService
 
     public function checkIn(Patient $patient, array $data, User $staff): ?Visit
     {
+        abort_unless($patient->identity_status !== 'external_mortuary', 422, 'Walk-in mortuary records cannot be checked in for emergency care.');
+
         return DB::transaction(function () use ($patient, $data, $staff) {
             $patient = Patient::query()->lockForUpdate()->findOrFail($patient->id);
             if ($patient->activeAdmission()->exists() || $patient->currentVisit()) {

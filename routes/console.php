@@ -14,3 +14,10 @@ Artisan::command('pharmacy:expire-stock-reservations', function (\App\Services\D
 })->purpose('Release expired unpaid drug stock reservations');
 
 Schedule::command('pharmacy:expire-stock-reservations')->everyMinute()->withoutOverlapping();
+
+Artisan::command('mortuary:accrue-storage', function (\App\Services\MortuaryCaseService $mortuary) {
+    $count = $mortuary->accrueStorageCharges();
+    $this->info("Updated storage charges for {$count} mortuary case(s).");
+})->purpose('Add elapsed mortuary storage charges to invoices');
+
+Schedule::command('mortuary:accrue-storage')->dailyAt('00:10')->withoutOverlapping();

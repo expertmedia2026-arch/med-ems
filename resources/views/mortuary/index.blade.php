@@ -5,8 +5,30 @@
         <div>
             <p class="text-sm font-semibold uppercase tracking-wide text-teal-700">Mortuary</p>
             <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Case register</h1>
-            <p class="mt-1 text-sm text-slate-500">Receive deceased patients from clinical teams, track storage, and document authorized release.</p>
+            <p class="mt-1 text-sm text-slate-500">Manage hospital transfers and external walk-ins, track storage, and document authorized release.</p>
         </div>
+
+        <details class="overflow-hidden rounded-xl border border-teal-200 bg-white shadow-sm" {{ $errors->any() ? 'open' : '' }}>
+            <summary class="cursor-pointer bg-teal-50 px-5 py-4 font-semibold text-teal-950">Register a walk-in body</summary>
+            <div class="border-t p-5">
+                <p class="mb-4 text-sm text-slate-600">For a deceased person brought from outside the hospital. This creates a mortuary-only record and invoice, without registering them as an OPD patient or charging the patient registration fee. Current fees: intake ₦{{ number_format((float) $intakeFee, 2) }}; storage ₦{{ number_format((float) $dailyStorageFee, 2) }} per started 24 hours.</p>
+                <form method="POST" action="{{ route('mortuary.walk-in.store') }}" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    @csrf
+                    <div><label class="block text-sm font-medium text-slate-700" for="first_name">Deceased first name <span class="text-red-600">*</span></label><input id="first_name" name="first_name" value="{{ old('first_name') }}" required maxlength="80" class="mt-1 w-full rounded-lg border-slate-300 text-sm">@error('first_name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                    <div><label class="block text-sm font-medium text-slate-700" for="last_name">Deceased last name <span class="text-red-600">*</span></label><input id="last_name" name="last_name" value="{{ old('last_name') }}" required maxlength="80" class="mt-1 w-full rounded-lg border-slate-300 text-sm">@error('last_name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                    <div><label class="block text-sm font-medium text-slate-700" for="gender">Sex <span class="text-red-600">*</span></label><select id="gender" name="gender" required class="mt-1 w-full rounded-lg border-slate-300 text-sm"><option value="">Select</option><option value="male" @selected(old('gender') === 'male')>Male</option><option value="female" @selected(old('gender') === 'female')>Female</option><option value="unknown" @selected(old('gender') === 'unknown')>Unknown</option></select>@error('gender')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                    <div><label class="block text-sm font-medium text-slate-700" for="estimated_age">Approximate age</label><input id="estimated_age" name="estimated_age" type="number" min="0" max="120" value="{{ old('estimated_age') }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm">@error('estimated_age')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                    <div><label class="block text-sm font-medium text-slate-700" for="deceased_at">Date and time of death <span class="text-red-600">*</span></label><input id="deceased_at" name="deceased_at" type="datetime-local" max="{{ now()->format('Y-m-d\TH:i') }}" value="{{ old('deceased_at') }}" required class="mt-1 w-full rounded-lg border-slate-300 text-sm">@error('deceased_at')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                    <div><label class="block text-sm font-medium text-slate-700" for="storage_location">Storage location <span class="text-red-600">*</span></label><input id="storage_location" name="storage_location" value="{{ old('storage_location') }}" required maxlength="120" placeholder="Cold room 1 · shelf B" class="mt-1 w-full rounded-lg border-slate-300 text-sm">@error('storage_location')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                    <div><label class="block text-sm font-medium text-slate-700" for="external_contact_name">Depositor / contact name <span class="text-red-600">*</span></label><input id="external_contact_name" name="external_contact_name" value="{{ old('external_contact_name') }}" required maxlength="150" class="mt-1 w-full rounded-lg border-slate-300 text-sm">@error('external_contact_name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                    <div><label class="block text-sm font-medium text-slate-700" for="external_contact_phone">Contact phone <span class="text-red-600">*</span></label><input id="external_contact_phone" name="external_contact_phone" value="{{ old('external_contact_phone') }}" required maxlength="30" class="mt-1 w-full rounded-lg border-slate-300 text-sm">@error('external_contact_phone')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                    <div><label class="block text-sm font-medium text-slate-700" for="body_tag_number">Body tag number</label><input id="body_tag_number" name="body_tag_number" value="{{ old('body_tag_number') }}" maxlength="80" class="mt-1 w-full rounded-lg border-slate-300 text-sm">@error('body_tag_number')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                    <div class="sm:col-span-2 lg:col-span-3"><label class="block text-sm font-medium text-slate-700" for="external_contact_address">Contact address</label><input id="external_contact_address" name="external_contact_address" value="{{ old('external_contact_address') }}" maxlength="1000" class="mt-1 w-full rounded-lg border-slate-300 text-sm">@error('external_contact_address')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                    <div class="sm:col-span-2 lg:col-span-3"><label class="block text-sm font-medium text-slate-700" for="handoff_note">Intake note</label><textarea id="handoff_note" name="handoff_note" rows="2" maxlength="2000" class="mt-1 w-full rounded-lg border-slate-300 text-sm">{{ old('handoff_note') }}</textarea>@error('handoff_note')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                    <div class="sm:col-span-2 lg:col-span-3"><button class="rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">Register walk-in and open invoice</button></div>
+                </form>
+            </div>
+        </details>
 
         <form method="GET" action="{{ route('mortuary.index') }}" class="grid gap-3 rounded-xl border bg-white p-4 shadow-sm sm:grid-cols-[1fr_14rem_auto]">
             <label class="sr-only" for="mortuary-search">Search cases</label>
@@ -31,7 +53,7 @@
                         @forelse ($cases as $case)
                             <tr>
                                 <td class="px-5 py-4"><p class="font-mono font-semibold text-slate-900">{{ $case->case_number }}</p><p class="mt-1 text-xs text-slate-500">Tag: {{ $case->body_tag_number ?: 'Not assigned' }}</p></td>
-                                <td class="px-5 py-4"><p class="font-medium text-slate-900">{{ $case->patient->full_name }}</p><p class="mt-1 font-mono text-xs text-slate-500">{{ $case->patient->hospital_number }}</p></td>
+                                <td class="px-5 py-4"><p class="font-medium text-slate-900">{{ $case->patient->full_name }}</p><p class="mt-1 font-mono text-xs text-slate-500">{{ $case->patient->hospital_number }} · {{ $case->source === 'walk_in' ? 'Walk-in' : 'Hospital' }}</p></td>
                                 <td class="whitespace-nowrap px-5 py-4 text-slate-600">{{ $case->deceased_at->format('d M Y, g:i A') }}</td>
                                 <td class="px-5 py-4 text-slate-600">{{ $case->storage_location ?: '—' }}</td>
                                 <td class="whitespace-nowrap px-5 py-4">

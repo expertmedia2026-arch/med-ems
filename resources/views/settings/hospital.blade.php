@@ -6,7 +6,7 @@
         $label = 'block text-sm font-medium text-slate-700';
         $sections = [
             'basic' => ['title' => 'Basic details', 'description' => 'Hospital name and contact details'],
-            'payments' => ['title' => 'Payments', 'description' => 'Registration and ER charges, plus payment gateway'],
+            'payments' => ['title' => 'Payments', 'description' => 'Registration, ER, and mortuary charges, plus payment gateway'],
             'branding' => ['title' => 'Branding', 'description' => 'Colors, logo, and patient card signature'],
         ];
         $settingsRoute = fn ($target) => $target === 'basic'
@@ -113,6 +113,18 @@
                                 <input id="emergency_fee" name="emergency_fee" type="number" step="0.01" min="0" max="99999999" required value="{{ old('emergency_fee', $settings->emergency_fee ?? 0) }}" class="{{ $input }}">
                                 <p class="mt-1 text-xs text-slate-500">Added to each new ER visit when it is registered. It does not delay emergency care. Use 0 for no fixed fee.</p>
                                 @error('emergency_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div>
+                                <label for="mortuary_intake_fee" class="{{ $label }}">Mortuary intake fee (₦) <span class="text-red-600">*</span></label>
+                                <input id="mortuary_intake_fee" name="mortuary_intake_fee" type="number" step="0.01" min="0" max="99999999" required value="{{ old('mortuary_intake_fee', $settings->mortuary_intake_fee ?? 0) }}" class="{{ $input }}">
+                                <p class="mt-1 text-xs text-slate-500">Charged once when the body is received into mortuary custody. Use 0 for no intake fee.</p>
+                                @error('mortuary_intake_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div>
+                                <label for="mortuary_daily_storage_fee" class="{{ $label }}">Mortuary storage fee per started 24 hours (₦) <span class="text-red-600">*</span></label>
+                                <input id="mortuary_daily_storage_fee" name="mortuary_daily_storage_fee" type="number" step="0.01" min="0" max="99999999" required value="{{ old('mortuary_daily_storage_fee', $settings->mortuary_daily_storage_fee ?? 0) }}" class="{{ $input }}">
+                                <p class="mt-1 text-xs text-slate-500">Storage is billed in started 24-hour periods. A final partial period is charged when the body is released. Use 0 for no recurring fee.</p>
+                                @error('mortuary_daily_storage_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                             <div class="border-t pt-5">
                                 <div class="mb-4">

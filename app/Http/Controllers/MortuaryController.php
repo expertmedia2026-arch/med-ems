@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\MoveMortuaryCaseRequest;
 use App\Http\Requests\ReceiveMortuaryCaseRequest;
 use App\Http\Requests\ReleaseMortuaryCaseRequest;
+use App\Http\Requests\StoreExternalMortuaryCaseRequest;
 use App\Models\MortuaryCase;
 use App\Services\MortuaryCaseService;
 use Illuminate\Http\Request;
@@ -18,7 +19,16 @@ class MortuaryController extends Controller
         return view('mortuary.index', [
             'cases' => $mortuary->list($request->only('q', 'status')),
             'filters' => $request->only('q', 'status'),
+            'intakeFee' => \App\Models\HospitalSetting::current()->mortuary_intake_fee,
+            'dailyStorageFee' => \App\Models\HospitalSetting::current()->mortuary_daily_storage_fee,
         ]);
+    }
+
+    public function storeWalkIn(StoreExternalMortuaryCaseRequest $request, MortuaryCaseService $mortuary)
+    {
+        $case = $mortuary->createWalkIn($request->validated(), $request->user());
+
+        return redirect()->route('mortuary.show', $case)->with('success', 'Walk-in mortuary case opened and invoice created.');
     }
 
     public function show(Request $request, MortuaryCase $mortuaryCase, MortuaryCaseService $mortuary)

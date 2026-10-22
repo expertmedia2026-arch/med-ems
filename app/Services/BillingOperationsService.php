@@ -16,7 +16,7 @@ class BillingOperationsService
     public function indexData(?string $status, ?string $term): array
     {
         return [
-            'invoices' => Invoice::with(['patient', 'visit'])
+            'invoices' => Invoice::with(['patient', 'visit', 'mortuaryCase'])
                 ->withCount(['items as unpaid_items_count' => fn ($query) => $query->whereNull('payment_id')->where('total', '>', 0)])
                 ->when($term, fn ($query) => $query->whereHas('patient', fn ($patient) => $patient->search($term)))
                 ->when(in_array($status, ['unpaid', 'partial', 'paid'], true), fn ($query) => $query->where('status', $status))
@@ -30,12 +30,12 @@ class BillingOperationsService
 
     public function invoiceDetails(Invoice $invoice): Invoice
     {
-        return $invoice->load(['patient', 'visit.doctor', 'items.payment', 'payments.receiver']);
+        return $invoice->load(['patient', 'visit.doctor', 'mortuaryCase', 'items.payment', 'payments.receiver']);
     }
 
     public function receiptDetails(Payment $payment): Payment
     {
-        return $payment->load(['invoice.patient', 'invoice.visit.doctor', 'items', 'receiver']);
+        return $payment->load(['invoice.patient', 'invoice.visit.doctor', 'invoice.mortuaryCase', 'items', 'receiver']);
     }
 
     public function recordPayment(Invoice $invoice, array $data, int $receiverId): ?Payment

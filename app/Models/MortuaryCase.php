@@ -16,6 +16,9 @@ class MortuaryCase extends Model
             'deceased_at' => 'datetime',
             'received_at' => 'datetime',
             'released_at' => 'datetime',
+            'storage_billed_through' => 'datetime',
+            'intake_fee' => 'decimal:2',
+            'daily_storage_fee' => 'decimal:2',
         ];
     }
 
@@ -27,6 +30,11 @@ class MortuaryCase extends Model
     public function patient(): BelongsTo
     {
         return $this->belongsTo(Patient::class);
+    }
+
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class);
     }
 
     public function openedBy(): BelongsTo

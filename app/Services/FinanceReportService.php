@@ -24,7 +24,7 @@ class FinanceReportService
 
         $chartPayments = (clone $paymentsQuery)->get(['id', 'amount', 'created_at']);
         $departmentPayments = (clone $paymentsQuery)
-            ->with(['invoice.visit.department'])
+            ->with(['invoice.visit.department', 'invoice.mortuaryCase'])
             ->get(['id', 'invoice_id', 'amount']);
         $collected = (float) $chartPayments->sum(fn (Payment $payment) => (float) $payment->amount);
         $outstandingQuery = Invoice::query()->whereIn('status', ['unpaid', 'partial']);
@@ -38,7 +38,7 @@ class FinanceReportService
             'departments' => Department::orderBy('name')->get(['id', 'name']),
             'roles' => Role::staff(),
             'payments' => (clone $paymentsQuery)
-                ->with(['invoice.patient', 'invoice.visit.department', 'receiver'])
+                ->with(['invoice.patient', 'invoice.visit.department', 'invoice.mortuaryCase', 'receiver'])
                 ->latest('created_at')
                 ->when($forExport, fn (Builder $query) => $query->get(), fn (Builder $query) => $query->paginate(15)->withQueryString()),
             'collected' => $collected,
@@ -138,7 +138,7 @@ class FinanceReportService
     private function departmentBreakdown(Collection $payments): array
     {
         return $payments
-            ->groupBy(fn (Payment $payment) => $payment->invoice->visit?->department?->name ?? 'Registration / general')
+            ->groupBy(fn (Payment $payment) => $payment->invoice->mortuaryCase ? 'Mortuary' : ($payment->invoice->visit?->department?->name ?? 'Registration / general'))
             ->map(fn (Collection $rows) => (float) $rows->sum(fn (Payment $payment) => (float) $payment->amount))
             ->sortDesc()
             ->map(fn (float $amount, string $department) => compact('department', 'amount'))

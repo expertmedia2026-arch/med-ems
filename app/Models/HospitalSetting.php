@@ -16,6 +16,8 @@ class HospitalSetting extends Model
         return [
             'registration_fee' => 'decimal:2',
             'emergency_fee' => 'decimal:2',
+            'mortuary_intake_fee' => 'decimal:2',
+            'mortuary_daily_storage_fee' => 'decimal:2',
             'paystack_secret_key' => 'encrypted',
         ];
     }

@@ -138,6 +138,22 @@ class EmergencyMortuarySeeder extends Seeder
                     $this->advanceMortuaryCase($case, $spec['mortuary'], $mortuaryAttendant, $index);
                 }
             }
+
+            if (! MortuaryCase::where('body_tag_number', 'DEMO-WALKIN-0001')->exists()) {
+                app(MortuaryCaseService::class)->createWalkIn([
+                    'first_name' => 'Walk-in Demo',
+                    'last_name' => 'Mortuary Case',
+                    'gender' => 'unknown',
+                    'estimated_age' => 46,
+                    'deceased_at' => now()->subDay()->toDateTimeString(),
+                    'external_contact_name' => 'Demo External Contact',
+                    'external_contact_phone' => '08000000001',
+                    'external_contact_address' => 'Demo address, Enugu',
+                    'storage_location' => 'Cold room C · Rack 01',
+                    'body_tag_number' => 'DEMO-WALKIN-0001',
+                    'handoff_note' => 'DEMO: External walk-in intake and billing workflow.',
+                ], $mortuaryAttendant);
+            }
         });
     }
 
