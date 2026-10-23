@@ -27,6 +27,11 @@
         </select>
     </div>
 
+    <label class="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm sm:col-span-2">
+        <input type="checkbox" name="is_fluid" value="1" @checked($val('is_fluid', false)) class="mt-0.5 rounded border-slate-300 text-teal-700 focus:ring-teal-600">
+        <span><span class="font-semibold text-slate-900">This is a prescribed fluid</span><span class="mt-1 block text-xs text-slate-600">Enable this for IV fluids or oral rehydration products so nurses can select the prescription in the inpatient fluid intake chart.</span></span>
+    </label>
+
     <div>
         <label for="strength" class="{{ $label }}">Strength</label>
         <input id="strength" name="strength" type="text" value="{{ $val('strength') }}" placeholder="e.g. 500mg or 120mg/5ml" class="{{ $input }}">

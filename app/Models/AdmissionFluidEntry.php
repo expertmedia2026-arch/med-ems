@@ -12,5 +12,6 @@ class AdmissionFluidEntry extends Model
     protected function casts(): array { return ['recorded_at' => 'datetime']; }
 
     public function admission(): BelongsTo { return $this->belongsTo(Admission::class); }
+    public function prescription(): BelongsTo { return $this->belongsTo(Prescription::class); }
     public function recorder(): BelongsTo { return $this->belongsTo(User::class, 'recorded_by'); }
 }

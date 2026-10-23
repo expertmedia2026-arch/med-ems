@@ -74,6 +74,10 @@
     <div class="mb-6">@include('emergency._progress-notes', ['visit' => $visit])</div>
 
     @forelse ($visit->prescriptions as $rx)
+        @php
+            $isInpatientInsulin = $visit->status->value === 'inpatient' && str_contains(strtolower($rx->drug->display_name), 'insulin');
+            $hasPaidMachineBottle = $isInpatientInsulin && $visit->admission?->insulinMachineUses?->contains(fn ($use) => (int) $use->prescription_id === (int) $rx->id && (bool) $use->block?->payment_complete);
+        @endphp
         <section class="mb-5 rounded-xl border bg-white p-5 shadow-sm">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -114,7 +118,7 @@
                 </div>
             @endif
 
-            @if (! $rx->administration_waived_at && $rx->status->value === 'completed' && $rx->stockReservation?->status === 'fulfilled' && $rx->administered_count < $rx->required_administration_count)
+            @if (! $rx->administration_waived_at && $rx->status->value === 'completed' && $rx->stockReservation?->status === 'fulfilled' && $rx->administered_count < $rx->required_administration_count && (! $isInpatientInsulin || $hasPaidMachineBottle))
                 <form method="POST" action="{{ route('nursing.administrations.store', [$visit, $rx]) }}" class="mt-4 grid gap-3 border-t pt-4 sm:grid-cols-2">
                     @csrf
                     <div>
@@ -133,6 +137,11 @@
                     <div><label class="mb-1 block text-xs font-medium text-slate-600">Notes</label><input name="notes" maxlength="2000" class="w-full rounded-lg border-slate-300 text-sm"></div>
                     <div class="sm:col-span-2"><button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">Record outcome</button></div>
                 </form>
+            @elseif (! $rx->administration_waived_at && $isInpatientInsulin && ! $hasPaidMachineBottle && $rx->administered_count < $rx->required_administration_count)
+                <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Open and record a bottle in a paid insulin machine block before charting this dose.</p>
+                @if ($visit->admission)
+                    <a href="{{ route('admissions.show', $visit->admission) }}#insulin-machine-chart" class="mt-2 inline-flex rounded-lg border border-teal-700 px-3 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">Open admission insulin machine chart</a>
+                @endif
             @endif
         </section>
     @empty

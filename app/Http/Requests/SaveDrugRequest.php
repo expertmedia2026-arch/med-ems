@@ -8,6 +8,11 @@ use Illuminate\Validation\Rule;
 
 class SaveDrugRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['is_fluid' => $this->boolean('is_fluid')]);
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -25,6 +30,7 @@ class SaveDrugRequest extends FormRequest
                     ->ignore($drug?->id),
             ],
             'generic_name' => ['nullable', 'string', 'max:150'],
+            'is_fluid' => ['boolean'],
             'form' => ['nullable', 'string', 'max:30'],
             'strength' => ['nullable', 'string', 'max:30'],
             'unit_price' => ['required', 'numeric', 'min:0', 'max:99999999'],

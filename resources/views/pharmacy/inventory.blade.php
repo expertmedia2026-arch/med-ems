@@ -40,6 +40,7 @@
                     <td class="px-4 py-3">
                         <span class="font-medium">{{ $drug->display_name }}</span>
                         <span class="block text-xs text-slate-400">{{ $drug->generic_name }}</span>
+                        @if ($drug->is_fluid)<span class="mt-1 inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-blue-800">Fluid prescription</span>@endif
                     </td>
                     <td class="px-4 py-3">₦{{ number_format($drug->unit_price, 2) }}</td>
                     <td class="px-4 py-3">

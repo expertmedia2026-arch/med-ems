@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\Role;
 use App\Enums\VisitStatus;
 use App\Enums\WorkStatus;
+use App\Models\AdmissionInsulinMachineUse;
 use App\Models\MedicationAdministration;
 use App\Models\Prescription;
 use App\Models\Visit;
@@ -32,7 +33,7 @@ class MedicationAdministrationService
                         ->where('is_emergency', true)->where('status', VisitStatus::InConsultation->value)));
             }))
             ->whereHas('prescriptions', fn ($query) => $query->where('requires_in_facility_administration', true))
-            ->with(['patient', 'doctor', 'department', 'admission.department', 'prescriptions' => fn ($query) => $query
+            ->with(['patient', 'doctor', 'department', 'admission.department', 'admission.insulinMachineUses.block.invoiceItem', 'prescriptions' => fn ($query) => $query
                 ->where('requires_in_facility_administration', true)
                 ->with(['drug', 'dispenser', 'invoiceItem', 'stockReservation', 'administrations.nurse', 'administrationWaiver'])])
             ->orderByRaw('COALESCE(closed_at, checked_in_at) asc')->get();
@@ -45,7 +46,7 @@ class MedicationAdministrationService
         abort_unless($visit->prescriptions()->where('requires_in_facility_administration', true)->exists(), 404);
 
         return $visit->load([
-            'patient', 'doctor', 'department', 'admission.department', 'dischargeActor', 'vitals', 'emergencyObservations.recorder', 'emergencyProgressNotes.author', 'labRequests.test',
+            'patient', 'doctor', 'department', 'admission.department', 'admission.insulinMachineUses.block.invoiceItem', 'dischargeActor', 'vitals', 'emergencyObservations.recorder', 'emergencyProgressNotes.author', 'labRequests.test',
             'prescriptions' => fn ($query) => $query->where('requires_in_facility_administration', true)
                 ->with(['drug', 'dispenser', 'invoiceItem', 'stockReservation', 'administrations.nurse', 'administrationWaiver']),
         ]);
@@ -63,6 +64,22 @@ class MedicationAdministrationService
             abort_unless($prescription->is_paid || $visit->is_emergency, 422, 'The medication must be paid for before administration.');
             abort_unless($prescription->status === WorkStatus::Completed && $prescription->stockReservation?->status === 'fulfilled', 422, 'Pharmacy must dispense this medication before it can be administered.');
             abort_unless(! $prescription->administration_waived_at, 422, 'This administration requirement was waived by the doctor.');
+
+            $prescription->loadMissing('drug');
+
+            if ($visit->status === VisitStatus::Inpatient && str_contains(strtolower($prescription->drug?->display_name ?? ''), 'insulin')) {
+                $admissionId = $visit->admission()->where('status', 'active')->value('id');
+                $hasPaidBottle = $admissionId && AdmissionInsulinMachineUse::query()
+                    ->where('admission_id', $admissionId)
+                    ->where('prescription_id', $prescription->id)
+                    ->whereHas('block', fn ($block) => $block->where(function ($paid) {
+                        $paid->whereHas('invoiceItem', fn ($item) => $item->whereNotNull('payment_id')->orWhere('total', '<=', 0))
+                            ->orWhere('fee', '<=', 0);
+                    }))
+                    ->exists();
+
+                abort_unless($hasPaidBottle, 422, 'Record a paid insulin machine bottle opening on the admission record before charting this insulin dose.');
+            }
 
             $administered = $prescription->administrations()->where('status', 'administered')->count();
             if ($administered >= $prescription->required_administration_count) {

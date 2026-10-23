@@ -5,6 +5,23 @@
         $isActive = $admission->status->value === 'active';
         $visit = $admission->visit;
         $sugarCheckFee = (float) \App\Models\HospitalSetting::current()->sugar_check_fee;
+        $insulinMachineFee = (float) \App\Models\HospitalSetting::current()->nebulizer_fee_per_three_uses;
+        $insulinMachineBlock = $admission->insulinMachineBlocks->first();
+        $insulinMachineUses = $insulinMachineBlock?->uses ?? collect();
+        $insulinPrescriptions = $visit->prescriptions->filter(fn ($prescription) =>
+            str_contains(strtolower($prescription->drug->display_name), 'insulin')
+            && $prescription->status->value === 'completed'
+            && $prescription->is_paid
+            && $prescription->stockReservation?->status === 'fulfilled'
+        )->values();
+        $hasInsulinPrescription = $visit->prescriptions->contains(fn ($prescription) => str_contains(strtolower($prescription->drug->display_name), 'insulin'));
+        $fluidPrescriptions = $visit->prescriptions->filter(fn ($prescription) =>
+            $prescription->drug->is_fluid
+            && $prescription->status->value === 'completed'
+            && $prescription->is_paid
+            && $prescription->stockReservation?->status === 'fulfilled'
+        )->values();
+        $fluidDefaultFlow = $fluidPrescriptions->isEmpty() ? 'output' : old('flow', 'intake');
         $input = 'mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600';
         $label = 'block text-sm font-medium text-slate-700';
     @endphp
@@ -63,11 +80,11 @@
                             <summary class="cursor-pointer list-none rounded-lg bg-teal-700 px-3 py-2 text-center text-sm font-semibold text-white">Sugar check</summary>
                             <form method="POST" action="{{ route('admissions.sugar-checks.store', $admission) }}" class="mt-4 space-y-3">
                                 @csrf<h4 class="font-semibold">Record blood sugar check</h4>
+                                <p class="text-xs text-slate-500">The saved time is recorded automatically.</p>
                                 <div class="grid gap-3 sm:grid-cols-2">
                                     <label class="{{ $label }}">Test<select name="reading_type" required class="{{ $input }}"><option value="FBS" @selected(old('reading_type') === 'FBS')>FBS</option><option value="RBS" @selected(old('reading_type') === 'RBS')>RBS</option></select></label>
                                     <label class="{{ $label }}">Reading<input name="result" type="number" step="0.01" min="0" max="1000" required value="{{ old('result') }}" class="{{ $input }}"></label>
                                     <label class="{{ $label }}">Unit<select name="unit" required class="{{ $input }}"><option value="mmol/L" @selected(old('unit', 'mmol/L') === 'mmol/L')>mmol/L</option><option value="mg/dL" @selected(old('unit') === 'mg/dL')>mg/dL</option></select></label>
-                                    <label class="{{ $label }}">Date and time<input name="checked_at" type="datetime-local" required value="{{ old('checked_at', now()->format('Y-m-d\\TH:i')) }}" class="{{ $input }}"></label>
                                 </div>
                                 <p class="text-xs text-slate-500">@if ($sugarCheckFee > 0) Each saved check adds ₦{{ number_format($sugarCheckFee, 2) }} to the patient’s invoice. @else No fee is configured for this check yet. @endif</p>
                                 <button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Save sugar check</button>
@@ -76,32 +93,97 @@
 
                         <form method="POST" action="{{ route('admissions.fluid-entries.store', $admission) }}" class="space-y-3 rounded-lg border bg-white p-4">
                             @csrf<h4 class="font-semibold">Fluid balance</h4>
+                            <p class="text-xs text-slate-500">Fluid intake must match a fluid prescription that pharmacy has paid and dispensed. Output measurements can be recorded directly. Entry time is recorded when saved.</p>
                             <div class="grid gap-3 sm:grid-cols-2">
-                                <label class="{{ $label }}">Entry<select name="flow" required class="{{ $input }}"><option value="intake">Intake</option><option value="output">Output</option></select></label>
+                                <label class="{{ $label }}">Entry<select id="fluid-flow" name="flow" required class="{{ $input }}"><option value="intake" @selected($fluidDefaultFlow === 'intake') @disabled($fluidPrescriptions->isEmpty())>Intake</option><option value="output" @selected($fluidDefaultFlow === 'output')>Output</option></select></label>
                                 <label class="{{ $label }}">Route / output<select name="route_or_output" required class="{{ $input }}"><optgroup label="Intake"><option value="oral">Oral</option><option value="subcutaneous">Subcutaneous</option><option value="gastric">Gastric</option><option value="drip">Drip</option><option value="rectal">Rectal</option><option value="IV">IV</option><option value="IP">IP</option></optgroup><optgroup label="Output"><option value="urine">Urine</option><option value="aspiration">Aspiration</option><option value="vomit">Vomit</option><option value="NG">NG</option><option value="bowels">Bowels</option><option value="other">Other</option></optgroup></select></label>
-                                <label class="{{ $label }}">Fluid type / details<input name="fluid_type" maxlength="120" class="{{ $input }}" placeholder="e.g. normal saline, oral fluids"></label>
+                                <label id="fluid-prescription-field" class="{{ $label }} sm:col-span-2">Paid, dispensed fluid prescription<select id="fluid-prescription" name="prescription_id" class="{{ $input }}"><option value="">Select prescribed fluid</option>@foreach ($fluidPrescriptions as $prescription)<option value="{{ $prescription->id }}" @selected(old('prescription_id') == $prescription->id)>{{ $prescription->drug->display_name }} · {{ $prescription->dosage }} · {{ $prescription->frequency }}</option>@endforeach</select></label>
                                 <label class="{{ $label }}">Quantity (mL)<input name="quantity_ml" type="number" min="1" max="100000" required class="{{ $input }}"></label>
                                 <label class="{{ $label }}">Drip rate (drops/min)<input name="drops_per_minute" type="number" min="1" max="300" class="{{ $input }}"></label>
-                                <label class="{{ $label }}">Date and time<input name="recorded_at" type="datetime-local" required value="{{ now()->format('Y-m-d\\TH:i') }}" class="{{ $input }}"></label>
                             </div><button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Add fluid entry</button>
+                            <script>
+                                (() => {
+                                    const flow = document.getElementById('fluid-flow');
+                                    const field = document.getElementById('fluid-prescription-field');
+                                    const prescription = document.getElementById('fluid-prescription');
+                                    const syncFluidPrescription = () => {
+                                        const intake = flow.value === 'intake';
+                                        field.hidden = !intake;
+                                        prescription.required = intake;
+                                        prescription.disabled = !intake;
+                                    };
+                                    flow.addEventListener('change', syncFluidPrescription);
+                                    syncFluidPrescription();
+                                })();
+                            </script>
                         </form>
 
                         <form method="POST" action="{{ route('admissions.oxygen.store', $admission) }}" class="space-y-3 rounded-lg border bg-white p-4">
                             @csrf<h4 class="font-semibold">Oxygen chart and administration</h4>
+                            <p class="text-xs text-slate-500">The administration time is recorded automatically when saved.</p>
                             <div class="grid gap-3 sm:grid-cols-2">
                                 <label class="{{ $label }}">Oxygen concentrator<select name="concentrator" required class="{{ $input }}"><option value="yes">Used</option><option value="no">Not used</option></select></label>
                                 <label class="{{ $label }}">Flow rate<input name="flow_rate" maxlength="40" class="{{ $input }}" placeholder="As prescribed, e.g. L/min"></label>
                                 <label class="{{ $label }} sm:col-span-2">Clinical indication / order context<input name="indication" maxlength="1000" class="{{ $input }}" placeholder="Brief reason or emergency order context"></label>
-                                <label class="{{ $label }} sm:col-span-2">Date and time<input name="administered_at" type="datetime-local" required value="{{ now()->format('Y-m-d\\TH:i') }}" class="{{ $input }}"></label>
                             </div><p class="text-xs text-slate-500">Each recorded oxygen administration adds the configured flat oxygen fee, regardless of pharmacy stock.</p><button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Record oxygen care</button>
                         </form>
 
-                        <form method="POST" action="{{ route('admissions.nebulizer.store', $admission) }}" class="space-y-3 rounded-lg border bg-white p-4">
-                            @csrf<h4 class="font-semibold">Nebulizer machine use</h4>
-                            <p class="text-sm text-slate-600">Usage {{ $admission->nebulizerUses->count() }} · fee blocks cover uses 1–3, 4–6, and so on. Medicine or insulin is recorded separately through pharmacy orders.</p>
-                            <label class="{{ $label }}">Date and time<input name="used_at" type="datetime-local" required value="{{ now()->format('Y-m-d\\TH:i') }}" class="{{ $input }}"></label>
-                            <button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Record machine use</button>
-                        </form>
+                        @if ($hasInsulinPrescription || $insulinMachineBlock)
+                        <details id="insulin-machine-chart" class="rounded-lg border bg-white p-4" @if (session('open_insulin_machine_chart')) open @endif>
+                            <summary class="cursor-pointer list-none rounded-lg bg-teal-700 px-3 py-2 text-center text-sm font-semibold text-white">
+                                Insulin machine · {{ $insulinMachineBlock ? $insulinMachineUses->count().'/3 bottles used' : 'no active block' }}
+                            </summary>
+                            @if ($insulinMachineBlock)
+                                <div class="mt-4 space-y-3">
+                                    <p class="text-sm font-medium text-slate-800">Block #{{ $insulinMachineBlock->block_number }} · {{ $insulinMachineUses->count() }} of 3 bottle uses recorded</p>
+                                    @if (! $insulinMachineBlock->payment_complete)
+                                        <p class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Machine block fee ₦{{ number_format((float) $insulinMachineBlock->fee, 2) }} is on the patient invoice. Payment is required before this insulin chart can be entered.</p>
+                                    @elseif ($insulinMachineUses->count() >= 3)
+                                        <p class="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">This block is complete. Start the next block when another three bottles are needed.</p>
+                                        @if ($isActive && $canRecordCare && $hasInsulinPrescription)
+                                            <form method="POST" action="{{ route('admissions.insulin-machine-blocks.store', $admission) }}">
+                                                @csrf<button class="rounded-lg border border-teal-700 px-3 py-2 text-sm font-semibold text-teal-700">Start next 3-bottle block</button>
+                                            </form>
+                                        @endif
+                                    @elseif ($isActive && $canRecordCare)
+                                        @if ($insulinPrescriptions->isNotEmpty())
+                                            <form method="POST" action="{{ route('admissions.insulin-machine-blocks.uses.store', $admission) }}" class="space-y-3 border-t pt-3">
+                                                @csrf
+                                                <label class="{{ $label }}">Paid, dispensed insulin order<select name="prescription_id" required class="{{ $input }}"><option value="">Select insulin prescription</option>@foreach ($insulinPrescriptions as $prescription)<option value="{{ $prescription->id }}">{{ $prescription->drug->display_name }} · {{ $prescription->dosage }} · {{ $prescription->frequency }}</option>@endforeach</select></label>
+                                                <label class="{{ $label }}">Bottle label / batch (optional)<input name="bottle_label" maxlength="100" class="{{ $input }}"></label>
+                                                <p class="text-xs text-slate-500">Opening a bottle is recorded now. Record each administered dose in the linked nursing insulin chart.</p>
+                                                <button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Record insulin bottle use</button>
+                                            </form>
+                                        @else
+                                            <p class="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">A paid and dispensed insulin prescription is required before opening a bottle.</p>
+                                        @endif
+                                    @endif
+                                    @if ($insulinMachineUses->isNotEmpty())
+                                        <ul class="space-y-2 border-t pt-3 text-sm">
+                                            @foreach ($insulinMachineUses as $use)
+                                                <li class="rounded-lg bg-slate-50 p-3"><strong>{{ $use->prescription->drug->display_name }}</strong>@if ($use->bottle_label) · {{ $use->bottle_label }}@endif <span class="text-slate-500">· {{ $use->opened_at->format('d M Y, g:i A') }} · {{ $use->opener->name }}</span></li>
+                                            @endforeach
+                                        </ul>
+                                    @endif
+                                </div>
+                            @else
+                                <div class="mt-4 space-y-3">
+                                    <p class="text-sm text-slate-600">A machine block covers up to 3 insulin bottles. Its invoice must be paid before a bottle can be opened or an insulin dose recorded.</p>
+                                    @if ($isActive && $canRecordCare && $hasInsulinPrescription)
+                                        <p class="text-xs text-slate-500">Block fee: ₦{{ number_format($insulinMachineFee, 2) }}</p>
+                                        <form method="POST" action="{{ route('admissions.insulin-machine-blocks.store', $admission) }}">
+                                            @csrf<button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Start insulin machine block</button>
+                                        </form>
+                                    @endif
+                                </div>
+                            @endif
+                        </details>
+                        @else
+                            <div id="insulin-machine-chart" class="rounded-lg border border-slate-200 bg-slate-100 p-4 text-slate-500">
+                                <p class="text-center text-sm font-semibold">Insulin machine · inactive</p>
+                                <p class="mt-2 text-center text-xs">The machine chart becomes available after a doctor adds an insulin prescription.</p>
+                            </div>
+                        @endif
                     </div>
                 @endif
                 <div class="grid divide-y lg:grid-cols-2 lg:divide-x lg:divide-y-0">
@@ -121,8 +203,8 @@
                             @forelse ($admission->fluidEntries as $entry)
                                 <p class="rounded-lg bg-slate-50 p-3 text-sm">
                                     <strong>{{ ucfirst($entry->flow) }} · {{ $entry->route_or_output }}:</strong> {{ number_format($entry->quantity_ml) }} mL
-                                    @if ($entry->fluid_type)
-                                        · {{ $entry->fluid_type }}
+                                    @if ($entry->prescription?->drug?->display_name ?? $entry->fluid_type)
+                                        · {{ $entry->prescription?->drug?->display_name ?? $entry->fluid_type }}
                                     @endif
                                     @if ($entry->drops_per_minute)
                                         · {{ $entry->drops_per_minute }} drops/min
@@ -333,7 +415,7 @@
                     </table>
                 </div>
                 <div class="border-t p-5">
-                    <div class="mb-3"><h4 class="font-semibold text-slate-900">Insulin administration chart</h4><p class="mt-1 text-sm text-slate-500">Insulin is ordered and dispensed through pharmacy. Nursing administrations below are drawn from those medication orders.</p></div>
+                    <div class="mb-3"><h4 class="font-semibold text-slate-900">Insulin administration chart</h4><p class="mt-1 text-sm text-slate-500">Record bottle openings in the insulin machine chart above. Nurses record each dose, route, and site through the linked nursing care form after the machine block and insulin prescription are paid and dispensed.</p></div>
                     <div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200 text-sm"><thead class="bg-slate-50 text-left text-xs uppercase text-slate-500"><tr><th class="px-3 py-2">Date / time</th><th class="px-3 py-2">Insulin type</th><th class="px-3 py-2">Route</th><th class="px-3 py-2">Dose</th><th class="px-3 py-2">Nurse</th></tr></thead><tbody class="divide-y divide-slate-100">
                         @php $insulinRecords = $visit->prescriptions->filter(fn($rx) => str_contains(strtolower($rx->drug->display_name), 'insulin'))->flatMap(fn($rx) => $rx->administrations->where('status', 'administered')->map(fn($entry) => ['rx' => $rx, 'entry' => $entry]))->sortByDesc(fn($item) => $item['entry']->administered_at); @endphp
                         @forelse($insulinRecords as $item)<tr><td class="px-3 py-2">{{ $item['entry']->administered_at?->format('d M Y, g:i A') ?? '—' }}</td><td class="px-3 py-2">{{ $item['rx']->drug->display_name }}</td><td class="px-3 py-2">{{ $item['entry']->route ?: '—' }}</td><td class="px-3 py-2">{{ $item['entry']->dose ?: $item['rx']->dosage }}</td><td class="px-3 py-2">{{ $item['entry']->nurse?->name ?? '—' }}</td></tr>@empty<tr><td colspan="5" class="px-3 py-6 text-center text-slate-500">No insulin administrations recorded. Use the linked nursing care workflow to record an administered prescription.</td></tr>@endforelse

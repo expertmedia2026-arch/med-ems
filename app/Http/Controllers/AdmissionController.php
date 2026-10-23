@@ -81,7 +81,6 @@ class AdmissionController extends Controller
             'reading_type' => ['required', Rule::in(['FBS', 'RBS'])],
             'result' => ['required', 'numeric', 'min:0', 'max:1000'],
             'unit' => ['required', Rule::in(['mmol/L', 'mg/dL'])],
-            'checked_at' => ['required', 'date', 'before_or_equal:now'],
         ]);
         $check = $charts->recordSugar($admission, $data, $request->user());
 
@@ -98,10 +97,9 @@ class AdmissionController extends Controller
         $data = $request->validate([
             'flow' => ['required', Rule::in(['intake', 'output'])],
             'route_or_output' => ['required', Rule::in(['oral', 'subcutaneous', 'gastric', 'drip', 'rectal', 'IV', 'IP', 'urine', 'aspiration', 'vomit', 'NG', 'bowels', 'other'])],
-            'fluid_type' => ['nullable', 'string', 'max:120'],
+            'prescription_id' => ['required_if:flow,intake', 'nullable', 'integer', 'exists:prescriptions,id'],
             'quantity_ml' => ['required', 'integer', 'min:1', 'max:100000'],
             'drops_per_minute' => ['nullable', 'integer', 'min:1', 'max:300'],
-            'recorded_at' => ['required', 'date', 'before_or_equal:now'],
         ]);
         if ($data['flow'] === 'intake' && ! in_array($data['route_or_output'], ['oral', 'subcutaneous', 'gastric', 'drip', 'rectal', 'IV', 'IP'], true)) {
             return back()->withInput()->withErrors(['route_or_output' => 'Choose an intake route for an intake entry.']);
@@ -120,7 +118,6 @@ class AdmissionController extends Controller
             'concentrator' => ['required', Rule::in(['yes', 'no'])],
             'flow_rate' => ['nullable', 'string', 'max:40'],
             'indication' => ['nullable', 'string', 'max:1000'],
-            'administered_at' => ['required', 'date', 'before_or_equal:now'],
         ]);
         $charts->recordOxygen($admission, $data, $request->user());
 
@@ -129,10 +126,31 @@ class AdmissionController extends Controller
 
     public function nebulizer(Request $request, Admission $admission, AdmissionCareChartService $charts)
     {
-        $data = $request->validate(['used_at' => ['required', 'date', 'before_or_equal:now']]);
-        $use = $charts->recordNebulizerUse($admission, $data, $request->user());
+        $use = $charts->recordNebulizerUse($admission, [], $request->user());
 
         return back()->with('success', 'Nebulizer use #'.$use->usage_number.' recorded'.($use->billable_block ? '; a new three-use machine-fee block was added to billing.' : '.'));
+    }
+
+    public function startInsulinMachineBlock(Request $request, Admission $admission, AdmissionCareChartService $charts)
+    {
+        $block = $charts->startInsulinMachineBlock($admission, $request->user());
+        $message = $block->payment_complete
+            ? 'Insulin machine block #'.$block->block_number.' is paid and ready for up to 3 bottle uses.'
+            : 'Insulin machine block #'.$block->block_number.' was added to the patient invoice. Payment is required before recording bottle use or insulin doses.';
+
+        return back()->with('success', $message)->with('open_insulin_machine_chart', true);
+    }
+
+    public function recordInsulinMachineUse(Request $request, Admission $admission, AdmissionCareChartService $charts)
+    {
+        $data = $request->validate([
+            'prescription_id' => ['required', 'integer', 'exists:prescriptions,id'],
+            'bottle_label' => ['nullable', 'string', 'max:100'],
+        ]);
+        $use = $charts->recordInsulinMachineUse($admission, $data, $request->user());
+
+        return back()->with('success', 'Insulin bottle use recorded for machine block #'.$use->block->block_number.'.')
+            ->with('open_insulin_machine_chart', true);
     }
 
     public function dama(Request $request, Admission $admission, AdmissionCareChartService $charts)

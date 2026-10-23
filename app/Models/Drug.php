@@ -15,6 +15,7 @@ class Drug extends Model
         return [
             'unit_price' => 'decimal:2',
             'is_active'  => 'boolean',
+            'is_fluid' => 'boolean',
         ];
     }
 

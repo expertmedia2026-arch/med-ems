@@ -8,7 +8,7 @@ use App\Services\DrugCatalogService;
 
 class DrugController extends Controller
 {
-    public const FORMS = ['Tablet', 'Capsule', 'Syrup', 'Suspension', 'Injection', 'Cream', 'Ointment', 'Drops', 'Sachet', 'Inhaler', 'Other'];
+    public const FORMS = ['Tablet', 'Capsule', 'Syrup', 'Suspension', 'Injection', 'IV Fluid', 'Cream', 'Ointment', 'Drops', 'Sachet', 'Inhaler', 'Other'];
 
     public function create()
     {

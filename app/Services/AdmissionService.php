@@ -70,8 +70,10 @@ class AdmissionService
             'visit.prescriptions.administrations.nurse', 'visit.prescriptions.administrationWaiver',
             'visit.labRequests.test', 'visit.labRequests.processor', 'visit.labRequests.resultReviewer', 'visit.labRequests.attachments',
             'notes.author', 'vitals.recorder',
-            'sugarChecks.checker', 'fluidEntries.recorder', 'oxygenAdministrations.nurse',
-            'nebulizerUses.recorder', 'damaRecord.witnesses', 'damaRecord.clinician',
+            'sugarChecks.checker', 'fluidEntries.recorder', 'fluidEntries.prescription.drug', 'oxygenAdministrations.nurse',
+            'nebulizerUses.recorder', 'insulinMachineBlocks.starter', 'insulinMachineBlocks.invoiceItem.payment',
+            'insulinMachineBlocks.uses.prescription.drug', 'insulinMachineBlocks.uses.opener',
+            'damaRecord.witnesses', 'damaRecord.clinician',
         ]);
         $pendingResults = $admission->visit->labRequests
             ->filter(fn (LabRequest $lab) => $lab->status === WorkStatus::Completed && ! $lab->result_reviewed_at);

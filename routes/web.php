@@ -224,6 +224,10 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.oxygen.store');
     Route::post('admissions/{admission}/nebulizer-uses', [AdmissionController::class, 'nebulizer'])
         ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.nebulizer.store');
+    Route::post('admissions/{admission}/insulin-machine-blocks', [AdmissionController::class, 'startInsulinMachineBlock'])
+        ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.insulin-machine-blocks.store');
+    Route::post('admissions/{admission}/insulin-machine-blocks/uses', [AdmissionController::class, 'recordInsulinMachineUse'])
+        ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.insulin-machine-blocks.uses.store');
     Route::post('admissions/{admission}/dama', [AdmissionController::class, 'dama'])
         ->middleware('role:admin,doctor')->whereNumber('admission')->name('admissions.dama.store');
     Route::get('admissions/{admission}/dama/print', [AdmissionController::class, 'printDama'])

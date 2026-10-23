@@ -5,13 +5,17 @@ namespace App\Services;
 use App\Enums\AdmissionStatus;
 use App\Enums\Role;
 use App\Enums\VisitStatus;
+use App\Enums\WorkStatus;
 use App\Models\Admission;
 use App\Models\AdmissionDamaRecord;
 use App\Models\AdmissionFluidEntry;
+use App\Models\AdmissionInsulinMachineBlock;
+use App\Models\AdmissionInsulinMachineUse;
 use App\Models\AdmissionNebulizerUse;
 use App\Models\AdmissionOxygenAdministration;
 use App\Models\AdmissionSugarCheck;
 use App\Models\HospitalSetting;
+use App\Models\Prescription;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +29,10 @@ class AdmissionCareChartService
 
         return DB::transaction(function () use ($admission, $data, $actor) {
             $admission = Admission::query()->lockForUpdate()->findOrFail($admission->id);
-            $check = $admission->sugarChecks()->create($data + ['checked_by' => $actor->id]);
+            $check = $admission->sugarChecks()->create(array_merge($data, [
+                'checked_by' => $actor->id,
+                'checked_at' => now(),
+            ]));
             $fee = (float) HospitalSetting::current()->sugar_check_fee;
 
             if ($fee > 0) {
@@ -49,7 +56,30 @@ class AdmissionCareChartService
         $this->authorizeWardCare($admission, $actor);
         $this->assertActive($admission);
 
-        return $admission->fluidEntries()->create($data + ['recorded_by' => $actor->id]);
+        return DB::transaction(function () use ($admission, $data, $actor) {
+            $admission = Admission::query()->lockForUpdate()->findOrFail($admission->id);
+            $prescription = null;
+
+            if ($data['flow'] === 'intake') {
+                $prescription = Prescription::query()->with(['drug', 'invoiceItem', 'stockReservation'])
+                    ->lockForUpdate()->findOrFail($data['prescription_id']);
+                abort_unless($prescription->visit_id === $admission->visit_id, 422, 'Choose a fluid prescription linked to this admission.');
+                abort_unless($prescription->drug->is_fluid, 422, 'Choose a product marked as a fluid in the pharmacy drug catalogue.');
+                abort_unless($prescription->is_paid, 422, 'Pay the fluid prescription before recording intake.');
+                abort_unless($prescription->status === WorkStatus::Completed && $prescription->stockReservation?->status === 'fulfilled', 422, 'Pharmacy must dispense this fluid before intake can be recorded.');
+            }
+
+            return $admission->fluidEntries()->create([
+                'prescription_id' => $prescription?->id,
+                'recorded_by' => $actor->id,
+                'flow' => $data['flow'],
+                'route_or_output' => $data['route_or_output'],
+                'fluid_type' => $prescription?->drug->display_name,
+                'quantity_ml' => $data['quantity_ml'],
+                'drops_per_minute' => $data['drops_per_minute'] ?? null,
+                'recorded_at' => now(),
+            ]);
+        });
     }
 
     public function recordOxygen(Admission $admission, array $data, User $actor): AdmissionOxygenAdministration
@@ -59,7 +89,10 @@ class AdmissionCareChartService
 
         return DB::transaction(function () use ($admission, $data, $actor) {
             $admission = Admission::query()->lockForUpdate()->findOrFail($admission->id);
-            $admin = $admission->oxygenAdministrations()->create($data + ['administered_by' => $actor->id]);
+            $admin = $admission->oxygenAdministrations()->create(array_merge($data, [
+                'administered_by' => $actor->id,
+                'administered_at' => now(),
+            ]));
 
             $fee = (float) HospitalSetting::current()->oxygen_per_administration_fee;
             if ($fee > 0) {
@@ -86,11 +119,12 @@ class AdmissionCareChartService
             $admission = Admission::query()->lockForUpdate()->findOrFail($admission->id);
             $count = $admission->nebulizerUses()->count() + 1;
             $isChargeStart = ($count - 1) % 3 === 0;
-            $use = $admission->nebulizerUses()->create($data + [
+            $use = $admission->nebulizerUses()->create(array_merge($data, [
                 'recorded_by' => $actor->id,
+                'used_at' => now(),
                 'usage_number' => $count,
                 'billable_block' => $isChargeStart ? (int) ceil($count / 3) : null,
-            ]);
+            ]));
 
             $fee = (float) HospitalSetting::current()->nebulizer_fee_per_three_uses;
             if ($isChargeStart && $fee > 0) {
@@ -103,6 +137,78 @@ class AdmissionCareChartService
             }
 
             return $use;
+        });
+    }
+
+    public function startInsulinMachineBlock(Admission $admission, User $actor): AdmissionInsulinMachineBlock
+    {
+        $this->authorizeWardCare($admission, $actor);
+        $this->assertActive($admission);
+
+        return DB::transaction(function () use ($admission, $actor) {
+            $admission = Admission::query()->lockForUpdate()->findOrFail($admission->id);
+            $hasInsulinPrescription = $admission->visit->prescriptions()
+                ->whereHas('drug', fn ($drug) => $drug
+                    ->whereRaw('LOWER(name) LIKE ?', ['%insulin%'])
+                    ->orWhereRaw('LOWER(generic_name) LIKE ?', ['%insulin%']))
+                ->exists();
+            abort_unless($hasInsulinPrescription, 422, 'An insulin prescription is required before activating the insulin machine.');
+
+            $latest = $admission->insulinMachineBlocks()->with('invoiceItem')->latest('block_number')->first();
+
+            if ($latest && (! $latest->payment_complete || $latest->uses()->count() < 3)) {
+                return $latest;
+            }
+
+            $fee = (float) HospitalSetting::current()->nebulizer_fee_per_three_uses;
+            $block = $admission->insulinMachineBlocks()->create([
+                'started_by' => $actor->id,
+                'block_number' => ($latest?->block_number ?? 0) + 1,
+                'fee' => $fee,
+                'started_at' => now(),
+            ]);
+
+            if ($fee > 0) {
+                $invoice = app(BillingService::class)->invoiceFor($admission->visit);
+                $invoice->items()->create([
+                    'category' => 'equipment',
+                    'description' => 'Insulin machine use block #'.$block->block_number.' (up to 3 bottles)',
+                    'quantity' => 1,
+                    'unit_price' => $fee,
+                    'billable_type' => $block->getMorphClass(),
+                    'billable_id' => $block->id,
+                ]);
+            }
+
+            return $block->load('invoiceItem.payment');
+        });
+    }
+
+    public function recordInsulinMachineUse(Admission $admission, array $data, User $actor): AdmissionInsulinMachineUse
+    {
+        $this->authorizeWardCare($admission, $actor);
+        $this->assertActive($admission);
+
+        return DB::transaction(function () use ($admission, $data, $actor) {
+            $admission = Admission::query()->lockForUpdate()->findOrFail($admission->id);
+            $block = $admission->insulinMachineBlocks()->with('invoiceItem')->lockForUpdate()->latest('block_number')->first();
+            abort_unless($block, 422, 'Start an insulin machine block before recording a bottle use.');
+            abort_unless($block->payment_complete, 422, 'Pay the insulin machine block invoice before recording insulin use.');
+            abort_unless($block->uses()->count() < 3, 422, 'This three-bottle machine block is complete. Start the next block to continue.');
+
+            $prescription = Prescription::query()->with(['drug', 'invoiceItem', 'stockReservation'])->lockForUpdate()->findOrFail($data['prescription_id']);
+            abort_unless($prescription->visit_id === $admission->visit_id, 422, 'Choose an insulin prescription linked to this admission.');
+            abort_unless(str_contains(strtolower($prescription->drug->display_name), 'insulin'), 422, 'Choose an insulin prescription.');
+            abort_unless($prescription->is_paid, 422, 'Pay the insulin prescription before opening a bottle.');
+            abort_unless($prescription->status === \App\Enums\WorkStatus::Completed && $prescription->stockReservation?->status === 'fulfilled', 422, 'Pharmacy must dispense this insulin before a bottle can be opened.');
+
+            return $block->uses()->create([
+                'admission_id' => $admission->id,
+                'prescription_id' => $prescription->id,
+                'opened_by' => $actor->id,
+                'bottle_label' => $data['bottle_label'] ?? null,
+                'opened_at' => now(),
+            ]);
         });
     }
 
