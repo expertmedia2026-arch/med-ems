@@ -2,6 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\AdmissionStatus;
+use App\Enums\Role;
+use App\Enums\VisitStatus;
+use App\Models\Admission;
 use App\Models\HospitalSetting;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -15,6 +19,95 @@ use Illuminate\Support\Facades\DB;
 
 class MortuaryCaseService
 {
+    public function declareInpatientDeath(Admission $admission, array $data, User $actor): MortuaryCase
+    {
+        abort_unless($actor->hasRole(Role::Admin, Role::Doctor), 403, 'Only an attending doctor or administrator can record an inpatient death.');
+        abort_unless($actor->hasRole(Role::Admin)
+            || $admission->attending_doctor_id === $actor->id
+            || ($actor->department_id && (int) $actor->department_id === (int) $admission->department_id),
+            403, 'Only the attending doctor or a doctor in this ward can record this inpatient death.');
+
+        return DB::transaction(function () use ($admission, $data, $actor) {
+            $admission = Admission::query()->lockForUpdate()->findOrFail($admission->id);
+            abort_unless($admission->status === AdmissionStatus::Active, 422, 'This admission is already closed.');
+            $visit = Visit::query()->lockForUpdate()->findOrFail($admission->visit_id);
+            abort_unless($visit->status === VisitStatus::Inpatient, 422, 'This record is not an active inpatient visit.');
+            abort_if(MortuaryCase::query()->where('visit_id', $visit->id)->exists(), 422, 'A death or mortuary case is already recorded for this visit.');
+
+            $actionTime = now();
+            $directRelease = $data['disposition'] === 'direct_family_release';
+            $settings = HospitalSetting::current();
+            $case = MortuaryCase::create([
+                'visit_id' => $visit->id,
+                'patient_id' => $visit->patient_id,
+                'source' => 'hospital',
+                'status' => $directRelease ? 'released' : 'awaiting_transfer',
+                'deceased_at' => $actionTime,
+                'declared_at' => $actionTime,
+                'declared_by' => $actor->id,
+                'opened_by' => $actor->id,
+                'cause_of_death' => $data['cause_of_death'],
+                'death_clinical_summary' => $data['death_clinical_summary'],
+                'release_route' => $data['disposition'],
+                'released_by' => $directRelease ? $actor->id : null,
+                'released_at' => $directRelease ? $actionTime : null,
+                'released_to' => $directRelease ? $data['released_to'] : null,
+                'recipient_relationship' => $directRelease ? $data['recipient_relationship'] : null,
+                'recipient_id_reference' => $directRelease ? ($data['recipient_id_reference'] ?? null) : null,
+                'release_authority' => $directRelease ? $data['release_authority'] : null,
+                'release_note' => $directRelease ? ($data['release_note'] ?? null) : null,
+                'intake_fee' => $directRelease ? null : (float) $settings->mortuary_intake_fee,
+                'daily_storage_fee' => $directRelease ? null : (float) $settings->mortuary_daily_storage_fee,
+                'state_tax_daily_fee' => $directRelease ? null : (float) $settings->state_mortuary_tax_daily_fee,
+            ]);
+            $case->update(['case_number' => $this->caseNumber($case)]);
+            $invoice = app(BillingService::class)->invoiceFor($visit);
+            $case->update(['invoice_id' => $invoice->id]);
+            if (! $directRelease) {
+                $this->addIntakeFee($case, $invoice);
+            }
+
+            $case->events()->create([
+                'performed_by' => $actor->id,
+                'event_type' => 'case_opened',
+                'occurred_at' => $actionTime,
+                'details' => [
+                    'source' => 'inpatient',
+                    'disposition' => $data['disposition'],
+                    'cause_of_death' => $data['cause_of_death'],
+                ],
+            ]);
+
+            if ($directRelease) {
+                $case->events()->create([
+                    'performed_by' => $actor->id,
+                    'event_type' => 'released',
+                    'occurred_at' => $actionTime,
+                    'details' => array_filter([
+                        'release_route' => 'direct_family_release',
+                        'released_to' => $data['released_to'],
+                        'relationship' => $data['recipient_relationship'],
+                        'id_reference' => $data['recipient_id_reference'] ?? null,
+                        'authority' => $data['release_authority'],
+                        'note' => $data['release_note'] ?? null,
+                    ]),
+                ]);
+            }
+
+            $admission->update(['status' => AdmissionStatus::Deceased]);
+            $visit->update([
+                'status' => VisitStatus::Completed,
+                'disposition' => 'deceased',
+                'closed_at' => $actionTime,
+                'discharged_by' => $actor->id,
+                'discharged_at' => $actionTime,
+            ]);
+            $visit->appointment?->update(['status' => \App\Enums\AppointmentStatus::Completed]);
+
+            return $case->refresh();
+        });
+    }
+
     public function openFromEmergency(Visit $visit, User $doctor, ?string $deceasedAt): MortuaryCase
     {
         $case = MortuaryCase::firstOrCreate(
@@ -24,6 +117,11 @@ class MortuaryCaseService
                 'status' => 'awaiting_transfer',
                 'source' => 'hospital',
                 'deceased_at' => $deceasedAt ?? now(),
+                'declared_at' => now(),
+                'declared_by' => $doctor->id,
+                'release_route' => 'mortuary_transfer',
+                'cause_of_death' => $visit->diagnosis,
+                'death_clinical_summary' => $visit->clinical_notes,
                 'opened_by' => $doctor->id,
             ]
         );
@@ -34,6 +132,8 @@ class MortuaryCaseService
 
         $invoice = app(BillingService::class)->invoiceFor($visit);
         $case->update(['invoice_id' => $invoice->id]);
+        $this->initializeMortuaryFees($case);
+        $this->addIntakeFee($case, $invoice);
 
         if ($case->wasRecentlyCreated) {
             $case->events()->create([
@@ -69,21 +169,17 @@ class MortuaryCaseService
             $case = MortuaryCase::create([
                 'patient_id' => $patient->id,
                 'source' => 'walk_in',
-                'status' => 'received',
+                'status' => 'awaiting_transfer',
                 'deceased_at' => $deceasedAt,
                 'deceased_age' => $age,
                 'opened_by' => $staff->id,
-                'received_by' => $staff->id,
-                'received_at' => now(),
-                'storage_billed_through' => now(),
-                'storage_location' => $data['storage_location'],
-                'body_tag_number' => $data['body_tag_number'] ?? null,
                 'handoff_note' => $data['handoff_note'] ?? null,
                 'external_contact_name' => $data['external_contact_name'],
                 'external_contact_phone' => $data['external_contact_phone'],
                 'external_contact_address' => $data['external_contact_address'] ?? null,
                 'intake_fee' => (float) HospitalSetting::current()->mortuary_intake_fee,
                 'daily_storage_fee' => (float) HospitalSetting::current()->mortuary_daily_storage_fee,
+                'state_tax_daily_fee' => (float) HospitalSetting::current()->state_mortuary_tax_daily_fee,
             ]);
             $case->update(['case_number' => $this->caseNumber($case)]);
 
@@ -91,10 +187,7 @@ class MortuaryCaseService
             $case->update(['invoice_id' => $invoice->id]);
             $this->addIntakeFee($case, $invoice);
 
-            $case->events()->createMany([
-                ['performed_by' => $staff->id, 'event_type' => 'case_opened', 'occurred_at' => now(), 'details' => ['source' => 'walk_in']],
-                ['performed_by' => $staff->id, 'event_type' => 'received', 'occurred_at' => now(), 'details' => ['storage_location' => $case->storage_location, 'body_tag_number' => $case->body_tag_number]],
-            ]);
+            $case->events()->create(['performed_by' => $staff->id, 'event_type' => 'case_opened', 'occurred_at' => now(), 'details' => ['source' => 'walk_in']]);
 
             return $case->refresh();
         });
@@ -125,15 +218,18 @@ class MortuaryCaseService
 
     public function details(MortuaryCase $case): MortuaryCase
     {
-        if ($case->status === 'received') {
+        if (in_array($case->status, ['awaiting_transfer', 'received'], true)) {
             DB::transaction(function () use ($case) {
                 $locked = MortuaryCase::query()->lockForUpdate()->find($case->id);
-                if ($locked && $locked->status === 'received') {
-                    $this->accrueStorageForLockedCase($locked, now());
+                if ($locked && $locked->status === 'awaiting_transfer') {
+                    $this->initializeMortuaryFees($locked);
+                    $this->addIntakeFee($locked, $this->invoiceForCase($locked));
+                } elseif ($locked && $locked->status === 'received') {
+                    $this->accrueMortuaryFeesForLockedCase($locked, now(), true);
                 }
             });
         }
-        return $case->load(['patient', 'visit.doctor', 'openedBy', 'receivedBy', 'releasedBy', 'events.actor', 'invoice.items.payment', 'invoice.payments.receiver']);
+        return $case->refresh()->load(['patient', 'visit.doctor', 'visit.admission.department', 'openedBy', 'declaredBy', 'receivedBy', 'releasedBy', 'events.actor', 'invoice.items.payment', 'invoice.payments.receiver']);
     }
 
     public function receive(MortuaryCase $case, array $data, User $staff): MortuaryCase
@@ -143,7 +239,12 @@ class MortuaryCaseService
             $case = MortuaryCase::query()->lockForUpdate()->findOrFail($case->id);
             abort_unless($case->status === 'awaiting_transfer', 422, 'This body has already been received by the mortuary.');
             $receivedAt = now();
-            $settings = HospitalSetting::current();
+            $this->initializeMortuaryFees($case);
+            $invoice = $this->invoiceForCase($case);
+            $this->addIntakeFee($case, $invoice);
+            if (! $this->intakeFeeIsPaid($case, $invoice)) {
+                return $case->refresh();
+            }
 
             $case->update([
                 'status' => 'received',
@@ -153,11 +254,8 @@ class MortuaryCaseService
                 'storage_location' => $data['storage_location'],
                 'body_tag_number' => $data['body_tag_number'] ?? null,
                 'handoff_note' => $data['handoff_note'] ?? null,
-                'intake_fee' => $case->intake_fee ?? (float) $settings->mortuary_intake_fee,
-                'daily_storage_fee' => $case->daily_storage_fee ?? (float) $settings->mortuary_daily_storage_fee,
             ]);
 
-            $this->addIntakeFee($case, $this->invoiceForCase($case));
             $case->events()->create([
                 'performed_by' => $staff->id,
                 'event_type' => 'received',
@@ -195,9 +293,14 @@ class MortuaryCaseService
             $case = MortuaryCase::query()->lockForUpdate()->findOrFail($case->id);
             abort_unless($case->status === 'received', 422, 'Only a body in mortuary custody can be released.');
             $releasedAt = now();
-            $this->accrueStorageForLockedCase($case, $releasedAt, true);
+            $this->accrueMortuaryFeesForLockedCase($case, $releasedAt, true);
+            $invoice = $this->invoiceForCase($case);
+            if (! $this->mortuaryChargesArePaid($case, $invoice)) {
+                return $case->refresh();
+            }
             $case->update([
                 'status' => 'released', 'released_by' => $staff->id, 'released_at' => $releasedAt,
+                'release_route' => 'mortuary_release',
                 'released_to' => $data['released_to'], 'recipient_relationship' => $data['recipient_relationship'],
                 'recipient_id_reference' => $data['recipient_id_reference'] ?? null, 'release_authority' => $data['release_authority'],
                 'release_note' => $data['release_note'] ?? null,
@@ -218,7 +321,7 @@ class MortuaryCaseService
             foreach ($cases as $candidate) {
                 DB::transaction(function () use ($candidate, &$count) {
                     $case = MortuaryCase::query()->lockForUpdate()->find($candidate->id);
-                    if ($case && $case->status === 'received' && $this->accrueStorageForLockedCase($case, now())) {
+                    if ($case && $case->status === 'received' && $this->accrueMortuaryFeesForLockedCase($case, now())) {
                         $count++;
                     }
                 });
@@ -228,14 +331,18 @@ class MortuaryCaseService
         return $count;
     }
 
-    private function accrueStorageForLockedCase(MortuaryCase $case, Carbon $through, bool $includePartial = false): bool
+    private function accrueMortuaryFeesForLockedCase(MortuaryCase $case, Carbon $through, bool $includePartial = false): bool
     {
+        if ($case->daily_storage_fee === null || $case->state_tax_daily_fee === null) {
+            $this->initializeMortuaryFees($case);
+        }
         $cursor = $case->storage_billed_through;
-        $rate = (float) $case->daily_storage_fee;
-        if (! $cursor || $rate <= 0 || $through->lessThanOrEqualTo($cursor)) {
-            if ($includePartial && $cursor) {
-                $case->update(['storage_billed_through' => $through]);
-            }
+        $storageRate = (float) $case->daily_storage_fee;
+        $taxRate = (float) $case->state_tax_daily_fee;
+        if (! $cursor) {
+            return false;
+        }
+        if ($through->lessThanOrEqualTo($cursor)) {
             return false;
         }
 
@@ -246,18 +353,54 @@ class MortuaryCaseService
         $quantity = $periods + ($partial ? 1 : 0);
         if ($quantity > 0) {
             $invoice = $this->invoiceForCase($case);
-            $description = $partial
-                ? 'Mortuary storage through release (final partial 24-hour period included)'
-                : 'Mortuary storage fee · '.$quantity.' started 24-hour period(s)';
-            $invoice->items()->create(['category' => 'mortuary', 'description' => $description, 'quantity' => $quantity, 'unit_price' => $rate, 'billable_type' => $case->getMorphClass(), 'billable_id' => $case->id]);
+            if ($storageRate > 0) {
+                $description = $partial
+                    ? 'Mortuary storage through release (final partial 24-hour period included)'
+                    : 'Mortuary storage fee · '.$quantity.' started 24-hour period(s)';
+                $invoice->items()->create(['category' => 'mortuary', 'description' => $description, 'quantity' => $quantity, 'unit_price' => $storageRate, 'billable_type' => $case->getMorphClass(), 'billable_id' => $case->id]);
+            }
+            if ($taxRate > 0) {
+                $description = 'State mortuary tax · '.$quantity.' started 24-hour period(s)';
+                $invoice->items()->create(['category' => 'mortuary', 'description' => $description, 'quantity' => $quantity, 'unit_price' => $taxRate, 'billable_type' => $case->getMorphClass(), 'billable_id' => $case->id]);
+            }
         }
 
         if ($includePartial) {
-            $case->update(['storage_billed_through' => $through]);
+            $case->update(['storage_billed_through' => $cursor->copy()->addSeconds($quantity * 86400)]);
         } elseif ($periods > 0) {
             $case->update(['storage_billed_through' => $cursor->copy()->addSeconds($periods * 86400)]);
         }
         return $quantity > 0;
+    }
+
+    private function initializeMortuaryFees(MortuaryCase $case): void
+    {
+        $settings = HospitalSetting::current();
+        $case->update([
+            'intake_fee' => $case->intake_fee ?? (float) $settings->mortuary_intake_fee,
+            'daily_storage_fee' => $case->daily_storage_fee ?? (float) $settings->mortuary_daily_storage_fee,
+            'state_tax_daily_fee' => $case->state_tax_daily_fee ?? (float) $settings->state_mortuary_tax_daily_fee,
+        ]);
+        $case->refresh();
+    }
+
+    private function intakeFeeIsPaid(MortuaryCase $case, Invoice $invoice): bool
+    {
+        if ((float) $case->intake_fee <= 0) {
+            return true;
+        }
+
+        $item = $invoice->items()->where('category', 'mortuary')->where('description', 'Mortuary intake fee')
+            ->where('billable_type', $case->getMorphClass())->where('billable_id', $case->id)->first();
+
+        return $item?->is_paid ?? false;
+    }
+
+    private function mortuaryChargesArePaid(MortuaryCase $case, Invoice $invoice): bool
+    {
+        return ! $invoice->items()->where('category', 'mortuary')
+            ->where('billable_type', $case->getMorphClass())->where('billable_id', $case->id)
+            ->get()->contains(fn (InvoiceItem $item) => ! $item->is_paid);
     }
 
     private function invoiceForCase(MortuaryCase $case): Invoice

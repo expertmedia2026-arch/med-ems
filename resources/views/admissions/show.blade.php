@@ -460,6 +460,81 @@
                             <button onclick="return confirm('Save the DAMA record and close this admission?')" class="w-full rounded-lg bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-800">Record DAMA discharge</button>
                         </form>
                     </details>
+                    <details class="mt-6 rounded-lg border border-red-200 bg-white p-4">
+                        <summary class="cursor-pointer font-semibold text-red-900">Record in-hospital death</summary>
+                        <p class="mt-2 text-sm text-slate-600">This records the clinical death event and closes the admission. The time is recorded automatically. After saving, an assigned ward doctor can issue a numbered hospital death certificate.</p>
+                        <form method="POST" action="{{ route('admissions.declare-deceased', $admission) }}" class="mt-4 space-y-3">
+                            @csrf
+                            <label class="{{ $label }}">Cause or clinical circumstances of death <span class="text-red-600">*</span><textarea name="cause_of_death" required minlength="2" maxlength="5000" rows="3" class="{{ $input }}">{{ old('cause_of_death') }}</textarea></label>
+                            <label class="{{ $label }}">Clinical summary and actions taken <span class="text-red-600">*</span><textarea name="death_clinical_summary" required minlength="2" maxlength="10000" rows="4" class="{{ $input }}" placeholder="Document the circumstances, assessment, and care provided.">{{ old('death_clinical_summary') }}</textarea></label>
+                            <label class="{{ $label }}">What happens next?<select id="death-disposition" name="disposition" required class="{{ $input }}"><option value="mortuary_transfer" @selected(old('disposition', 'mortuary_transfer') === 'mortuary_transfer')>Transfer to hospital mortuary</option><option value="direct_family_release" @selected(old('disposition') === 'direct_family_release')>Release directly to family / authorized representative</option></select></label>
+                            <div id="death-family-release" class="hidden space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <p class="text-xs text-slate-600">Record who received the patient and the authority for direct release. No mortuary custody or storage is recorded for this option.</p>
+                                <label class="{{ $label }}">Recipient name <span class="text-red-600">*</span><input name="released_to" value="{{ old('released_to') }}" maxlength="150" class="{{ $input }}"></label>
+                                <label class="{{ $label }}">Relationship to patient <span class="text-red-600">*</span><input name="recipient_relationship" value="{{ old('recipient_relationship') }}" maxlength="100" class="{{ $input }}"></label>
+                                <label class="{{ $label }}">Recipient ID / reference<input name="recipient_id_reference" value="{{ old('recipient_id_reference') }}" maxlength="120" class="{{ $input }}"></label>
+                                <label class="{{ $label }}">Release authority / document reference <span class="text-red-600">*</span><input name="release_authority" value="{{ old('release_authority') }}" maxlength="150" class="{{ $input }}"></label>
+                                <label class="{{ $label }}">Release note<textarea name="release_note" maxlength="2000" rows="2" class="{{ $input }}">{{ old('release_note') }}</textarea></label>
+                            </div>
+                            <button onclick="return confirm('Record this patient as deceased and close the admission? This action cannot be undone.')" class="w-full rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800">Declare deceased and close admission</button>
+                        </form>
+                        <script>
+                            (() => {
+                                const disposition = document.getElementById('death-disposition');
+                                const familyFields = document.getElementById('death-family-release');
+                                const inputs = familyFields.querySelectorAll('input:not([name="recipient_id_reference"]), textarea');
+                                const syncFamilyFields = () => {
+                                    const direct = disposition.value === 'direct_family_release';
+                                    familyFields.classList.toggle('hidden', !direct);
+                                    inputs.forEach((input) => { input.required = direct && input.name !== 'release_note'; });
+                                };
+                                disposition.addEventListener('change', syncFamilyFields);
+                                syncFamilyFields();
+                            })();
+                        </script>
+                    </details>
+                </section>
+            @elseif ($admission->status->value === 'deceased')
+                @php($deathCase = $admission->visit->mortuaryCase)
+                <section class="rounded-xl border border-red-200 bg-white p-5 shadow-sm">
+                    <h3 class="font-semibold text-red-950">In-hospital death record</h3>
+                    @if ($deathCase)
+                        <dl class="mt-4 space-y-4 text-sm">
+                            <div><dt class="font-medium text-slate-500">Time recorded</dt><dd class="mt-1">{{ $deathCase->deceased_at->format('d M Y, g:i A') }}</dd></div>
+                            <div><dt class="font-medium text-slate-500">Declared by</dt><dd class="mt-1">{{ $deathCase->declaredBy?->name ?? $deathCase->openedBy?->name ?? '—' }}</dd></div>
+                            <div><dt class="font-medium text-slate-500">Cause / clinical circumstances</dt><dd class="mt-1 whitespace-pre-line">{{ $deathCase->cause_of_death ?: 'Not recorded' }}</dd></div>
+                            <div><dt class="font-medium text-slate-500">Clinical summary and actions</dt><dd class="mt-1 whitespace-pre-line">{{ $deathCase->death_clinical_summary ?: $deathCase->handoff_note ?: 'Not recorded' }}</dd></div>
+                            @if ($deathCase->release_route === 'direct_family_release')
+                                <div class="rounded-lg bg-green-50 p-3"><dt class="font-semibold text-green-950">Released directly to family / authorized representative</dt><dd class="mt-1">{{ $deathCase->released_to }} · {{ $deathCase->recipient_relationship }} · {{ $deathCase->released_at?->format('d M Y, g:i A') }}</dd><dd class="mt-1 text-xs">Authority: {{ $deathCase->release_authority }}@if ($deathCase->recipient_id_reference) · ID/reference: {{ $deathCase->recipient_id_reference }}@endif</dd></div>
+                            @else
+                                <div class="rounded-lg bg-amber-50 p-3"><dt class="font-semibold text-amber-950">Mortuary transfer</dt><dd class="mt-1">Case {{ $deathCase->case_number }} · {{ $deathCase->status === 'received' ? 'Received into mortuary custody' : 'Awaiting mortuary receipt' }}</dd></div>
+                            @endif
+                        </dl>
+                        @if ($deathCase->death_certificate_issued_at)
+                            <div class="mt-5 rounded-lg border border-teal-200 bg-teal-50 p-4">
+                                <h4 class="font-semibold text-teal-950">Hospital death certificate issued</h4>
+                                <p class="mt-1 text-sm text-teal-900">{{ $deathCase->death_certificate_number }} · {{ $deathCase->death_certificate_issued_at->format('d M Y, g:i A') }} · {{ $deathCase->death_certificate_issuer_name }}</p>
+                                @if ($canManage)
+                                    <a href="{{ route('admissions.death-certificate.download', $admission) }}" class="mt-3 inline-flex rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800">Download death certificate PDF</a>
+                                @endif
+                            </div>
+                        @elseif (auth()->user()->hasRole('doctor') && $canManage)
+                            <details class="mt-5 rounded-lg border border-teal-200 bg-teal-50 p-4">
+                                <summary class="cursor-pointer font-semibold text-teal-950">Issue hospital death certificate</summary>
+                                <p class="mt-2 text-sm text-slate-600">Review the certified cause and enter your professional registration number. Issuance is recorded under your staff account and cannot be edited afterward.</p>
+                                <form method="POST" action="{{ route('admissions.death-certificate.issue', $admission) }}" class="mt-4 space-y-3">
+                                    @csrf
+                                    <label class="{{ $label }}">Certifying doctor's professional registration number <span class="text-red-600">*</span><input name="registration_number" value="{{ old('registration_number') }}" required maxlength="100" class="{{ $input }}" placeholder="e.g. MDCN registration number">@error('registration_number')<span class="mt-1 block text-sm text-red-600">{{ $message }}</span>@enderror</label>
+                                    <label class="{{ $label }}">Certified cause of death <span class="text-red-600">*</span><textarea name="certified_cause" required minlength="2" maxlength="5000" rows="4" class="{{ $input }}" placeholder="Enter the cause as it should appear on the certificate">{{ old('certified_cause', $deathCase->cause_of_death) }}</textarea>@error('certified_cause')<span class="mt-1 block text-sm text-red-600">{{ $message }}</span>@enderror</label>
+                                    <label class="{{ $label }}">Other significant conditions<textarea name="other_conditions" maxlength="5000" rows="3" class="{{ $input }}">{{ old('other_conditions') }}</textarea>@error('other_conditions')<span class="mt-1 block text-sm text-red-600">{{ $message }}</span>@enderror</label>
+                                    <button onclick="return confirm('Issue and permanently record this hospital death certificate?')" class="rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">Issue and download certificate</button>
+                                </form>
+                            </details>
+                        @endif
+                        @if (auth()->user()->canAccessMortuary())<a href="{{ route('mortuary.show', $deathCase) }}" class="mt-4 inline-flex rounded-lg border border-teal-700 px-3 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">Open mortuary case</a>@endif
+                    @else
+                        <p class="mt-2 text-sm text-amber-800">This admission is marked deceased, but no linked death record was found. Contact an administrator.</p>
+                    @endif
                 </section>
             @elseif (! $isActive)
                 <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

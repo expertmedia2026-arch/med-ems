@@ -14,6 +14,7 @@ class DemoHospitalFeesSeeder extends Seeder
             'emergency_fee' => 2500,
             'mortuary_intake_fee' => 5000,
             'mortuary_daily_storage_fee' => 1500,
+            'state_mortuary_tax_daily_fee' => 0,
         ]);
     }
 }

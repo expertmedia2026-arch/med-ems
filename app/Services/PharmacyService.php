@@ -243,11 +243,18 @@ class PharmacyService
             ->whereNotNull('pharmacy_ordered_at')
             ->orWhereHas('visit', fn ($visit) => $visit
                 ->whereIn('status', [VisitStatus::Completed->value, VisitStatus::Inpatient->value])
-                ->orWhere('is_emergency', true)));
+                ->orWhere('is_emergency', true)))
+            ->whereHas('visit', fn ($visit) => $visit->where(fn ($open) => $open
+                ->whereNull('disposition')
+                ->orWhere('disposition', '!=', 'deceased')));
     }
 
     private function canOpenVisit(Visit $visit): bool
     {
+        if ($visit->disposition === 'deceased') {
+            return false;
+        }
+
         return in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true)
             || ($visit->is_emergency && $visit->status === VisitStatus::InConsultation)
             || ($visit->status === VisitStatus::InConsultation

@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreExternalMortuaryCaseRequest extends FormRequest
 {
@@ -23,8 +22,6 @@ class StoreExternalMortuaryCaseRequest extends FormRequest
             'external_contact_name' => ['required', 'string', 'max:150'],
             'external_contact_phone' => ['required', 'string', 'max:30'],
             'external_contact_address' => ['nullable', 'string', 'max:1000'],
-            'storage_location' => ['required', 'string', 'max:120'],
-            'body_tag_number' => ['nullable', 'string', 'max:80', Rule::unique('mortuary_cases', 'body_tag_number')],
             'handoff_note' => ['nullable', 'string', 'max:2000'],
         ];
     }

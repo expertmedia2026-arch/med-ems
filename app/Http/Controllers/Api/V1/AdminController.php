@@ -160,6 +160,7 @@ class AdminController extends Controller
             'emergency_fee' => (float) $setting->emergency_fee,
             'mortuary_intake_fee' => (float) $setting->mortuary_intake_fee,
             'mortuary_daily_storage_fee' => (float) $setting->mortuary_daily_storage_fee,
+            'state_mortuary_tax_daily_fee' => (float) $setting->state_mortuary_tax_daily_fee,
             'payment_gateway' => $setting->payment_gateway ?: 'paystack',
             'paystack_public_key' => $setting->paystack_public_key,
             'has_paystack_secret_key' => filled($setting->getRawOriginal('paystack_secret_key')),

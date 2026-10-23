@@ -14,11 +14,14 @@ class MortuaryCase extends Model
     {
         return [
             'deceased_at' => 'datetime',
+            'declared_at' => 'datetime',
             'received_at' => 'datetime',
             'released_at' => 'datetime',
             'storage_billed_through' => 'datetime',
             'intake_fee' => 'decimal:2',
             'daily_storage_fee' => 'decimal:2',
+            'state_tax_daily_fee' => 'decimal:2',
+            'death_certificate_issued_at' => 'datetime',
         ];
     }
 
@@ -40,6 +43,16 @@ class MortuaryCase extends Model
     public function openedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'opened_by');
+    }
+
+    public function declaredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'declared_by');
+    }
+
+    public function deathCertificateIssuedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'death_certificate_issued_by');
     }
 
     public function receivedBy(): BelongsTo

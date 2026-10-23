@@ -60,23 +60,24 @@
 
     <section class="overflow-hidden rounded-xl border bg-white shadow-sm">
         <div class="border-b px-5 py-4">
-            <h2 class="font-semibold text-slate-900">Recently discharged</h2>
-            <p class="mt-1 text-sm text-slate-500">Discharge summaries remain linked to the original consultation.</p>
+            <h2 class="font-semibold text-slate-900">Recently closed admissions</h2>
+            <p class="mt-1 text-sm text-slate-500">Discharge and in-hospital death records remain linked to the original consultation.</p>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200 text-sm">
-                <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-4 py-3">Patient / admission</th><th class="px-4 py-3">Ward department</th><th class="px-4 py-3">Attending doctor</th><th class="px-4 py-3">Discharged</th><th></th></tr></thead>
+                <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-4 py-3">Patient / admission</th><th class="px-4 py-3">Ward department</th><th class="px-4 py-3">Attending doctor</th><th class="px-4 py-3">Outcome</th><th class="px-4 py-3">Closed</th><th></th></tr></thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($dischargedAdmissions as $admission)
                         <tr>
                             <td class="px-4 py-3"><span class="font-medium text-slate-900">{{ $admission->patient->full_name }}</span><span class="mt-0.5 block font-mono text-xs text-slate-500">{{ $admission->admission_number }} · {{ $admission->patient->hospital_number }}</span></td>
                             <td class="px-4 py-3">{{ $admission->department->name }}</td>
                             <td class="px-4 py-3">{{ $admission->attendingDoctor->name }}</td>
-                            <td class="px-4 py-3">{{ $admission->discharged_at?->format('d M Y, g:i A') ?? '—' }}</td>
-                            <td class="px-4 py-3 text-right"><a href="{{ route('admissions.show', $admission) }}" class="font-medium text-teal-700 hover:underline">View discharge →</a></td>
+                            <td class="px-4 py-3"><x-badge :color="$admission->status->color()">{{ $admission->status->label() }}</x-badge></td>
+                            <td class="px-4 py-3">{{ $admission->status->value === 'deceased' ? ($admission->visit->mortuaryCase?->deceased_at?->format('d M Y, g:i A') ?? '—') : ($admission->discharged_at?->format('d M Y, g:i A') ?? '—') }}</td>
+                            <td class="px-4 py-3 text-right"><a href="{{ route('admissions.show', $admission) }}" class="font-medium text-teal-700 hover:underline">View record →</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">No discharged admissions found.</td></tr>
+                        <tr><td colspan="6" class="px-4 py-10 text-center text-slate-500">No closed admissions found.</td></tr>
                     @endforelse
                 </tbody>
             </table>

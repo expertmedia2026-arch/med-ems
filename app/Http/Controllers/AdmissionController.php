@@ -7,10 +7,14 @@ use App\Http\Requests\RecordAdmissionVitalsRequest;
 use App\Http\Requests\ReviewAdmissionLabResultRequest;
 use App\Http\Requests\StorePrescriptionRequest;
 use App\Http\Requests\StoreAdmissionNoteRequest;
+use App\Http\Requests\StoreAdmissionDeathRequest;
 use App\Models\Admission;
+use App\Models\HospitalSetting;
 use App\Models\LabRequest;
 use App\Services\AdmissionService;
 use App\Services\AdmissionCareChartService;
+use App\Services\HospitalDeathCertificateService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -35,6 +39,43 @@ class AdmissionController extends Controller
 
         return redirect()->route('admissions.show', $admission)
             ->with('success', 'Discharge completed. The linked consultation is now closed and the discharge plan is recorded.');
+    }
+
+    public function declareDeceased(StoreAdmissionDeathRequest $request, Admission $admission, AdmissionService $admissions)
+    {
+        $case = $admissions->declareDeceased($admission, $request->validated(), $request->user());
+        $message = $case->release_route === 'direct_family_release'
+            ? 'Death was recorded and direct release to the family was documented.'
+            : 'Death was recorded and a mortuary transfer case was opened.';
+
+        return redirect()->route('admissions.show', $admission)->with('success', $message);
+    }
+
+    public function issueDeathCertificate(Request $request, Admission $admission, HospitalDeathCertificateService $certificates)
+    {
+        $data = $request->validate([
+            'registration_number' => ['required', 'string', 'max:100'],
+            'certified_cause' => ['required', 'string', 'min:2', 'max:5000'],
+            'other_conditions' => ['nullable', 'string', 'max:5000'],
+        ]);
+        $case = $certificates->issue($admission, $data, $request->user());
+
+        return redirect()->route('admissions.death-certificate.download', $admission)
+            ->with('success', 'Hospital death certificate '.$case->death_certificate_number.' issued and recorded.');
+    }
+
+    public function downloadDeathCertificate(Request $request, Admission $admission, AdmissionService $admissions)
+    {
+        $admissions->showData($admission, $request->user());
+        $admission->loadMissing(['patient', 'department', 'attendingDoctor', 'visit.mortuaryCase.deathCertificateIssuedBy']);
+        $case = $admission->visit->mortuaryCase;
+        abort_unless($case?->death_certificate_issued_at, 404, 'No hospital death certificate has been issued for this admission.');
+
+        return Pdf::loadView('admissions.death-certificate-pdf', [
+            'admission' => $admission,
+            'case' => $case,
+            'hospital' => HospitalSetting::current(),
+        ])->setPaper('a4')->download('death-certificate-'.$case->death_certificate_number.'.pdf');
     }
 
     public function reviewLabResult(ReviewAdmissionLabResultRequest $request, Admission $admission, LabRequest $labRequest, AdmissionService $admissions)

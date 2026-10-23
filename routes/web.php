@@ -210,6 +210,12 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         ->middleware('role:admin,doctor')->whereNumber('admission')->whereNumber('labRequest')->name('admissions.lab-results.review');
     Route::post('admissions/{admission}/discharge', [AdmissionController::class, 'discharge'])
         ->middleware('role:admin,doctor')->whereNumber('admission')->name('admissions.discharge');
+    Route::post('admissions/{admission}/declare-deceased', [AdmissionController::class, 'declareDeceased'])
+        ->middleware('role:admin,doctor')->whereNumber('admission')->name('admissions.declare-deceased');
+    Route::post('admissions/{admission}/death-certificate', [AdmissionController::class, 'issueDeathCertificate'])
+        ->middleware('role:doctor')->whereNumber('admission')->name('admissions.death-certificate.issue');
+    Route::get('admissions/{admission}/death-certificate', [AdmissionController::class, 'downloadDeathCertificate'])
+        ->middleware('role:admin,doctor')->whereNumber('admission')->name('admissions.death-certificate.download');
     Route::post('admissions/{admission}/notes', [AdmissionController::class, 'addProgressNote'])
         ->middleware('role:doctor,nurse')->whereNumber('admission')->name('admissions.notes.store');
     Route::post('admissions/{admission}/vitals', [AdmissionController::class, 'recordVitals'])

@@ -13,6 +13,7 @@ use App\Models\AdmissionVital;
 use App\Models\Department;
 use App\Models\Drug;
 use App\Models\LabRequest;
+use App\Models\MortuaryCase;
 use App\Models\Patient;
 use App\Models\User;
 use App\Models\Visit;
@@ -25,6 +26,7 @@ class AdmissionService
         private readonly BillingService $billing,
         private readonly MedicationAdministrationService $medicationAdministration,
         private readonly PrescriptionService $prescriptions,
+        private readonly MortuaryCaseService $mortuaryCases,
     ) {}
 
     public function wardDepartments()
@@ -51,8 +53,8 @@ class AdmissionService
                 'visit as pending_result_reviews_count' => fn ($query) => $query->whereHas('labRequests', fn ($labs) => $labs
                     ->where('status', WorkStatus::Completed->value)->whereNull('result_reviewed_at')),
             ])->latest('admitted_at')->paginate(15, ['*'], 'active_page')->withQueryString(),
-            'dischargedAdmissions' => (clone $base)->where('status', AdmissionStatus::Discharged->value)
-                ->latest('discharged_at')->paginate(15, ['*'], 'discharged_page')->withQueryString(),
+            'dischargedAdmissions' => (clone $base)->whereIn('status', [AdmissionStatus::Discharged->value, AdmissionStatus::Deceased->value])
+                ->with('visit.mortuaryCase')->latest('updated_at')->paginate(15, ['*'], 'discharged_page')->withQueryString(),
             'activeCount' => (clone $base)->where('status', AdmissionStatus::Active->value)->count(),
             'pendingReviewCount' => (clone $base)
                 ->whereHas('visit.labRequests', fn ($query) => $query->where('status', WorkStatus::Completed->value)->whereNull('result_reviewed_at'))->count(),
@@ -65,7 +67,7 @@ class AdmissionService
         $this->assertAdmissionAccess($admission, $viewer);
         $admission->load([
             'patient', 'department', 'attendingDoctor', 'admittedBy', 'dischargedBy',
-            'visit.patient', 'visit.doctor', 'visit.department', 'visit.vitals',
+            'visit.patient', 'visit.doctor', 'visit.department', 'visit.vitals', 'visit.mortuaryCase.declaredBy', 'visit.mortuaryCase.events.actor',
             'visit.prescriptions.drug', 'visit.prescriptions.dispenser',
             'visit.prescriptions.administrations.nurse', 'visit.prescriptions.administrationWaiver',
             'visit.labRequests.test', 'visit.labRequests.processor', 'visit.labRequests.resultReviewer', 'visit.labRequests.attachments',
@@ -179,6 +181,13 @@ class AdmissionService
 
             return $admission->refresh();
         });
+    }
+
+    public function declareDeceased(Admission $admission, array $data, User $actor): MortuaryCase
+    {
+        $this->assertCanManage($admission, $actor);
+
+        return $this->mortuaryCases->declareInpatientDeath($admission, $data, $actor);
     }
 
     public function reviewLabResult(Admission $admission, LabRequest $labRequest, array $data, User $doctor): LabRequest

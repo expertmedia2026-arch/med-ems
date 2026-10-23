@@ -126,6 +126,12 @@
                                 <p class="mt-1 text-xs text-slate-500">Storage is billed in started 24-hour periods. A final partial period is charged when the body is released. Use 0 for no recurring fee.</p>
                                 @error('mortuary_daily_storage_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
+                            <div>
+                                <label for="state_mortuary_tax_daily_fee" class="{{ $label }}">State mortuary tax per started 24 hours (₦) <span class="text-red-600">*</span></label>
+                                <input id="state_mortuary_tax_daily_fee" name="state_mortuary_tax_daily_fee" type="number" step="0.01" min="0" max="99999999" required value="{{ old('state_mortuary_tax_daily_fee', $settings->state_mortuary_tax_daily_fee ?? 0) }}" class="{{ $input }}">
+                                <p class="mt-1 text-xs text-slate-500">Added to the mortuary invoice alongside storage and must be paid before release. Use 0 if no State tax applies.</p>
+                                @error('state_mortuary_tax_daily_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            </div>
                             <div class="border-t pt-5">
                                 <h4 class="font-semibold text-slate-900">Inpatient care charges</h4>
                                 <p class="mt-1 text-sm text-slate-500">Oxygen and insulin machine use are service charges, separate from pharmacy stock items.</p>
