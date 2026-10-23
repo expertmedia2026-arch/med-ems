@@ -107,6 +107,12 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
             ->middleware('role:admin,receptionist,nurse')->name('emergency.store');
         Route::post('emergency/unidentified', [EmergencyController::class, 'storeUnidentified'])
             ->middleware('role:admin,receptionist,nurse')->name('emergency.unidentified.store');
+        Route::post('emergency/visits/{visit}/brought-in-dead/confirm', [EmergencyController::class, 'confirmBroughtInDead'])
+            ->middleware('role:doctor')->whereNumber('visit')->name('emergency.brought-in-dead.confirm');
+        Route::post('emergency/visits/{visit}/brought-in-dead/death-certificate', [EmergencyController::class, 'issueBroughtInDeadCertificate'])
+            ->middleware('role:doctor')->whereNumber('visit')->name('emergency.brought-in-dead.certificate.issue');
+        Route::get('emergency/visits/{visit}/brought-in-dead/death-certificate', [EmergencyController::class, 'downloadBroughtInDeadCertificate'])
+            ->middleware('role:admin,doctor')->whereNumber('visit')->name('emergency.brought-in-dead.certificate.download');
         Route::post('emergency/visits/{visit}/notes', [EmergencyController::class, 'addProgressNote'])
             ->middleware('role:doctor,nurse')->whereNumber('visit')->name('emergency.notes.store');
         Route::post('emergency/mortuary/{mortuaryCase}/receive', [EmergencyController::class, 'receiveMortuaryCase'])

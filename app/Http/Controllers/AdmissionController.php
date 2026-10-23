@@ -73,6 +73,7 @@ class AdmissionController extends Controller
 
         return Pdf::loadView('admissions.death-certificate-pdf', [
             'admission' => $admission,
+            'visit' => $admission->visit,
             'case' => $case,
             'hospital' => HospitalSetting::current(),
         ])->setPaper('a4')->download('death-certificate-'.$case->death_certificate_number.'.pdf');

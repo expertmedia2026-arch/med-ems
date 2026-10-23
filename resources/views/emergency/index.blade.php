@@ -27,7 +27,8 @@
                         @else
                             register them with the front desk
                         @endif
-                        , then return here to start the A&amp;E visit.
+                        , then return here and search using the hospital number on the new patient file.
+                        Select the matching patient and mark the BID box for a brought-in-dead arrival; the file will wait for an A&amp;E doctor to confirm death and authorize the next step.
                     </p>
                 </div>
                 <form method="GET" action="{{ route('emergency.index') }}" class="mt-4 flex max-w-2xl gap-2">
@@ -62,7 +63,12 @@
                                             <option value="other">Other</option>
                                         </select>
                                     </div>
-                                    <button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">Start A&amp;E visit</button>
+                                    @if ($patient->identity_status !== 'unidentified')
+                                        <label class="flex items-center gap-2 text-xs font-medium text-rose-800 sm:col-span-3"><input type="checkbox" name="brought_in_dead" value="1" @checked(old('brought_in_dead')) class="rounded border-rose-300 text-rose-700"> Brought in dead (BID) — doctor confirmation required</label>
+                                    @else
+                                        <p class="text-xs text-amber-800 sm:col-span-3">Complete the patient’s identity from their file before opening a BID case.</p>
+                                    @endif
+                                    <button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 sm:col-span-3">Register A&amp;E arrival</button>
                                 </form>
                             </div>
                         @empty
@@ -75,8 +81,8 @@
 
                 <details class="mt-5 rounded-lg border border-amber-200 bg-amber-50/60 p-4">
                     <summary class="cursor-pointer text-sm font-semibold text-slate-800">Register an unidentified arrival</summary>
-                    <p class="mt-2 text-xs text-slate-600">This creates a temporary patient record. Staff can identify the person later from their patient record; the hospital number stays the same.</p>
-                    <form method="POST" action="{{ route('emergency.unidentified.store') }}" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <p class="mt-2 text-xs text-slate-600">This creates a temporary patient record for an unidentified person who needs emergency care. For a BID case, first register or find the patient record, then use its hospital number in the search above and mark BID.</p>
+                    <form id="unidentified-arrival-form" method="POST" action="{{ route('emergency.unidentified.store') }}" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         @csrf
                         <div class="sm:col-span-2 lg:col-span-3">
                             <label for="unknown-complaint" class="block text-sm font-medium text-slate-700">Presenting complaint <span class="text-rose-600">*</span></label>
@@ -116,7 +122,7 @@
                             @error('next_of_kin_phone')<p class="mt-1 text-xs text-rose-700">{{ $message }}</p>@enderror
                         </div>
                         <div class="sm:col-span-2 lg:col-span-3">
-                            <button class="rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">Register and send for triage</button>
+                            <button class="rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">Register unidentified arrival</button>
                         </div>
                     </form>
                 </details>
@@ -127,6 +133,7 @@
             <div class="border-b border-slate-200 p-5">
                 <h2 class="font-semibold text-slate-900">Active A&amp;E visits</h2>
                 <p class="mt-1 text-sm text-slate-500">Visits needing triage or clinical follow-up appear first, ordered by recorded triage priority.</p>
+                @if ($errors->any())<div class="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{{ $errors->first() }} Open the relevant arrival or BID form below to correct it.</div>@endif
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
@@ -152,7 +159,9 @@
                                     <p class="mt-1 text-xs text-slate-500">{{ str_replace('_', ' ', ucfirst($visit->arrival_mode ?? 'arrival not recorded')) }}</p>
                                 </td>
                                 <td class="px-5 py-4">
-                                    @if ($visit->triage_priority)
+                                    @if ($visit->is_brought_in_dead)
+                                        <x-badge color="red">BID · confirmation required</x-badge>
+                                    @elseif ($visit->triage_priority)
                                         <x-badge :color="$visit->triage_priority === 'critical' ? 'red' : ($visit->triage_priority === 'high' ? 'amber' : 'teal')">{{ ucfirst($visit->triage_priority) }}</x-badge>
                                     @else
                                         <x-badge color="amber">Needs triage</x-badge>
@@ -161,7 +170,31 @@
                                 <td class="px-5 py-4"><x-badge :color="$visit->status->color()">{{ $visit->status->label() }}</x-badge></td>
                                 <td class="whitespace-nowrap px-5 py-4 text-slate-600">{{ $visit->checked_in_at->diffForHumans(short: true) }}</td>
                                 <td class="whitespace-nowrap px-5 py-4 text-right">
-                                    @if ($visit->status->value === 'waiting_triage' && auth()->user()->hasRole('admin', 'nurse'))
+                                    @if ($visit->is_brought_in_dead && auth()->user()->hasRole('doctor') && $visit->status->value === 'waiting_doctor')
+                                        <details class="min-w-64 text-left">
+                                            <summary class="cursor-pointer font-semibold text-rose-700 hover:underline">Confirm death / disposition</summary>
+                                            <form method="POST" action="{{ route('emergency.brought-in-dead.confirm', $visit) }}" class="mt-3 min-w-72 space-y-3 rounded-lg border border-rose-200 bg-rose-50 p-4 sm:w-96">
+                                                @csrf
+                                                <p class="text-xs text-slate-600">This records the time of your confirmation automatically. The mortuary will not accept the body until a doctor confirms and approves transfer.</p>
+                                                <label class="block text-xs font-medium text-slate-700">Cause / clinical circumstances of death <textarea name="cause_of_death" required minlength="2" maxlength="5000" rows="3" class="mt-1 w-full rounded-lg border-slate-300 text-sm">{{ old('cause_of_death') }}</textarea></label>
+                                                <label class="block text-xs font-medium text-slate-700">Clinical confirmation note <textarea name="death_clinical_summary" required minlength="2" maxlength="10000" rows="3" class="mt-1 w-full rounded-lg border-slate-300 text-sm" placeholder="Document the examination and confirmation.">{{ old('death_clinical_summary') }}</textarea></label>
+                                                <label class="block text-xs font-medium text-slate-700">Disposition<select name="disposition" data-bid-disposition required class="mt-1 w-full rounded-lg border-slate-300 text-sm"><option value="mortuary_transfer">Transfer to hospital mortuary</option><option value="direct_family_release">Direct release to family / authorized representative</option></select></label>
+                                                <label data-bid-family-fields class="hidden space-y-2 rounded border bg-white p-3 text-xs font-medium text-slate-700">
+                                                    <span>Recipient and release authority</span>
+                                                    <input name="released_to" maxlength="150" placeholder="Recipient name" class="w-full rounded-lg border-slate-300 text-sm">
+                                                    <input name="recipient_relationship" maxlength="100" placeholder="Relationship to patient" class="w-full rounded-lg border-slate-300 text-sm">
+                                                    <input name="recipient_id_reference" maxlength="120" placeholder="Recipient ID / reference (optional)" class="w-full rounded-lg border-slate-300 text-sm">
+                                                    <input name="release_authority" maxlength="150" placeholder="Release authority / document reference" class="w-full rounded-lg border-slate-300 text-sm">
+                                                    <textarea name="release_note" maxlength="2000" rows="2" placeholder="Release note (optional)" class="w-full rounded-lg border-slate-300 text-sm"></textarea>
+                                                </label>
+                                                <label class="block text-xs font-medium text-slate-700">Transfer approval note / reference (optional)<input name="transfer_approval_note" maxlength="2000" class="mt-1 w-full rounded-lg border-slate-300 text-sm"></label>
+                                                <label class="flex items-start gap-2 text-xs font-semibold text-rose-900"><input type="checkbox" name="approval_confirmed" value="1" required class="mt-0.5 rounded border-rose-300 text-rose-700"> I confirm death and authorize the selected disposition. For a mortuary transfer, this records my transfer approval.</label>
+                                                <button class="w-full rounded-lg bg-rose-700 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-800">Confirm death and approve disposition</button>
+                                            </form>
+                                        </details>
+                                    @elseif ($visit->is_brought_in_dead)
+                                        <span class="text-xs text-amber-700">Waiting for A&amp;E doctor confirmation</span>
+                                    @elseif ($visit->status->value === 'waiting_triage' && auth()->user()->hasRole('admin', 'nurse'))
                                         <a href="{{ route('triage.show', $visit) }}" class="font-semibold text-teal-700 hover:underline">Triage</a>
                                     @elseif ($visit->status->value === 'waiting_doctor' && auth()->user()->hasRole('doctor'))
                                         <form method="POST" action="{{ route('consultations.start', $visit) }}">
@@ -195,7 +228,7 @@
         <section class="overflow-hidden rounded-xl border border-teal-200 bg-white shadow-sm">
             <div class="border-b border-teal-100 p-5">
                 <h2 class="font-semibold text-slate-900">Mortuary handoffs</h2>
-                <p class="mt-1 text-sm text-slate-500">Deceased A&amp;E cases awaiting physical transfer and receipt.</p>
+                <p class="mt-1 text-sm text-slate-500">Hospital deaths approved by a doctor and awaiting physical transfer and receipt.</p>
             </div>
             <div class="divide-y divide-slate-100">
                 @forelse ($mortuaryHandoffs as $case)
@@ -203,6 +236,7 @@
                         <div>
                             <p class="font-semibold text-slate-900">{{ $case->patient->full_name }} · <span class="font-mono text-sm">{{ $case->case_number }}</span></p>
                             <p class="mt-1 text-xs text-slate-500">{{ $case->patient->hospital_number }} · Deceased {{ $case->deceased_at->format('d M Y, g:i A') }}</p>
+                            <p class="mt-1 text-xs text-teal-700">Transfer approved by {{ $case->mortuaryTransferApprovedBy?->name ?? $case->declaredBy?->name ?? 'doctor' }}@if ($case->mortuary_transfer_approved_at) · {{ $case->mortuary_transfer_approved_at->format('d M Y, g:i A') }}@endif</p>
                         </div>
                         @if (auth()->user()->canReceiveEmergencyMortuaryHandoff())
                             <form method="POST" action="{{ route('emergency.mortuary.receive', $case) }}" class="grid w-full gap-3 sm:grid-cols-[minmax(11rem,1fr)_minmax(11rem,1fr)_minmax(9rem,.7fr)_auto] lg:max-w-5xl">
@@ -232,5 +266,58 @@
                 @endforelse
             </div>
         </section>
+
+        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 p-5">
+                <h2 class="font-semibold text-slate-900">Confirmed BID files</h2>
+                <p class="mt-1 text-sm text-slate-500">Review the doctor-confirmed hospital death record and issue or download its certificate.</p>
+            </div>
+            <div class="divide-y divide-slate-100">
+                @forelse ($broughtInDeadCases as $case)
+                    <div class="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                            <p class="font-semibold text-slate-900">{{ $case->patient->full_name }} · <span class="font-mono text-sm">{{ $case->case_number }}</span></p>
+                            <p class="mt-1 text-xs text-slate-500">{{ $case->patient->hospital_number }} · Death confirmed {{ $case->declared_at->format('d M Y, g:i A') }} by {{ $case->declaredBy?->name ?? 'A&amp;E doctor' }}</p>
+                            <p class="mt-1 text-sm text-slate-700">Disposition: {{ $case->release_route === 'direct_family_release' ? 'Direct family release' : ($case->status === 'received' ? 'In mortuary custody' : 'Awaiting mortuary receipt') }}</p>
+                        </div>
+                        <div class="w-full lg:max-w-md">
+                            @if ($case->death_certificate_issued_at)
+                                <p class="text-sm font-medium text-teal-800">Certificate {{ $case->death_certificate_number }} · issued {{ $case->death_certificate_issued_at->format('d M Y, g:i A') }}</p>
+                                @if (auth()->user()->hasRole('admin', 'doctor'))<a href="{{ route('emergency.brought-in-dead.certificate.download', $case->visit) }}" class="mt-2 inline-flex rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800">Download death certificate PDF</a>@else<span class="mt-2 block text-xs text-slate-500">Certificate is on file.</span>@endif
+                            @elseif (auth()->user()->hasRole('doctor') && auth()->user()->canAccessEmergency())
+                                <details>
+                                    <summary class="cursor-pointer font-semibold text-teal-700 hover:underline">Issue hospital death certificate</summary>
+                                    <form method="POST" action="{{ route('emergency.brought-in-dead.certificate.issue', $case->visit) }}" class="mt-3 space-y-3 rounded-lg border border-teal-200 bg-teal-50 p-4">
+                                        @csrf
+                                        <label class="block text-xs font-medium text-slate-700">Professional registration number <input name="registration_number" value="{{ old('registration_number') }}" required maxlength="100" class="mt-1 w-full rounded-lg border-slate-300 text-sm"></label>
+                                        <label class="block text-xs font-medium text-slate-700">Certified cause of death <textarea name="certified_cause" required minlength="2" maxlength="5000" rows="3" class="mt-1 w-full rounded-lg border-slate-300 text-sm">{{ old('certified_cause', $case->cause_of_death) }}</textarea></label>
+                                        <label class="block text-xs font-medium text-slate-700">Other significant conditions <textarea name="other_conditions" maxlength="5000" rows="2" class="mt-1 w-full rounded-lg border-slate-300 text-sm">{{ old('other_conditions') }}</textarea></label>
+                                        <button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800">Issue and download certificate</button>
+                                    </form>
+                                </details>
+                            @else
+                                <span class="text-sm text-slate-500">Certificate not yet issued.</span>
+                            @endif
+                        </div>
+                    </div>
+                @empty
+                    <p class="px-5 py-8 text-center text-sm text-slate-500">No confirmed BID files yet.</p>
+                @endforelse
+            </div>
+        </section>
     </div>
+    <script>
+        document.querySelectorAll('[data-bid-disposition]').forEach((select) => {
+            const form = select.closest('form');
+            const fields = form.querySelector('[data-bid-family-fields]');
+            const requiredFields = fields.querySelectorAll('[name="released_to"], [name="recipient_relationship"], [name="release_authority"]');
+            const sync = () => {
+                const direct = select.value === 'direct_family_release';
+                fields.classList.toggle('hidden', !direct);
+                requiredFields.forEach((input) => { input.required = direct; });
+            };
+            select.addEventListener('change', sync);
+            sync();
+        });
+    </script>
 </x-app-layout>

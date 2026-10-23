@@ -66,6 +66,7 @@ class DashboardService
         $queue = $user->hasRole(Role::Admin, Role::Receptionist, Role::Nurse, Role::Doctor)
             ? Visit::with(['patient', 'doctor', 'department'])
                 ->withStatus(VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor, VisitStatus::InConsultation)
+                ->where('is_brought_in_dead', false)
                 ->when($user->hasRole(Role::Nurse) && $user->department_id && ! $user->isCentralVitalsNurse(), fn ($query) => $query->where('department_id', $user->department_id))
                 ->when($user->hasRole(Role::Doctor), fn ($query) => $query->where('department_id', $user->department_id ?? 0)
                     ->where(fn ($q) => $q->whereNull('doctor_id')->orWhere('doctor_id', $user->id)))

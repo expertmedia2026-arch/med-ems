@@ -17,6 +17,7 @@ class EmergencyCheckInRequest extends FormRequest
         return [
             'complaint' => ['required', 'string', 'max:1000'],
             'arrival_mode' => ['required', Rule::in(['walk_in', 'ambulance', 'referred', 'other'])],
+            'brought_in_dead' => ['sometimes', 'boolean'],
         ];
     }
 }

@@ -23,6 +23,8 @@
     </style>
 </head>
 <body>
+    @php($patient = $admission?->patient ?? $visit->patient)
+    @php($department = $admission?->department ?? $visit->department)
     <header class="header">
         <div class="hospital">{{ $hospital->name }}</div>
         @if ($hospital->address)<div>{{ $hospital->address }}</div>@endif
@@ -34,12 +36,12 @@
     <p class="intro">This certifies the hospital record of the death of the person identified below.</p>
 
     <table>
-        <tr><th>Full name</th><td>{{ $admission->patient->full_name }}</td></tr>
-        <tr><th>Hospital number</th><td>{{ $admission->patient->hospital_number }}</td></tr>
-        <tr><th>Date of birth / age</th><td>{{ $admission->patient->date_of_birth?->format('d M Y') ?? 'Not recorded' }} · {{ $admission->patient->age !== null ? $admission->patient->age.' years' : 'Age not recorded' }}</td></tr>
-        <tr><th>Sex</th><td>{{ ucfirst($admission->patient->gender ?? 'Not recorded') }}</td></tr>
-        <tr><th>Admission number</th><td>{{ $admission->admission_number }}</td></tr>
-        <tr><th>Ward</th><td>{{ $admission->department->name }}</td></tr>
+        <tr><th>Full name</th><td>{{ $patient->full_name }}</td></tr>
+        <tr><th>Hospital number</th><td>{{ $patient->hospital_number }}</td></tr>
+        <tr><th>Date of birth / age</th><td>{{ $patient->dob_estimated ? 'Estimated / not confirmed' : ($patient->date_of_birth?->format('d M Y') ?? 'Not recorded') }} · {{ $patient->age !== null ? $patient->age.' years' : 'Age not recorded' }}</td></tr>
+        <tr><th>Sex</th><td>{{ ucfirst($patient->gender ?? 'Not recorded') }}</td></tr>
+        @if ($admission)<tr><th>Admission number</th><td>{{ $admission->admission_number }}</td></tr>@else<tr><th>Emergency file opened</th><td>{{ $visit->checked_in_at?->format('d M Y, g:i A') ?? 'Not recorded' }}</td></tr>@endif
+        <tr><th>Ward / department</th><td>{{ $department?->name ?? 'Not recorded' }}</td></tr>
         <tr><th>Date and time of death</th><td>{{ $case->deceased_at?->format('d M Y, g:i A') ?? 'Not recorded' }}</td></tr>
     </table>
 
@@ -58,7 +60,7 @@
             <tr><th>Professional registration no.</th><td>{{ $case->death_certificate_registration_number }}</td></tr>
             <tr><th>Certificate issued</th><td>{{ $case->death_certificate_issued_at?->format('d M Y, g:i A') }}</td></tr>
         </table>
-        <p>I certify that the particulars above are recorded from the hospital clinical record for this inpatient death.</p>
+        <p>I certify that the particulars above are recorded from the hospital clinical record for this hospital death.</p>
         <div class="signature-line">Certifying doctor's signature</div>
     </section>
 

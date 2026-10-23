@@ -22,6 +22,7 @@ class MortuaryCase extends Model
             'daily_storage_fee' => 'decimal:2',
             'state_tax_daily_fee' => 'decimal:2',
             'death_certificate_issued_at' => 'datetime',
+            'mortuary_transfer_approved_at' => 'datetime',
         ];
     }
 
@@ -53,6 +54,11 @@ class MortuaryCase extends Model
     public function deathCertificateIssuedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'death_certificate_issued_by');
+    }
+
+    public function mortuaryTransferApprovedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'mortuary_transfer_approved_by');
     }
 
     public function receivedBy(): BelongsTo

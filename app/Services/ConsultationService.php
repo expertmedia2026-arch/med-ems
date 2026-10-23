@@ -30,6 +30,7 @@ class ConsultationService
 
         return Visit::with(['patient', 'vitals', 'department'])
             ->withStatus(VisitStatus::WaitingDoctor, VisitStatus::InConsultation)
+            ->where('is_brought_in_dead', false)
             ->where('department_id', $doctor->department_id)
             ->where(fn ($query) => $query->whereNull('doctor_id')->orWhere('doctor_id', $doctor->id))
             ->orderByDesc('is_emergency')
@@ -59,6 +60,7 @@ class ConsultationService
         $this->inventory->expireReservations();
         $this->assertAssignedToDoctor($visit, $doctor);
         abort_if($visit->status === VisitStatus::WaitingTriage, 404);
+        abort_if($visit->is_brought_in_dead, 404, 'BID arrivals use the A&E confirmation workflow.');
 
         $visit->load([
             'patient', 'vitals', 'emergencyObservations.recorder', 'emergencyProgressNotes.author', 'emergencyMedicationUses.drug', 'emergencyMedicationUses.recorder', 'emergencyMedicationUses.invoiceItem', 'emergencyItemUses.item', 'emergencyItemUses.recorder', 'emergencyItemUses.invoiceItem', 'prescriptions.drug', 'prescriptions.invoiceItem', 'prescriptions.stockReservation', 'prescriptions.administrations.nurse', 'prescriptions.administrationWaiver',
@@ -99,6 +101,7 @@ class ConsultationService
             $visit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
             $this->assertAssignedToDoctor($visit, $doctor);
             abort_unless($visit->status === VisitStatus::WaitingDoctor, 422, 'This patient is not waiting for a doctor.');
+            abort_unless(! $visit->is_brought_in_dead, 422, 'Use the brought-in-dead confirmation workflow instead of starting a treatment consultation.');
 
             $visit->update([
                 'doctor_id' => $doctor->id,

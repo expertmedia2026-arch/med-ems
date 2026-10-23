@@ -26,7 +26,7 @@ class EmergencyService
                 VisitStatus::InConsultation->value,
                 VisitStatus::Inpatient->value,
             ])
-            ->orderByRaw("CASE triage_priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'moderate' THEN 2 WHEN 'low' THEN 3 ELSE 4 END")
+            ->orderByRaw("CASE WHEN is_brought_in_dead THEN 0 ELSE 1 END, CASE triage_priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'moderate' THEN 2 WHEN 'low' THEN 3 ELSE 4 END")
             ->oldest('checked_in_at')
             ->paginate(20)
             ->withQueryString();
@@ -35,15 +35,31 @@ class EmergencyService
     public function mortuaryHandoffs()
     {
         return MortuaryCase::query()
-            ->with(['patient', 'visit'])
+            ->with(['patient', 'visit', 'mortuaryTransferApprovedBy', 'declaredBy'])
             ->where('status', 'awaiting_transfer')
+            ->where('source', 'hospital')
+            ->whereNotNull('mortuary_transfer_approved_by')
+            ->whereHas('visit', fn ($query) => $query->where('is_emergency', true))
             ->oldest('deceased_at')
+            ->get();
+    }
+
+    public function broughtInDeadCases()
+    {
+        return MortuaryCase::query()
+            ->with(['patient', 'visit.department', 'deathCertificateIssuedBy'])
+            ->where('source', 'hospital')
+            ->whereNotNull('declared_at')
+            ->whereHas('visit', fn ($query) => $query->where('is_emergency', true)->where('is_brought_in_dead', true))
+            ->latest('declared_at')
+            ->limit(20)
             ->get();
     }
 
     public function checkIn(Patient $patient, array $data, User $staff): ?Visit
     {
         abort_unless($patient->identity_status !== 'external_mortuary', 422, 'Walk-in mortuary records cannot be checked in for emergency care.');
+        abort_unless(! ($data['brought_in_dead'] ?? false) || $patient->identity_status !== 'unidentified', 422, 'Complete the patient identity before opening a BID case.');
 
         return DB::transaction(function () use ($patient, $data, $staff) {
             $patient = Patient::query()->lockForUpdate()->findOrFail($patient->id);
@@ -60,6 +76,8 @@ class EmergencyService
 
     public function checkInUnidentified(array $data, User $staff): Visit
     {
+        unset($data['brought_in_dead']);
+
         return DB::transaction(function () use ($data, $staff) {
             $estimatedAge = $data['estimated_age'] ?? null;
             $patient = Patient::create([
@@ -82,6 +100,7 @@ class EmergencyService
 
     private function createVisit(Patient $patient, array $data, User $staff): Visit
     {
+        $broughtInDead = (bool) ($data['brought_in_dead'] ?? false);
         $department = Department::firstOrCreate(
             ['name' => 'Accident & Emergency'],
             ['description' => 'Emergency assessment and urgent care.']
@@ -91,8 +110,9 @@ class EmergencyService
             'type' => 'consultation',
             'is_emergency' => true,
             'arrival_mode' => $data['arrival_mode'],
+            'is_brought_in_dead' => $broughtInDead,
             'registered_by' => $staff->id,
-            'status' => VisitStatus::WaitingTriage,
+            'status' => $broughtInDead ? VisitStatus::WaitingDoctor : VisitStatus::WaitingTriage,
             'checked_in_at' => now(),
             'department_id' => $department->id,
             'complaint' => $data['complaint'],

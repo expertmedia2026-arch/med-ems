@@ -11,6 +11,9 @@ use App\Models\Patient;
 use App\Services\EmergencyService;
 use App\Services\EmergencyProgressNoteService;
 use App\Services\MortuaryCaseService;
+use App\Services\HospitalDeathCertificateService;
+use App\Models\HospitalSetting;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class EmergencyController extends Controller
@@ -30,6 +33,7 @@ class EmergencyController extends Controller
         return view('emergency.index', [
             'visits' => $emergency->queue(),
             'mortuaryHandoffs' => $emergency->mortuaryHandoffs(),
+            'broughtInDeadCases' => $emergency->broughtInDeadCases(),
             'patients' => $patients,
             'search' => $search,
         ]);
@@ -43,21 +47,79 @@ class EmergencyController extends Controller
             return back()->with('error', 'This patient already has an active visit or inpatient admission. Review their record before creating another A&E visit.');
         }
 
-        return redirect()->route('emergency.index')
-            ->with('success', "{$patient->full_name} checked in to Accident & Emergency. Send them for immediate triage.");
+        $message = $visit->is_brought_in_dead
+            ? "{$patient->full_name} has an A&E BID file open and is waiting for doctor confirmation. No mortuary transfer is authorized yet."
+            : "{$patient->full_name} checked in to Accident & Emergency. Send them for immediate triage.";
+
+        return redirect()->route('emergency.index')->with('success', $message);
     }
 
     public function storeUnidentified(UnidentifiedEmergencyCheckInRequest $request, EmergencyService $emergency)
     {
         $visit = $emergency->checkInUnidentified($request->validated(), $request->user());
 
-        return redirect()->route('emergency.index')
-            ->with('success', "Unidentified arrival recorded as {$visit->patient->hospital_number}. Send them for immediate triage.");
+        return redirect()->route('emergency.index')->with('success', "Unidentified arrival recorded as {$visit->patient->hospital_number}. Send them for immediate triage.");
+    }
+
+    public function confirmBroughtInDead(Request $request, \App\Models\Visit $visit, MortuaryCaseService $mortuary)
+    {
+        $data = $request->validate([
+            'cause_of_death' => ['required', 'string', 'min:2', 'max:5000'],
+            'death_clinical_summary' => ['required', 'string', 'min:2', 'max:10000'],
+            'disposition' => ['required', 'in:mortuary_transfer,direct_family_release'],
+            'approval_confirmed' => ['accepted'],
+            'transfer_approval_note' => ['nullable', 'string', 'max:2000'],
+            'released_to' => ['required_if:disposition,direct_family_release', 'nullable', 'string', 'max:150'],
+            'recipient_relationship' => ['required_if:disposition,direct_family_release', 'nullable', 'string', 'max:100'],
+            'recipient_id_reference' => ['nullable', 'string', 'max:120'],
+            'release_authority' => ['required_if:disposition,direct_family_release', 'nullable', 'string', 'max:150'],
+            'release_note' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $case = $mortuary->confirmBroughtInDead($visit, $data, $request->user());
+
+        $message = $case->release_route === 'direct_family_release'
+            ? 'A&E doctor confirmed the death and documented direct family release.'
+            : 'A&E doctor confirmed the death and approved mortuary transfer. The case is awaiting physical receipt.';
+
+        return redirect()->route('emergency.index')->with('success', $message);
+    }
+
+    public function issueBroughtInDeadCertificate(Request $request, \App\Models\Visit $visit, HospitalDeathCertificateService $certificates)
+    {
+        $data = $request->validate([
+            'registration_number' => ['required', 'string', 'max:100'],
+            'certified_cause' => ['required', 'string', 'min:2', 'max:5000'],
+            'other_conditions' => ['nullable', 'string', 'max:5000'],
+        ]);
+        $case = $certificates->issueForBroughtInDead($visit, $data, $request->user());
+
+        return redirect()->route('emergency.brought-in-dead.certificate.download', $visit)
+            ->with('success', 'Hospital death certificate '.$case->death_certificate_number.' issued and recorded.');
+    }
+
+    public function downloadBroughtInDeadCertificate(Request $request, \App\Models\Visit $visit)
+    {
+        abort_unless($request->user()->hasRole('admin')
+            || ($request->user()->hasRole('doctor') && $request->user()->canAccessEmergency()), 403);
+        $visit->loadMissing(['patient', 'department', 'mortuaryCase.deathCertificateIssuedBy']);
+        $case = $visit->mortuaryCase;
+        abort_unless($visit->is_emergency && $visit->is_brought_in_dead && $case?->death_certificate_issued_at, 404);
+
+        return Pdf::loadView('admissions.death-certificate-pdf', [
+            'admission' => null,
+            'visit' => $visit,
+            'case' => $case,
+            'hospital' => HospitalSetting::current(),
+        ])->setPaper('a4')->download('death-certificate-'.$case->death_certificate_number.'.pdf');
     }
 
     public function receiveMortuaryCase(ReceiveMortuaryCaseRequest $request, MortuaryCase $mortuaryCase, MortuaryCaseService $mortuary)
     {
-        $mortuary->receive($mortuaryCase, $request->validated(), $request->user());
+        $case = $mortuary->receive($mortuaryCase, $request->validated(), $request->user());
+
+        if ($case->status === 'awaiting_transfer') {
+            return redirect()->route('emergency.index')->with('error', 'The mortuary intake fee must be paid before custody can be accepted.');
+        }
 
         return redirect()->route('emergency.index')->with('success', 'Mortuary handoff received and storage location recorded.');
     }

@@ -18,6 +18,7 @@ class Visit extends Model
         return [
             'status' => VisitStatus::class,
             'is_emergency' => 'boolean',
+            'is_brought_in_dead' => 'boolean',
             'checked_in_at' => 'datetime',
             'consulted_at' => 'datetime',
             'triaged_at' => 'datetime',
