@@ -216,6 +216,20 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         ->middleware('role:admin,nurse')->whereNumber('admission')->name('admissions.vitals.store');
     Route::post('admissions/{admission}/prescriptions', [AdmissionController::class, 'prescribe'])
         ->middleware('role:doctor')->whereNumber('admission')->name('admissions.prescriptions.store');
+    Route::post('admissions/{admission}/sugar-checks', [AdmissionController::class, 'sugarCheck'])
+        ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.sugar-checks.store');
+    Route::post('admissions/{admission}/fluid-entries', [AdmissionController::class, 'fluidEntry'])
+        ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.fluid-entries.store');
+    Route::post('admissions/{admission}/oxygen', [AdmissionController::class, 'oxygen'])
+        ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.oxygen.store');
+    Route::post('admissions/{admission}/nebulizer-uses', [AdmissionController::class, 'nebulizer'])
+        ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.nebulizer.store');
+    Route::post('admissions/{admission}/dama', [AdmissionController::class, 'dama'])
+        ->middleware('role:admin,doctor')->whereNumber('admission')->name('admissions.dama.store');
+    Route::get('admissions/{admission}/dama/print', [AdmissionController::class, 'printDama'])
+        ->whereNumber('admission')->name('admissions.dama.print');
+    Route::get('admissions/{admission}/dama/witnesses/{witness}', [AdmissionController::class, 'damaWitness'])
+        ->whereNumber('admission')->whereNumber('witness')->name('admissions.dama.witness');
 
     // Department staff duty roster
     Route::get('nursing/roster', [NurseRosterController::class, 'index'])

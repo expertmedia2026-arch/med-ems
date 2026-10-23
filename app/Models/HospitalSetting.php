@@ -18,6 +18,8 @@ class HospitalSetting extends Model
             'emergency_fee' => 'decimal:2',
             'mortuary_intake_fee' => 'decimal:2',
             'mortuary_daily_storage_fee' => 'decimal:2',
+            'oxygen_per_administration_fee' => 'decimal:2',
+            'nebulizer_fee_per_three_uses' => 'decimal:2',
             'paystack_secret_key' => 'encrypted',
         ];
     }

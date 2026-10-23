@@ -127,6 +127,22 @@
                                 @error('mortuary_daily_storage_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                             <div class="border-t pt-5">
+                                <h4 class="font-semibold text-slate-900">Inpatient care charges</h4>
+                                <p class="mt-1 text-sm text-slate-500">Oxygen and nebulizer machine use are service charges, not pharmacy stock items.</p>
+                            </div>
+                            <div>
+                                <label for="oxygen_per_administration_fee" class="{{ $label }}">Oxygen fee per administration (₦) <span class="text-red-600">*</span></label>
+                                <input id="oxygen_per_administration_fee" name="oxygen_per_administration_fee" type="number" step="0.01" min="0" max="99999999" required value="{{ old('oxygen_per_administration_fee', $settings->oxygen_per_administration_fee ?? 0) }}" class="{{ $input }}">
+                                <p class="mt-1 text-xs text-slate-500">Added for each recorded oxygen administration. Use 0 for no charge.</p>
+                                @error('oxygen_per_administration_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div>
+                                <label for="nebulizer_fee_per_three_uses" class="{{ $label }}">Nebulizer machine fee per block of up to 3 uses (₦) <span class="text-red-600">*</span></label>
+                                <input id="nebulizer_fee_per_three_uses" name="nebulizer_fee_per_three_uses" type="number" step="0.01" min="0" max="99999999" required value="{{ old('nebulizer_fee_per_three_uses', $settings->nebulizer_fee_per_three_uses ?? 0) }}" class="{{ $input }}">
+                                <p class="mt-1 text-xs text-slate-500">One block covers up to 3 nebulizer uses. Use 4 starts another block, even though that block has not reached 6 uses. Insulin itself remains a separately prescribed pharmacy item.</p>
+                                @error('nebulizer_fee_per_three_uses')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div class="border-t pt-5">
                                 <div class="mb-4">
                                     <h4 class="font-semibold text-slate-900">Paystack credentials</h4>
                                     <p class="mt-1 text-sm text-slate-500">The secret key is encrypted at rest and never shown after saving. Leave it blank to keep the saved key.</p>

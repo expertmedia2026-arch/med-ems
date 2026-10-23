@@ -70,6 +70,8 @@ class AdmissionService
             'visit.prescriptions.administrations.nurse', 'visit.prescriptions.administrationWaiver',
             'visit.labRequests.test', 'visit.labRequests.processor', 'visit.labRequests.resultReviewer', 'visit.labRequests.attachments',
             'notes.author', 'vitals.recorder',
+            'sugarChecks.checker', 'fluidEntries.recorder', 'oxygenAdministrations.nurse',
+            'nebulizerUses.recorder', 'damaRecord.witnesses', 'damaRecord.clinician',
         ]);
         $pendingResults = $admission->visit->labRequests
             ->filter(fn (LabRequest $lab) => $lab->status === WorkStatus::Completed && ! $lab->result_reviewed_at);
@@ -77,12 +79,15 @@ class AdmissionService
             ->filter(fn (LabRequest $lab) => $lab->status !== WorkStatus::Completed || ! $lab->result_reviewed_at);
         $canManage = $viewer->hasRole(Role::Admin) || ($viewer->hasRole(Role::Doctor) && $this->doctorCanAttend($admission, $viewer));
         $canPrescribe = $viewer->hasRole(Role::Doctor) && $this->doctorCanAttend($admission, $viewer);
+        $canRecordCare = $viewer->hasRole(Role::Admin)
+            || ($viewer->hasRole(Role::Nurse) && (int) $viewer->department_id === (int) $admission->department_id)
+            || ($viewer->hasRole(Role::Doctor) && $this->doctorCanAttend($admission, $viewer));
 
         $drugs = $canPrescribe
             ? Drug::active()->whereRaw('(stock_quantity - reserved_quantity) > 0')->orderBy('name')->get()
             : collect();
 
-        return compact('admission', 'pendingResults', 'unresolvedResults', 'canManage', 'canPrescribe', 'drugs');
+        return compact('admission', 'pendingResults', 'unresolvedResults', 'canManage', 'canPrescribe', 'canRecordCare', 'drugs');
     }
 
     public function admit(Visit $visit, array $data, User $doctor): Admission

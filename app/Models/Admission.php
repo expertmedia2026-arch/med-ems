@@ -61,4 +61,10 @@ class Admission extends Model
         return $this->hasMany(AdmissionVital::class)->latest('recorded_at');
     }
 
+    public function sugarChecks(): HasMany { return $this->hasMany(AdmissionSugarCheck::class)->latest('checked_at'); }
+    public function fluidEntries(): HasMany { return $this->hasMany(AdmissionFluidEntry::class)->latest('recorded_at'); }
+    public function oxygenAdministrations(): HasMany { return $this->hasMany(AdmissionOxygenAdministration::class)->latest('administered_at'); }
+    public function nebulizerUses(): HasMany { return $this->hasMany(AdmissionNebulizerUse::class)->latest('used_at'); }
+    public function damaRecord(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(AdmissionDamaRecord::class); }
+
 }

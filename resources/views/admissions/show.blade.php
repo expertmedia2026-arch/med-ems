@@ -55,6 +55,118 @@
             </section>
 
             <section class="overflow-hidden rounded-xl border bg-white shadow-sm">
+                <div class="border-b px-5 py-4"><h3 class="font-semibold text-slate-900">Inpatient nursing charts</h3><p class="mt-1 text-sm text-slate-500">Each entry is time-stamped and attributed to the staff member recording or providing care.</p></div>
+                @if ($isActive && $canRecordCare)
+                    <div class="grid gap-5 border-b bg-slate-50 p-5 lg:grid-cols-2">
+                        <form method="POST" action="{{ route('admissions.sugar-checks.store', $admission) }}" class="space-y-3 rounded-lg border bg-white p-4">
+                            @csrf<h4 class="font-semibold">Blood sugar check</h4>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <label class="{{ $label }}">Test<select name="reading_type" required class="{{ $input }}"><option value="FBS">FBS</option><option value="RBS">RBS</option></select></label>
+                                <label class="{{ $label }}">Reading<input name="result" type="number" step="0.01" min="0" max="1000" required class="{{ $input }}"></label>
+                                <label class="{{ $label }}">Unit<select name="unit" required class="{{ $input }}"><option value="mmol/L">mmol/L</option><option value="mg/dL">mg/dL</option></select></label>
+                                <label class="{{ $label }}">Date and time<input name="checked_at" type="datetime-local" required value="{{ now()->format('Y-m-d\\TH:i') }}" class="{{ $input }}"></label>
+                            </div><button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Record sugar check</button>
+                        </form>
+
+                        <form method="POST" action="{{ route('admissions.fluid-entries.store', $admission) }}" class="space-y-3 rounded-lg border bg-white p-4">
+                            @csrf<h4 class="font-semibold">Fluid balance</h4>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <label class="{{ $label }}">Entry<select name="flow" required class="{{ $input }}"><option value="intake">Intake</option><option value="output">Output</option></select></label>
+                                <label class="{{ $label }}">Route / output<select name="route_or_output" required class="{{ $input }}"><optgroup label="Intake"><option value="oral">Oral</option><option value="subcutaneous">Subcutaneous</option><option value="gastric">Gastric</option><option value="drip">Drip</option><option value="rectal">Rectal</option><option value="IV">IV</option><option value="IP">IP</option></optgroup><optgroup label="Output"><option value="urine">Urine</option><option value="aspiration">Aspiration</option><option value="vomit">Vomit</option><option value="NG">NG</option><option value="bowels">Bowels</option><option value="other">Other</option></optgroup></select></label>
+                                <label class="{{ $label }}">Fluid type / details<input name="fluid_type" maxlength="120" class="{{ $input }}" placeholder="e.g. normal saline, oral fluids"></label>
+                                <label class="{{ $label }}">Quantity (mL)<input name="quantity_ml" type="number" min="1" max="100000" required class="{{ $input }}"></label>
+                                <label class="{{ $label }}">Drip rate (drops/min)<input name="drops_per_minute" type="number" min="1" max="300" class="{{ $input }}"></label>
+                                <label class="{{ $label }}">Date and time<input name="recorded_at" type="datetime-local" required value="{{ now()->format('Y-m-d\\TH:i') }}" class="{{ $input }}"></label>
+                            </div><button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Add fluid entry</button>
+                        </form>
+
+                        <form method="POST" action="{{ route('admissions.oxygen.store', $admission) }}" class="space-y-3 rounded-lg border bg-white p-4">
+                            @csrf<h4 class="font-semibold">Oxygen chart and administration</h4>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <label class="{{ $label }}">Oxygen concentrator<select name="concentrator" required class="{{ $input }}"><option value="yes">Used</option><option value="no">Not used</option></select></label>
+                                <label class="{{ $label }}">Flow rate<input name="flow_rate" maxlength="40" class="{{ $input }}" placeholder="As prescribed, e.g. L/min"></label>
+                                <label class="{{ $label }} sm:col-span-2">Clinical indication / order context<input name="indication" maxlength="1000" class="{{ $input }}" placeholder="Brief reason or emergency order context"></label>
+                                <label class="{{ $label }} sm:col-span-2">Date and time<input name="administered_at" type="datetime-local" required value="{{ now()->format('Y-m-d\\TH:i') }}" class="{{ $input }}"></label>
+                            </div><p class="text-xs text-slate-500">Each recorded oxygen administration adds the configured flat oxygen fee, regardless of pharmacy stock.</p><button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Record oxygen care</button>
+                        </form>
+
+                        <form method="POST" action="{{ route('admissions.nebulizer.store', $admission) }}" class="space-y-3 rounded-lg border bg-white p-4">
+                            @csrf<h4 class="font-semibold">Nebulizer machine use</h4>
+                            <p class="text-sm text-slate-600">Usage {{ $admission->nebulizerUses->count() }} · fee blocks cover uses 1–3, 4–6, and so on. Medicine or insulin is recorded separately through pharmacy orders.</p>
+                            <label class="{{ $label }}">Date and time<input name="used_at" type="datetime-local" required value="{{ now()->format('Y-m-d\\TH:i') }}" class="{{ $input }}"></label>
+                            <button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Record machine use</button>
+                        </form>
+                    </div>
+                @endif
+                <div class="grid divide-y lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+                    <div class="p-5">
+                        <h4 class="mb-3 text-sm font-semibold text-slate-700">Sugar checks</h4>
+                        <div class="space-y-2">
+                            @forelse ($admission->sugarChecks as $check)
+                                <p class="rounded-lg bg-slate-50 p-3 text-sm"><strong>{{ $check->reading_type }}:</strong> {{ $check->result }} {{ $check->unit }} <span class="text-slate-500">· {{ $check->checked_at->format('d M Y, g:i A') }} · {{ $check->checker->name }}</span></p>
+                            @empty
+                                <p class="text-sm text-slate-500">No checks recorded.</p>
+                            @endforelse
+                        </div>
+                    </div>
+                    <div class="p-5">
+                        <h4 class="mb-3 text-sm font-semibold text-slate-700">Fluid intake and output · mL</h4>
+                        <div class="space-y-2">
+                            @forelse ($admission->fluidEntries as $entry)
+                                <p class="rounded-lg bg-slate-50 p-3 text-sm">
+                                    <strong>{{ ucfirst($entry->flow) }} · {{ $entry->route_or_output }}:</strong> {{ number_format($entry->quantity_ml) }} mL
+                                    @if ($entry->fluid_type)
+                                        · {{ $entry->fluid_type }}
+                                    @endif
+                                    @if ($entry->drops_per_minute)
+                                        · {{ $entry->drops_per_minute }} drops/min
+                                    @endif
+                                    <span class="text-slate-500">· {{ $entry->recorded_at->format('d M Y, g:i A') }} · {{ $entry->recorder->name }}</span>
+                                </p>
+                            @empty
+                                <p class="text-sm text-slate-500">No fluid entries recorded.</p>
+                            @endforelse
+                        </div>
+                    </div>
+                    <div class="border-t p-5">
+                        <h4 class="mb-3 text-sm font-semibold text-slate-700">Oxygen administrations</h4>
+                        <div class="space-y-2">
+                            @forelse ($admission->oxygenAdministrations as $oxygen)
+                                <p class="rounded-lg bg-slate-50 p-3 text-sm">
+                                    <strong>{{ $oxygen->concentrator === 'yes' ? 'Concentrator used' : 'Oxygen documented' }}</strong>
+                                    @if ($oxygen->flow_rate)
+                                        · {{ $oxygen->flow_rate }}
+                                    @endif
+                                    @if ($oxygen->indication)
+                                        · {{ $oxygen->indication }}
+                                    @endif
+                                    <span class="text-slate-500">· {{ $oxygen->administered_at->format('d M Y, g:i A') }} · {{ $oxygen->nurse->name }}</span>
+                                </p>
+                            @empty
+                                <p class="text-sm text-slate-500">No oxygen entries recorded.</p>
+                            @endforelse
+                        </div>
+                    </div>
+                    <div class="border-t p-5">
+                        <h4 class="mb-3 text-sm font-semibold text-slate-700">Nebulizer machine uses</h4>
+                        <div class="space-y-2">
+                            @forelse ($admission->nebulizerUses as $use)
+                                <p class="rounded-lg bg-slate-50 p-3 text-sm">
+                                    <strong>Use #{{ $use->usage_number }}</strong>
+                                    @if ($use->billable_block)
+                                        · New fee block billed
+                                    @endif
+                                    <span class="text-slate-500">· {{ $use->used_at->format('d M Y, g:i A') }} · {{ $use->recorder->name }}</span>
+                                </p>
+                            @empty
+                                <p class="text-sm text-slate-500">No machine uses recorded.</p>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="overflow-hidden rounded-xl border bg-white shadow-sm">
                 <div class="border-b px-5 py-4">
                     <h3 class="font-semibold text-slate-900">Inpatient observations</h3>
                     <p class="mt-1 text-sm text-slate-500">Record each set of bedside vitals with its own time and nurse. Consultation triage vitals remain in the source visit.</p>
@@ -214,6 +326,13 @@
                         </tbody>
                     </table>
                 </div>
+                <div class="border-t p-5">
+                    <div class="mb-3"><h4 class="font-semibold text-slate-900">Insulin administration chart</h4><p class="mt-1 text-sm text-slate-500">Insulin is ordered and dispensed through pharmacy. Nursing administrations below are drawn from those medication orders.</p></div>
+                    <div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200 text-sm"><thead class="bg-slate-50 text-left text-xs uppercase text-slate-500"><tr><th class="px-3 py-2">Date / time</th><th class="px-3 py-2">Insulin type</th><th class="px-3 py-2">Route</th><th class="px-3 py-2">Dose</th><th class="px-3 py-2">Nurse</th></tr></thead><tbody class="divide-y divide-slate-100">
+                        @php $insulinRecords = $visit->prescriptions->filter(fn($rx) => str_contains(strtolower($rx->drug->display_name), 'insulin'))->flatMap(fn($rx) => $rx->administrations->where('status', 'administered')->map(fn($entry) => ['rx' => $rx, 'entry' => $entry]))->sortByDesc(fn($item) => $item['entry']->administered_at); @endphp
+                        @forelse($insulinRecords as $item)<tr><td class="px-3 py-2">{{ $item['entry']->administered_at?->format('d M Y, g:i A') ?? '—' }}</td><td class="px-3 py-2">{{ $item['rx']->drug->display_name }}</td><td class="px-3 py-2">{{ $item['entry']->route ?: '—' }}</td><td class="px-3 py-2">{{ $item['entry']->dose ?: $item['rx']->dosage }}</td><td class="px-3 py-2">{{ $item['entry']->nurse?->name ?? '—' }}</td></tr>@empty<tr><td colspan="5" class="px-3 py-6 text-center text-slate-500">No insulin administrations recorded. Use the linked nursing care workflow to record an administered prescription.</td></tr>@endforelse
+                    </tbody></table></div>
+                </div>
             </section>
         </div>
 
@@ -237,6 +356,22 @@
                         @endif
                         <button onclick="return confirm('Complete discharge and close this inpatient admission?')" class="w-full rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">Discharge patient</button>
                     </form>
+                    <details class="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                        <summary class="cursor-pointer font-semibold text-amber-950">Discharge against medical advice (DAMA)</summary>
+                        <p class="mt-2 text-sm text-amber-900">Complete the discussion and witness details before closing the admission. This creates a saved, printable record. Compare its wording with your approved hospital form before using it as the official form.</p>
+                        <form method="POST" enctype="multipart/form-data" action="{{ route('admissions.dama.store', $admission) }}" class="mt-4 space-y-3">
+                            @csrf
+                            <label class="{{ $label }}">Patient or representative name<input name="patient_or_representative" required maxlength="150" class="{{ $input }}"></label>
+                            <label class="{{ $label }}">Relationship to patient<input name="relationship" maxlength="100" placeholder="If representative" class="{{ $input }}"></label>
+                            <label class="{{ $label }}">Reason for leaving <span class="text-red-600">*</span><textarea name="reason" required maxlength="5000" rows="3" class="{{ $input }}"></textarea></label>
+                            <label class="{{ $label }}">Risks, alternatives, and return advice discussed <span class="text-red-600">*</span><textarea name="risks_explained" required maxlength="5000" rows="4" class="{{ $input }}"></textarea></label>
+                            <label class="{{ $label }}">Recommended next steps and urgent return instructions <span class="text-red-600">*</span><textarea name="follow_up_advice" required maxlength="5000" rows="3" class="{{ $input }}"></textarea></label>
+                            <label class="{{ $label }}">Additional notes<textarea name="additional_notes" maxlength="5000" rows="2" class="{{ $input }}"></textarea></label>
+                            <div class="rounded-lg border bg-white p-3"><h4 class="text-sm font-semibold">Witness 1 · required</h4><label class="{{ $label }} mt-2">Name<input name="witnesses[0][name]" required maxlength="150" class="{{ $input }}"></label><label class="{{ $label }} mt-2">Witness image<input name="witnesses[0][image]" type="file" accept="image/jpeg,image/png,image/webp" required class="{{ $input }}"></label></div>
+                            <div class="rounded-lg border bg-white p-3"><h4 class="text-sm font-semibold">Witness 2 · optional</h4><label class="{{ $label }} mt-2">Name<input name="witnesses[1][name]" maxlength="150" class="{{ $input }}"></label><label class="{{ $label }} mt-2">Witness image<input name="witnesses[1][image]" type="file" accept="image/jpeg,image/png,image/webp" class="{{ $input }}"></label></div>
+                            <button onclick="return confirm('Save the DAMA record and close this admission?')" class="w-full rounded-lg bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-800">Record DAMA discharge</button>
+                        </form>
+                    </details>
                 </section>
             @elseif (! $isActive)
                 <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -250,6 +385,18 @@
                         <div><dt class="font-medium text-slate-500">Instructions shared with patient</dt><dd class="mt-1 whitespace-pre-line">{{ $admission->patient_discharge_instructions }}</dd></div>
                         @if ($admission->pending_results_plan)<div><dt class="font-medium text-slate-500">Outstanding results plan</dt><dd class="mt-1 whitespace-pre-line">{{ $admission->pending_results_plan }}</dd></div>@endif
                     </dl>
+                    @if ($admission->damaRecord)
+                        <div class="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <h4 class="font-semibold text-amber-950">Discharged against medical advice</h4>
+                            <p class="mt-1 text-sm text-amber-900">Completed {{ $admission->damaRecord->completed_at->format('d M Y, g:i A') }} by {{ $admission->damaRecord->clinician->name }}</p>
+                            <p class="mt-3 text-sm"><strong>Patient / representative:</strong> {{ $admission->damaRecord->patient_or_representative }}@if($admission->damaRecord->relationship) · {{ $admission->damaRecord->relationship }}@endif</p>
+                            <p class="mt-2 whitespace-pre-line text-sm"><strong>Reason:</strong> {{ $admission->damaRecord->reason }}</p>
+                            <p class="mt-2 whitespace-pre-line text-sm"><strong>Risks and alternatives discussed:</strong> {{ $admission->damaRecord->risks_explained }}</p>
+                            <p class="mt-2 whitespace-pre-line text-sm"><strong>Recommended next steps / return instructions:</strong> {{ $admission->damaRecord->follow_up_advice }}</p>
+                            <ul class="mt-3 space-y-1 text-sm">@foreach($admission->damaRecord->witnesses as $witness)<li><a class="text-teal-700 underline" href="{{ route('admissions.dama.witness', [$admission, $witness]) }}">Witness image · {{ $witness->name }}</a></li>@endforeach</ul>
+                            <a href="{{ route('admissions.dama.print', $admission) }}" target="_blank" class="mt-4 inline-flex rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white">Open / print DAMA letter</a>
+                        </div>
+                    @endif
                 </section>
             @endif
         </aside>
