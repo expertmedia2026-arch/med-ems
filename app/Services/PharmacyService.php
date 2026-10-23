@@ -30,11 +30,15 @@ class PharmacyService
         return [
             'queue' => Visit::with([
                 'patient',
-                'prescriptions' => fn ($query) => $query->pending()->with(['drug', 'invoiceItem', 'stockReservation']),
+                'prescriptions' => fn ($query) => $this->pendingAtPharmacy($query)->with(['drug', 'invoiceItem', 'stockReservation']),
             ])->where(fn ($query) => $query
                 ->whereIn('status', [VisitStatus::Completed->value, VisitStatus::Inpatient->value])
-                ->orWhere(fn ($emergency) => $emergency->where('is_emergency', true)->where('status', VisitStatus::InConsultation->value)))
-            ->whereHas('prescriptions', fn ($query) => $query->pending())
+                ->orWhere(fn ($emergency) => $emergency->where('is_emergency', true)->where('status', VisitStatus::InConsultation->value))
+                ->orWhere(fn ($activeConsultation) => $activeConsultation
+                    ->where('status', VisitStatus::InConsultation->value)
+                    ->where('is_emergency', false)
+                    ->whereHas('prescriptions', fn ($prescriptions) => $this->pendingAtPharmacy($prescriptions))))
+            ->whereHas('prescriptions', fn ($query) => $this->pendingAtPharmacy($query))
             ->orderByRaw('COALESCE(closed_at, checked_in_at) asc')->get(),
             'lowStock' => Drug::lowStock()->orderBy('stock_quantity')->get(),
             'dispensedToday' => $dispensedToday,
@@ -152,18 +156,20 @@ class PharmacyService
 
     public function visitDetails(Visit $visit): Visit
     {
-        abort_unless(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true)
-            || ($visit->is_emergency && $visit->status === VisitStatus::InConsultation), 404);
+        abort_unless($this->canOpenVisit($visit), 404);
 
         $this->inventory->expireReservations();
-        $visit->loadMissing(['prescriptions' => fn ($query) => $query->pending()->with('invoiceItem')]);
+        $visit->load(['prescriptions' => fn ($query) => $query
+            ->where(fn ($visible) => $visible->where('status', WorkStatus::Completed->value)
+                ->orWhere(fn ($pending) => $this->pendingAtPharmacy($pending)))
+            ->with(['drug', 'dispenser', 'invoiceItem', 'stockReservation'])]);
         foreach ($visit->prescriptions as $prescription) {
-            if ($prescription->is_paid || $visit->is_emergency) {
+            if ($prescription->status === WorkStatus::Pending && ($prescription->is_paid || $visit->is_emergency)) {
                 $this->inventory->ensurePrescriptionReserved($prescription, null);
             }
         }
 
-        return $visit->load(['patient', 'doctor', 'prescriptions.drug', 'prescriptions.dispenser', 'prescriptions.invoiceItem', 'prescriptions.stockReservation']);
+        return $visit->load(['patient', 'doctor']);
     }
 
     public function inventoryData(?string $term, bool $lowStock)
@@ -178,14 +184,13 @@ class PharmacyService
     /** @return array{dispensed: int, skipped: array<int, string>} */
     public function dispense(Visit $visit, array $prescriptionIds, int $userId): array
     {
-        abort_unless(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true)
-            || ($visit->is_emergency && $visit->status === VisitStatus::InConsultation), 403);
+        abort_unless($this->canOpenVisit($visit), 403);
         $dispensed = 0;
         $nursingReady = 0;
         $skipped = [];
 
         DB::transaction(function () use ($visit, $prescriptionIds, $userId, &$dispensed, &$nursingReady, &$skipped) {
-            $items = $visit->prescriptions()->pending()->with(['invoiceItem', 'drug', 'stockReservation'])
+            $items = $this->pendingAtPharmacy($visit->prescriptions())->with(['invoiceItem', 'drug', 'stockReservation'])
                 ->whereIn('id', array_unique($prescriptionIds))->orderBy('drug_id')->get();
 
             foreach ($items as $prescription) {
@@ -222,7 +227,7 @@ class PharmacyService
             'dispensed' => $dispensed,
             'nursing_ready' => $nursingReady,
             'skipped' => $skipped,
-            'has_pending' => $visit->prescriptions()->pending()->exists(),
+            'has_pending' => $this->pendingAtPharmacy($visit->prescriptions())->exists(),
             'patient_name' => $visit->patient->full_name,
         ];
     }
@@ -230,5 +235,22 @@ class PharmacyService
     public function restock(Drug $drug, int $quantity, int $userId): Drug
     {
         return $this->inventory->restock($drug, $quantity, $userId);
+    }
+
+    private function pendingAtPharmacy($query)
+    {
+        return $query->pending()->where(fn ($visible) => $visible
+            ->whereNotNull('pharmacy_ordered_at')
+            ->orWhereHas('visit', fn ($visit) => $visit
+                ->whereIn('status', [VisitStatus::Completed->value, VisitStatus::Inpatient->value])
+                ->orWhere('is_emergency', true)));
+    }
+
+    private function canOpenVisit(Visit $visit): bool
+    {
+        return in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true)
+            || ($visit->is_emergency && $visit->status === VisitStatus::InConsultation)
+            || ($visit->status === VisitStatus::InConsultation
+                && $this->pendingAtPharmacy($visit->prescriptions())->exists());
     }
 }

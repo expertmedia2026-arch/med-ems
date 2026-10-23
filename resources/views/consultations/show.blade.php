@@ -8,6 +8,7 @@
         $label   = 'block text-sm font-medium text-slate-700';
         $requested = $visit->labRequests->pluck('lab_test_id');
         $outstandingLabRequests = $visit->labRequests->filter(fn ($request) => $request->status->value !== 'completed');
+        $prescriptionDrafts = $visit->prescriptions->filter(fn ($rx) => $rx->status->value === 'pending' && ! $rx->pharmacy_ordered_at);
     @endphp
 
     {{-- Patient banner --}}
@@ -57,6 +58,9 @@
             @endif
         @endif
     </div>
+
+    @if (session('success'))<div class="mb-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{{ session('success') }}</div>@endif
+    @if (session('error'))<div class="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>@endif
 
     @if ($visit->status->value === 'waiting_doctor')
         <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
@@ -187,16 +191,26 @@
                                         <td class="pr-4">{{ $rx->duration }}</td>
                                         <td class="pr-4">{{ $rx->status->value === 'completed' ? ($rx->dispensable_quantity ?? $rx->quantity).' supplied / '.$rx->quantity : ($rx->dispensable_quantity ?? $rx->quantity).' reserved / '.$rx->quantity }}</td>
                                         <td class="pr-4">{{ $rx->invoiceItem ? '₦'.number_format((float) $rx->invoiceItem->total, 2) : '—' }}</td>
-                                        <td class="pr-4"><x-badge :color="$rx->status->value === 'pending' ? 'amber' : 'green'">{{ $rx->status->value === 'pending' ? 'Pending' : 'Dispensed' }}</x-badge></td>
+                                        <td class="pr-4">
+                                            @if ($rx->status->value === 'completed')
+                                                <x-badge color="green">Dispensed</x-badge>
+                                            @elseif ($rx->pharmacy_ordered_at)
+                                                <x-badge color="blue">Sent to pharmacy</x-badge>
+                                            @else
+                                                <x-badge color="slate">Draft</x-badge>
+                                            @endif
+                                        </td>
                                         <td class="text-right">
                                             @if ($rx->requires_in_facility_administration)
                                                 <span class="block text-xs text-blue-700">Nurse: {{ $rx->administered_count }}/{{ $rx->required_administration_count }} doses</span>
                                             @endif
-                                            @if ($editable && $rx->status->value === 'pending')
+                                            @if ($editable && $rx->status->value === 'pending' && ! $rx->pharmacy_ordered_at)
                                                 <form method="POST" action="{{ route('consultations.prescriptions.destroy', [$visit, $rx]) }}">
                                                     @csrf @method('DELETE')
                                                     <button class="text-xs text-red-600 hover:underline">Remove</button>
                                                 </form>
+                                            @elseif ($editable && $rx->pharmacy_ordered_at && $rx->status->value === 'pending')
+                                                <span class="text-xs text-slate-500">In pharmacy queue</span>
                                             @endif
                                         </td>
                                     </tr>
@@ -206,6 +220,14 @@
                     </div>
                 @else
                     <p class="mb-4 text-sm text-slate-500">No drugs prescribed.</p>
+                @endif
+
+                @if ($editable && $prescriptionDrafts->isNotEmpty())
+                    <form method="POST" action="{{ route('consultations.prescriptions.place-order', $visit) }}" class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                        @csrf
+                        <p class="text-sm text-blue-950">Send {{ $prescriptionDrafts->count() }} pending drug{{ $prescriptionDrafts->count() === 1 ? '' : 's' }} or injection{{ $prescriptionDrafts->count() === 1 ? '' : 's' }} to pharmacy now. The consultation can remain open.</p>
+                        <button class="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">Place order for prescription</button>
+                    </form>
                 @endif
 
                 @if ($editable)

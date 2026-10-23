@@ -29,9 +29,27 @@ class PrescriptionController extends Controller
         return back()->with('success', $message);
     }
 
+    public function placeOrder(Request $request, Visit $visit, PrescriptionService $prescriptions)
+    {
+        abort_unless($visit->isOpenFor($request->user()), 403);
+
+        $count = $prescriptions->placeOrder($visit, $request->user()->id);
+        if ($count === 0) {
+            return back()->with('error', 'Add at least one prescription before placing the pharmacy order.');
+        }
+
+        return back()->with('success', $count === 1
+            ? 'Prescription order sent to the pharmacy queue.'
+            : "{$count} prescription items sent to the pharmacy queue.");
+    }
+
     public function destroy(Request $request, Visit $visit, Prescription $prescription, PrescriptionService $prescriptions)
     {
         abort_unless($visit->isOpenFor($request->user()), 403);
+
+        if ($prescription->pharmacy_ordered_at) {
+            return back()->with('error', 'This prescription is already in the pharmacy queue and cannot be removed here.');
+        }
 
         if (! $prescriptions->remove($visit, $prescription)) {
             return back()->with('error', 'This drug has already been paid for and cannot be removed.');

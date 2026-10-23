@@ -18,6 +18,7 @@ class Prescription extends Model
         return [
             'status'       => WorkStatus::class,
             'dispensed_at' => 'datetime',
+            'pharmacy_ordered_at' => 'datetime',
             'dispensable_quantity' => 'integer',
             'requires_in_facility_administration' => 'boolean',
             'required_administration_count' => 'integer',

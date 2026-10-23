@@ -15,6 +15,8 @@
         </p>
         @if ($visit->is_emergency)
             <p class="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-900">Active A&E care · dispense prescribed medicines without waiting for payment. The charges remain on the patient’s invoice.</p>
+        @elseif ($visit->status->value === 'in_consultation')
+            <p class="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-900">The consultation is still active. The doctor placed this prescription order for pharmacy before closing the visit.</p>
         @endif
 
         @if ($patient->allergies)

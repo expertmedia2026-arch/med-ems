@@ -4,6 +4,7 @@
     @php
         $isActive = $admission->status->value === 'active';
         $visit = $admission->visit;
+        $sugarCheckFee = (float) \App\Models\HospitalSetting::current()->sugar_check_fee;
         $input = 'mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600';
         $label = 'block text-sm font-medium text-slate-700';
     @endphp
@@ -58,15 +59,20 @@
                 <div class="border-b px-5 py-4"><h3 class="font-semibold text-slate-900">Inpatient nursing charts</h3><p class="mt-1 text-sm text-slate-500">Each entry is time-stamped and attributed to the staff member recording or providing care.</p></div>
                 @if ($isActive && $canRecordCare)
                     <div class="grid gap-5 border-b bg-slate-50 p-5 lg:grid-cols-2">
-                        <form method="POST" action="{{ route('admissions.sugar-checks.store', $admission) }}" class="space-y-3 rounded-lg border bg-white p-4">
-                            @csrf<h4 class="font-semibold">Blood sugar check</h4>
-                            <div class="grid gap-3 sm:grid-cols-2">
-                                <label class="{{ $label }}">Test<select name="reading_type" required class="{{ $input }}"><option value="FBS">FBS</option><option value="RBS">RBS</option></select></label>
-                                <label class="{{ $label }}">Reading<input name="result" type="number" step="0.01" min="0" max="1000" required class="{{ $input }}"></label>
-                                <label class="{{ $label }}">Unit<select name="unit" required class="{{ $input }}"><option value="mmol/L">mmol/L</option><option value="mg/dL">mg/dL</option></select></label>
-                                <label class="{{ $label }}">Date and time<input name="checked_at" type="datetime-local" required value="{{ now()->format('Y-m-d\\TH:i') }}" class="{{ $input }}"></label>
-                            </div><button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Record sugar check</button>
-                        </form>
+                        <details class="rounded-lg border bg-white p-4" @if (old('reading_type')) open @endif>
+                            <summary class="cursor-pointer list-none rounded-lg bg-teal-700 px-3 py-2 text-center text-sm font-semibold text-white">Sugar check</summary>
+                            <form method="POST" action="{{ route('admissions.sugar-checks.store', $admission) }}" class="mt-4 space-y-3">
+                                @csrf<h4 class="font-semibold">Record blood sugar check</h4>
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <label class="{{ $label }}">Test<select name="reading_type" required class="{{ $input }}"><option value="FBS" @selected(old('reading_type') === 'FBS')>FBS</option><option value="RBS" @selected(old('reading_type') === 'RBS')>RBS</option></select></label>
+                                    <label class="{{ $label }}">Reading<input name="result" type="number" step="0.01" min="0" max="1000" required value="{{ old('result') }}" class="{{ $input }}"></label>
+                                    <label class="{{ $label }}">Unit<select name="unit" required class="{{ $input }}"><option value="mmol/L" @selected(old('unit', 'mmol/L') === 'mmol/L')>mmol/L</option><option value="mg/dL" @selected(old('unit') === 'mg/dL')>mg/dL</option></select></label>
+                                    <label class="{{ $label }}">Date and time<input name="checked_at" type="datetime-local" required value="{{ old('checked_at', now()->format('Y-m-d\\TH:i')) }}" class="{{ $input }}"></label>
+                                </div>
+                                <p class="text-xs text-slate-500">@if ($sugarCheckFee > 0) Each saved check adds ₦{{ number_format($sugarCheckFee, 2) }} to the patient’s invoice. @else No fee is configured for this check yet. @endif</p>
+                                <button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Save sugar check</button>
+                            </form>
+                        </details>
 
                         <form method="POST" action="{{ route('admissions.fluid-entries.store', $admission) }}" class="space-y-3 rounded-lg border bg-white p-4">
                             @csrf<h4 class="font-semibold">Fluid balance</h4>
@@ -99,16 +105,16 @@
                     </div>
                 @endif
                 <div class="grid divide-y lg:grid-cols-2 lg:divide-x lg:divide-y-0">
-                    <div class="p-5">
-                        <h4 class="mb-3 text-sm font-semibold text-slate-700">Sugar checks</h4>
-                        <div class="space-y-2">
-                            @forelse ($admission->sugarChecks as $check)
-                                <p class="rounded-lg bg-slate-50 p-3 text-sm"><strong>{{ $check->reading_type }}:</strong> {{ $check->result }} {{ $check->unit }} <span class="text-slate-500">· {{ $check->checked_at->format('d M Y, g:i A') }} · {{ $check->checker->name }}</span></p>
-                            @empty
-                                <p class="text-sm text-slate-500">No checks recorded.</p>
-                            @endforelse
+                    @if ($admission->sugarChecks->isNotEmpty())
+                        <div class="p-5">
+                            <h4 class="mb-3 text-sm font-semibold text-slate-700">Sugar checks</h4>
+                            <div class="space-y-2">
+                                @foreach ($admission->sugarChecks as $check)
+                                    <p class="rounded-lg bg-slate-50 p-3 text-sm"><strong>{{ $check->reading_type }}:</strong> {{ $check->result }} {{ $check->unit }} <span class="text-slate-500">· {{ $check->checked_at->format('d M Y, g:i A') }} · {{ $check->checker->name }}</span></p>
+                                @endforeach
+                            </div>
                         </div>
-                    </div>
+                    @endif
                     <div class="p-5">
                         <h4 class="mb-3 text-sm font-semibold text-slate-700">Fluid intake and output · mL</h4>
                         <div class="space-y-2">

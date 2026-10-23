@@ -143,6 +143,11 @@ class ConsultationService
                 $this->medicationAdministration->assertReadyForDischarge($visit);
             }
 
+            $visit->prescriptions()
+                ->where('status', WorkStatus::Pending->value)
+                ->whereNull('pharmacy_ordered_at')
+                ->update(['pharmacy_ordered_at' => now()]);
+
             $visit->update($notes + ['status' => VisitStatus::Completed, 'closed_at' => now()]);
             $visit->appointment?->update(['status' => AppointmentStatus::Completed]);
             if ($deceasedEmergency) {

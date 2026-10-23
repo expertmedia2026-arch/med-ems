@@ -23,7 +23,25 @@ class AdmissionCareChartService
         $this->authorizeWardCare($admission, $actor);
         $this->assertActive($admission);
 
-        return $admission->sugarChecks()->create($data + ['checked_by' => $actor->id]);
+        return DB::transaction(function () use ($admission, $data, $actor) {
+            $admission = Admission::query()->lockForUpdate()->findOrFail($admission->id);
+            $check = $admission->sugarChecks()->create($data + ['checked_by' => $actor->id]);
+            $fee = (float) HospitalSetting::current()->sugar_check_fee;
+
+            if ($fee > 0) {
+                $invoice = app(BillingService::class)->invoiceFor($admission->visit);
+                $invoice->items()->create([
+                    'category' => 'care',
+                    'description' => $data['reading_type'].' blood sugar check',
+                    'quantity' => 1,
+                    'unit_price' => $fee,
+                    'billable_type' => $check->getMorphClass(),
+                    'billable_id' => $check->id,
+                ]);
+            }
+
+            return $check;
+        });
     }
 
     public function recordFluid(Admission $admission, array $data, User $actor): AdmissionFluidEntry

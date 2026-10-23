@@ -48,6 +48,9 @@
                                 <td class="px-4 py-3">
                                     <span class="font-medium">{{ $visit->patient->full_name }}</span>
                                     <span class="block font-mono text-xs text-slate-400">{{ $visit->patient->hospital_number }}</span>
+                                    @if ($visit->status->value === 'in_consultation' && ! $visit->is_emergency)
+                                        <span class="mt-1 inline-block text-xs font-medium text-blue-700">Order placed during active consultation</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3">
                                     {{ $total }} drug(s)

@@ -83,9 +83,14 @@ class AdmissionController extends Controller
             'unit' => ['required', Rule::in(['mmol/L', 'mg/dL'])],
             'checked_at' => ['required', 'date', 'before_or_equal:now'],
         ]);
-        $charts->recordSugar($admission, $data, $request->user());
+        $check = $charts->recordSugar($admission, $data, $request->user());
 
-        return back()->with('success', 'Blood sugar check recorded in the admission chart.');
+        $message = 'Blood sugar check recorded in the admission chart.';
+        if ($check->invoiceItem()->exists()) {
+            $message .= ' The check charge was added to the patient invoice.';
+        }
+
+        return back()->with('success', $message);
     }
 
     public function fluidEntry(Request $request, Admission $admission, AdmissionCareChartService $charts)

@@ -142,6 +142,12 @@
                                 <p class="mt-1 text-xs text-slate-500">One block covers up to 3 nebulizer uses. Use 4 starts another block, even though that block has not reached 6 uses. Insulin itself remains a separately prescribed pharmacy item.</p>
                                 @error('nebulizer_fee_per_three_uses')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
+                            <div>
+                                <label for="sugar_check_fee" class="{{ $label }}">Blood sugar check fee (₦) <span class="text-red-600">*</span></label>
+                                <input id="sugar_check_fee" name="sugar_check_fee" type="number" step="0.01" min="0" max="99999999" required value="{{ old('sugar_check_fee', $settings->sugar_check_fee ?? 0) }}" class="{{ $input }}">
+                                <p class="mt-1 text-xs text-slate-500">Added to the inpatient invoice for each sugar check recorded by nursing staff. Use 0 for no charge.</p>
+                                @error('sugar_check_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            </div>
                             <div class="border-t pt-5">
                                 <div class="mb-4">
                                     <h4 class="font-semibold text-slate-900">Paystack credentials</h4>

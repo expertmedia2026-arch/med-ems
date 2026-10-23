@@ -264,6 +264,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         Route::post('{visit}/admit', [ConsultationController::class, 'admit'])->name('admit');
 
         Route::post('{visit}/prescriptions', [PrescriptionController::class, 'store'])->name('prescriptions.store');
+        Route::post('{visit}/prescriptions/place-order', [PrescriptionController::class, 'placeOrder'])->name('prescriptions.place-order');
         Route::delete('{visit}/prescriptions/{prescription}', [PrescriptionController::class, 'destroy'])->name('prescriptions.destroy');
 
         Route::post('{visit}/lab-requests', [LabRequestController::class, 'store'])->name('lab-requests.store');

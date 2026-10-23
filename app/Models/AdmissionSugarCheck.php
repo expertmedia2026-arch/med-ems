@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class AdmissionSugarCheck extends Model
 {
@@ -13,4 +14,5 @@ class AdmissionSugarCheck extends Model
 
     public function admission(): BelongsTo { return $this->belongsTo(Admission::class); }
     public function checker(): BelongsTo { return $this->belongsTo(User::class, 'checked_by'); }
+    public function invoiceItem(): MorphOne { return $this->morphOne(InvoiceItem::class, 'billable'); }
 }

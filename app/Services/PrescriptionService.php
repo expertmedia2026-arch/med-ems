@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\WorkStatus;
+use App\Enums\VisitStatus;
 use App\Models\Drug;
 use App\Models\Prescription;
 use App\Models\Visit;
@@ -62,6 +63,7 @@ class PrescriptionService
             $prescription = Prescription::query()->lockForUpdate()->findOrFail($prescription->id);
             abort_unless($prescription->visit_id === $visit->id, 404);
             abort_unless($prescription->status === WorkStatus::Pending, 422);
+            abort_unless($prescription->pharmacy_ordered_at === null, 422, 'This prescription has already been sent to pharmacy and cannot be removed here.');
 
             if (! $this->billing->release($prescription)) {
                 return false;
@@ -71,6 +73,19 @@ class PrescriptionService
             $prescription->delete();
 
             return true;
+        });
+    }
+
+    public function placeOrder(Visit $visit, int $doctorId): int
+    {
+        return DB::transaction(function () use ($visit, $doctorId) {
+            $visit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
+            abort_unless($visit->status === VisitStatus::InConsultation && $visit->doctor_id === $doctorId, 403, 'This consultation is not open for ordering.');
+
+            return $visit->prescriptions()
+                ->where('status', WorkStatus::Pending->value)
+                ->whereNull('pharmacy_ordered_at')
+                ->update(['pharmacy_ordered_at' => now()]);
         });
     }
 }

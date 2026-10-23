@@ -20,6 +20,7 @@ class HospitalSetting extends Model
             'mortuary_daily_storage_fee' => 'decimal:2',
             'oxygen_per_administration_fee' => 'decimal:2',
             'nebulizer_fee_per_three_uses' => 'decimal:2',
+            'sugar_check_fee' => 'decimal:2',
             'paystack_secret_key' => 'encrypted',
         ];
     }

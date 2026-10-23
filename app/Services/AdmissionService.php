@@ -125,6 +125,10 @@ class AdmissionService
                 'disposition' => $visit->is_emergency ? 'admitted' : null,
                 'closed_at' => now(),
             ]);
+            $visit->prescriptions()
+                ->where('status', WorkStatus::Pending->value)
+                ->whereNull('pharmacy_ordered_at')
+                ->update(['pharmacy_ordered_at' => now()]);
             $visit->appointment?->update(['status' => AppointmentStatus::Completed]);
             $this->billing->syncFor($visit);
 
