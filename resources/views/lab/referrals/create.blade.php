@@ -171,12 +171,12 @@
                         <label class="flex items-center gap-2 text-sm">
                             <input type="checkbox" name="lab_test_ids[]" value="{{ $test->id }}" x-model="selected"
                                    class="rounded border-slate-300 text-teal-700 focus:ring-teal-600">
-                            {{ $test->name }} <span class="text-slate-400">₦{{ number_format($test->price) }}</span>
+                            <span>{{ $test->department?->name ?? 'Unassigned' }} · {{ $test->name }}</span> <span class="text-slate-400">₦{{ number_format($test->price) }}</span>
                         </label>
                     @endforeach
                 </div>
             @empty
-                <p class="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">No active lab tests are available. Ask an administrator to check the lab test catalogue.</p>
+                <p class="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">No active services are available for this department. Ask an administrator to check the department services catalogue.</p>
             @endforelse
 
             @error('lab_test_ids')<p class="mt-3 text-sm text-red-600">{{ $message }}</p>@enderror

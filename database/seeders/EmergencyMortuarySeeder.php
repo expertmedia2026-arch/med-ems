@@ -13,6 +13,7 @@ use App\Models\EmergencyObservation;
 use App\Models\EmergencyProgressNote;
 use App\Models\LabRequest;
 use App\Models\LabTest;
+use App\Models\Department;
 use App\Models\MortuaryCase;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -52,8 +53,11 @@ class EmergencyMortuarySeeder extends Seeder
             ['name' => 'Artemether Injection', 'strength' => '80mg/ml'],
             ['generic_name' => 'Artemether', 'form' => 'Injection', 'unit_price' => 2200, 'stock_quantity' => 6, 'is_active' => true],
         );
+        $laboratory = Department::firstOrCreate(['name' => 'Laboratory'], [
+            'description' => 'Laboratory investigations and diagnostic services.',
+        ]);
         $test = LabTest::firstOrCreate(
-            ['name' => 'Full blood count (FBC)'],
+            ['department_id' => $laboratory->id, 'name' => 'Full blood count (FBC)'],
             ['code' => 'LAB002', 'category' => 'Hematology', 'sample_type' => 'Blood', 'turnaround_hours' => 8, 'description' => 'Full blood count.', 'price' => 4000, 'is_active' => true],
         );
 

@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use App\Enums\VisitStatus;
+use App\Enums\Role;
 use App\Models\HospitalSetting;
 use App\Models\LabTest;
 use App\Models\Patient;
 use App\Models\Visit;
+use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -15,14 +17,16 @@ class LabReferralService
 {
     public function __construct(private readonly BillingService $billing) {}
 
-    public function createFormData(?int $selectedPatientId = null): array
+    public function createFormData(?int $selectedPatientId = null, ?User $user = null): array
     {
         $selectedPatient = $selectedPatientId ? Patient::find($selectedPatientId) : null;
 
         return [
             'patients' => Patient::orderBy('last_name')->limit(500)
                 ->get(['id', 'hospital_number', 'first_name', 'last_name']),
-            'tests' => LabTest::active()->orderBy('name')->get(),
+            'tests' => LabTest::active()
+                ->when($user?->hasRole(Role::Lab), fn ($query) => $query->where('department_id', $user->department_id ?? 0))
+                ->with('department:id,name')->orderBy('name')->get(),
             'registrationFee' => (float) HospitalSetting::current()->registration_fee,
             'selected' => $selectedPatient?->hospital_number,
             'selected_patient' => $selectedPatient,
@@ -30,8 +34,15 @@ class LabReferralService
     }
 
     /** @return array{visit: Visit|null, matches: Collection<int, Patient>, is_new: bool, total: ?float} */
-    public function create(array $data, int $requestedBy, bool $confirmNew): array
+    public function create(array $data, int $requestedBy, bool $confirmNew, ?User $actor = null): array
     {
+        if ($actor?->hasRole(Role::Lab)) {
+            abort_if(! $actor->department_id, 403, 'Assign this staff member to a department first.');
+            $validCount = LabTest::active()->where('department_id', $actor->department_id)
+                ->whereIn('id', array_unique($data['lab_test_ids']))->count();
+            abort_unless($validCount === count(array_unique($data['lab_test_ids'])), 403, 'Select services owned by your department.');
+        }
+
         $isNew = ($data['mode'] ?? 'existing') === 'new';
         $patient = $isNew ? null : $this->findPatient($data['hospital_number']);
         $matches = $isNew ? $this->possibleDuplicates($data) : collect();
@@ -93,9 +104,12 @@ class LabReferralService
         ];
     }
 
-    public function cancel(Visit $visit): bool
+    public function cancel(Visit $visit, ?User $actor = null): bool
     {
         abort_unless($visit->isLabOnly(), 404);
+        if ($actor?->hasRole(Role::Lab)) {
+            abort_unless($actor->department_id && ! $visit->labRequests()->whereDoesntHave('test', fn ($query) => $query->where('department_id', $actor->department_id))->exists(), 403);
+        }
 
         if ($visit->invoice?->payments()->exists() || $visit->labRequests()->completed()->exists()) {
             return false;

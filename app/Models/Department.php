@@ -33,6 +33,16 @@ class Department extends Model
         return $this->hasMany(ConsultationType::class);
     }
 
+    public function labTests(): HasMany
+    {
+        return $this->hasMany(LabTest::class);
+    }
+
+    public function inventoryItems(): HasMany
+    {
+        return $this->hasMany(DepartmentInventoryItem::class);
+    }
+
     public function staffInvitations(): HasMany
     {
         return $this->hasMany(StaffInvitation::class);

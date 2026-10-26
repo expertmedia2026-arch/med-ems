@@ -170,10 +170,14 @@ class DashboardService
 
     private function lab(): array
     {
+        $departmentId = auth()->user()->department_id ?? 0;
+        $departmentRequests = fn ($query) => $query->whereHas('test', fn ($test) => $test->where('department_id', $departmentId));
+
         return [
-            $this->card('Pending requests', LabRequest::pending()->count(), 'amber', 'lab.index'),
-            $this->card('Completed today', LabRequest::completed()->whereDate('completed_at', today())->count(), 'green', 'lab.index'),
-            $this->card('Active tests in catalog', LabTest::active()->count(), 'blue', 'lab.tests.index'),
+            $this->card('Pending requests', LabRequest::pending()->where($departmentRequests)->count(), 'amber', 'lab.index'),
+            $this->card('Completed today', LabRequest::completed()->whereDate('completed_at', today())->where($departmentRequests)->count(), 'green', 'lab.index'),
+            $this->card('Active services in catalog', LabTest::active()->where('department_id', $departmentId)->count(), 'blue', 'lab.tests.index'),
+            $this->card('Low-stock department items', \App\Models\DepartmentInventoryItem::query()->where('department_id', $departmentId)->whereColumn('quantity_on_hand', '<=', 'reorder_level')->count(), 'red', 'lab.inventory.index'),
         ];
     }
 

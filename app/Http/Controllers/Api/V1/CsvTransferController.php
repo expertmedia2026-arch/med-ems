@@ -20,13 +20,19 @@ class CsvTransferController extends Controller
     public function export(Request $request, string $dataset, CsvTransferService $transfer)
     {
         $this->authorizeDataset($request, $dataset);
+        if ($dataset === 'lab-catalog' && $request->user()->hasRole('lab')) {
+            abort_if(! $request->user()->department_id, 403, 'Assign this staff member to a department first.');
+        }
 
-        return $transfer->export($dataset, $request->boolean('template'));
+        return $transfer->export($dataset, $request->boolean('template'), $request->user());
     }
 
     public function import(Request $request, string $dataset, CsvTransferService $transfer): array
     {
         $this->authorizeDataset($request, $dataset);
+        if ($dataset === 'lab-catalog' && $request->user()->hasRole('lab')) {
+            abort_if(! $request->user()->department_id, 403, 'Assign this staff member to a department first.');
+        }
         $request->validate(['file' => ['required', 'file', 'extensions:csv', 'max:10240']]);
 
         return [

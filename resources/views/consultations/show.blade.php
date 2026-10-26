@@ -299,13 +299,13 @@
                 @endif
             </div>
 
-            {{-- Lab requests --}}
+            {{-- Department diagnostic requests --}}
             <div class="rounded-xl border bg-white p-6 shadow-sm">
-                <h3 class="mb-4 font-semibold">Lab requests</h3>
+                <h3 class="mb-4 font-semibold">Diagnostic and laboratory requests</h3>
 
                 @if ($outstandingLabRequests->isNotEmpty())
                     <p class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                        This consultation must remain open until results are entered or uploaded for all {{ $outstandingLabRequests->count() }} outstanding test(s).
+                        This consultation must remain open until results are entered or uploaded for all {{ $outstandingLabRequests->count() }} outstanding investigation(s).
                     </p>
                 @endif
                 @error('lab_requests')
@@ -318,7 +318,7 @@
                         @foreach ($visit->labRequests as $req)
                             <li class="py-3">
                                 <div class="flex items-center justify-between">
-                                    <span class="font-medium">{{ $req->test->name }}</span>
+                                    <span class="font-medium">{{ $req->test->name }} <span class="font-normal text-slate-400">· {{ $req->test->department?->name ?? 'Unassigned' }}</span></span>
                                     <span class="flex items-center gap-4">
                                         <x-badge :color="$req->status->value === 'pending' ? 'amber' : 'green'">{{ $req->status->label() }}</x-badge>
                                         @if ($editable && $req->status->value === 'pending')
@@ -341,7 +341,7 @@
                         @foreach ($visit->labRequests as $req)
                             <li class="py-3">
                                 <div class="flex items-center justify-between">
-                                    <span class="font-medium">{{ $req->test->name }}</span>
+                                    <span class="font-medium">{{ $req->test->name }} <span class="font-normal text-slate-400">· {{ $req->test->department?->name ?? 'Unassigned' }}</span></span>
                                     <span class="flex items-center gap-4">
                                         <x-badge :color="$req->status->value === 'pending' ? 'amber' : 'green'">{{ $req->status->label() }}</x-badge>
                                         <x-badge :color="$req->is_paid ? 'green' : 'amber'">{{ $req->is_paid ? 'Paid' : 'Unpaid' }}</x-badge>
@@ -364,7 +364,7 @@
                         @endforeach
                     </ul>
                 @else
-                    <p class="mb-4 text-sm text-slate-500">No tests requested.</p>
+                    <p class="mb-4 text-sm text-slate-500">No diagnostic services requested.</p>
                 @endif
 
                 @if ($editable)
@@ -375,13 +375,13 @@
                                 @continue($requested->contains($test->id))
                                 <label class="flex items-center gap-2 text-sm">
                                     <input type="checkbox" name="lab_test_ids[]" value="{{ $test->id }}" class="rounded border-slate-300 text-teal-700 focus:ring-teal-600">
-                                    {{ $test->name }} <span class="text-slate-400">₦{{ number_format($test->price) }}</span>
+                                    <span>{{ $test->department?->name ?? 'Unassigned' }} · {{ $test->name }}</span> <span class="text-slate-400">₦{{ number_format($test->price) }}</span>
                                 </label>
                             @endforeach
                         </div>
                         @error('lab_test_ids')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
 
-                        <button class="mt-4 rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">Request selected tests</button>
+                        <button class="mt-4 rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">Request selected investigations</button>
                     </form>
                 @endif
             </div>

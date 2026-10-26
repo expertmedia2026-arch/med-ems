@@ -23,7 +23,7 @@ class CsvTransferService
         'departments' => ['name', 'description'],
         'staff' => ['name', 'email', 'role', 'department_name'],
         'consultation-prices' => ['department_name', 'name', 'description', 'price', 'is_active'],
-        'lab-catalog' => ['name', 'code', 'category', 'sample_type', 'price', 'turnaround_hours', 'description', 'is_active'],
+        'lab-catalog' => ['department_name', 'name', 'code', 'category', 'sample_type', 'price', 'turnaround_hours', 'description', 'is_active'],
         'pharmacy-catalog' => ['name', 'generic_name', 'form', 'strength', 'unit_price', 'stock_quantity', 'reorder_level', 'is_active'],
     ];
 
@@ -39,17 +39,17 @@ class CsvTransferService
         return self::HEADERS[$dataset];
     }
 
-    public function export(string $dataset, bool $template = false): StreamedResponse
+    public function export(string $dataset, bool $template = false, ?User $actor = null): StreamedResponse
     {
         $headers = $this->headers($dataset);
         $filename = $dataset.($template ? '-template' : '-export').'.csv';
 
-        return response()->streamDownload(function () use ($dataset, $headers, $template) {
+        return response()->streamDownload(function () use ($dataset, $headers, $template, $actor) {
             $output = fopen('php://output', 'w');
             fputcsv($output, $headers);
 
             if (! $template) {
-                foreach ($this->records($dataset) as $record) {
+                foreach ($this->records($dataset, $actor) as $record) {
                     fputcsv($output, array_map(fn ($header) => $record[$header] ?? '', $headers));
                 }
             }
@@ -121,7 +121,7 @@ class CsvTransferService
             'departments' => $this->importDepartment($row),
             'staff' => $this->importStaff($row, $actor),
             'consultation-prices' => $this->importConsultationPrice($row),
-            'lab-catalog' => $this->importLabTest($row),
+            'lab-catalog' => $this->importLabTest($row, $actor),
             'pharmacy-catalog' => $this->importDrug($row),
         };
     }
@@ -223,9 +223,10 @@ class CsvTransferService
         return 'added';
     }
 
-    private function importLabTest(array $row): string
+    private function importLabTest(array $row, User $actor): string
     {
         $data = $this->validate($row, [
+            'department_name' => ['nullable', 'string', 'max:120'],
             'name' => ['required', 'string', 'max:150'],
             'code' => ['nullable', 'string', 'max:20'],
             'category' => ['nullable', 'string', 'max:50'],
@@ -235,8 +236,16 @@ class CsvTransferService
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['nullable', 'in:0,1'],
         ]);
+        $departmentName = trim((string) ($data['department_name'] ?? '')) ?: 'Laboratory';
+        $data['department_id'] = $actor->hasRole(Role::Lab)
+            ? $actor->department_id
+            : Department::where('name', $departmentName)->value('id');
+        if (! $data['department_id']) {
+            return 'skipped';
+        }
         $data['code'] = filled($data['code'] ?? null) ? strtoupper($data['code']) : null;
-        if (LabTest::where('name', $data['name'])->orWhere(fn ($query) => filled($data['code']) ? $query->where('code', $data['code']) : $query->whereRaw('1 = 0'))->exists()) {
+        if (LabTest::where('department_id', $data['department_id'])->where(fn ($query) => $query->where('name', $data['name'])
+            ->orWhere(fn ($query) => filled($data['code']) ? $query->where('code', $data['code']) : $query->whereRaw('1 = 0')))->exists()) {
             return 'skipped';
         }
         $data['is_active'] = ($data['is_active'] ?? '1') === '1';
@@ -274,7 +283,7 @@ class CsvTransferService
         return Validator::make($row, $rules)->validate();
     }
 
-    private function records(string $dataset): iterable
+    private function records(string $dataset, ?User $actor = null): iterable
     {
         return match ($dataset) {
             'patients' => Patient::orderBy('id')->cursor()->map(fn (Patient $patient) => [
@@ -292,8 +301,9 @@ class CsvTransferService
                 'department_name' => $type->department?->name, 'name' => $type->name, 'description' => $type->description,
                 'price' => $type->price, 'is_active' => (int) $type->is_active,
             ]),
-            'lab-catalog' => LabTest::orderBy('id')->cursor()->map(fn (LabTest $test) => [
-                'name' => $test->name, 'code' => $test->code, 'category' => $test->category, 'sample_type' => $test->sample_type,
+            'lab-catalog' => LabTest::query()->when($actor?->hasRole(Role::Lab), fn ($query) => $query->where('department_id', $actor->department_id ?? 0))
+                ->orderBy('id')->cursor()->map(fn (LabTest $test) => [
+                'department_name' => $test->department?->name, 'name' => $test->name, 'code' => $test->code, 'category' => $test->category, 'sample_type' => $test->sample_type,
                 'price' => $test->price, 'turnaround_hours' => $test->turnaround_hours, 'description' => $test->description, 'is_active' => (int) $test->is_active,
             ]),
             'pharmacy-catalog' => Drug::orderBy('id')->cursor()->map(fn (Drug $drug) => [

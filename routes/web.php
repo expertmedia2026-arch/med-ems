@@ -10,6 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmergencyController;
 use App\Http\Controllers\EmergencyPharmacyController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DepartmentInventoryController;
 use App\Http\Controllers\DoctorAvailabilityController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\DrugController;
@@ -298,6 +299,13 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         Route::get('{labTest}/edit', [LabTestController::class, 'edit'])->name('edit');
         Route::put('{labTest}', [LabTestController::class, 'update'])->name('update');
         Route::patch('{labTest}/toggle', [LabTestController::class, 'toggle'])->name('toggle');
+    });
+
+    Route::middleware('role:admin,lab')->prefix('lab/inventory')->name('lab.inventory.')->group(function () {
+        Route::get('/', [DepartmentInventoryController::class, 'index'])->name('index');
+        Route::post('/', [DepartmentInventoryController::class, 'store'])->name('store');
+        Route::post('{item}/restock', [DepartmentInventoryController::class, 'restock'])->name('restock');
+        Route::post('{item}/consume', [DepartmentInventoryController::class, 'consume'])->name('consume');
     });
 
     // External lab requests (patients referred from other hospitals, or walk-in lab clients)

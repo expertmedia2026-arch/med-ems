@@ -41,6 +41,7 @@ class LabWorkflowService
     {
         $base = LabRequest::with(['visit.patient', 'test', 'requester'])
             ->when($user->hasRole(Role::Doctor), fn ($query) => $query->where('requested_by', $user->id))
+            ->when($user->hasRole(Role::Lab), fn ($query) => $query->whereHas('test', fn ($test) => $test->where('department_id', $user->department_id ?? 0)))
             ->when($term !== '', function ($query) use ($term) {
                 $query->whereHas('visit.patient', function ($patientQuery) use ($term) {
                     foreach (preg_split('/\s+/', $term) as $word) {
@@ -66,6 +67,7 @@ class LabWorkflowService
     {
         abort_if($user->hasRole(Role::Doctor) && $labRequest->requested_by !== $user->id, 403, 'You can only view results for tests you requested.');
         $labRequest->load(['visit.patient', 'test', 'requester', 'processor', 'attachments', 'invoiceItem']);
+        $this->authorizeDepartment($labRequest, $user);
         $canProcess = $user->hasRole(Role::Admin, Role::Lab);
         $visit = $labRequest->visit;
         $canCancel = $canProcess && $visit->isLabOnly()
@@ -78,6 +80,7 @@ class LabWorkflowService
     {
         $requests = $visit->labRequests()->completed()
             ->when($user->hasRole(Role::Doctor) && ! $visit->isLabOnly(), fn ($query) => $query->where('requested_by', $user->id))
+            ->when($user->hasRole(Role::Lab), fn ($query) => $query->whereHas('test', fn ($test) => $test->where('department_id', $user->department_id ?? 0)))
             ->with(['test', 'attachments', 'processor'])->orderBy('id')->get();
 
         abort_if($requests->isEmpty(), 404, 'There are no completed results to print for this visit.');
@@ -108,6 +111,9 @@ class LabWorkflowService
     /** @param array<int, UploadedFile> $files */
     public function saveResult(LabRequest $labRequest, array $data, array $files, User $processor): ?string
     {
+        $labRequest->loadMissing('test');
+        $this->authorizeDepartment($labRequest, $processor);
+
         if ($labRequest->status === WorkStatus::Completed && $labRequest->visit->status === VisitStatus::Completed) {
             return 'locked';
         }
@@ -167,5 +173,12 @@ class LabWorkflowService
         }
 
         return null;
+    }
+
+    private function authorizeDepartment(LabRequest $labRequest, User $user): void
+    {
+        abort_unless($user->hasRole(Role::Admin, Role::Doctor) || ($user->hasRole(Role::Lab)
+            && $user->department_id !== null
+            && (int) $user->department_id === (int) $labRequest->test?->department_id), 403);
     }
 }

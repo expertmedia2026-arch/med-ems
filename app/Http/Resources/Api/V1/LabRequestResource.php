@@ -14,7 +14,12 @@ class LabRequestResource extends JsonResource
             'status' => $this->status->value,
             'result' => $this->result,
             'completed_at' => $this->completed_at?->toIso8601String(),
-            'test' => $this->whenLoaded('test', fn () => $this->test ? ['id' => $this->test->id, 'name' => $this->test->name] : null),
+            'test' => $this->whenLoaded('test', fn () => $this->test ? [
+                'id' => $this->test->id,
+                'department_id' => $this->test->department_id,
+                'department' => $this->test->department?->name,
+                'name' => $this->test->name,
+            ] : null),
             'visit' => $this->whenLoaded('visit', fn () => $this->visit ? [
                 'id' => $this->visit->id,
                 'patient' => $this->visit->patient?->full_name,

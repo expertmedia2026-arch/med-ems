@@ -72,9 +72,9 @@ class LabOperationsController extends Controller
         ]);
     }
 
-    public function deleteAttachment(LabAttachment $attachment, LabAttachmentService $attachments)
+    public function deleteAttachment(Request $request, LabAttachment $attachment, LabAttachmentService $attachments)
     {
-        $attachments->delete($attachment);
+        $attachments->delete($attachment, $request->user());
 
         return response()->noContent();
     }
@@ -86,27 +86,27 @@ class LabOperationsController extends Controller
             $filters['status'] = 'active';
         }
 
-        return LabTestResource::collection($catalog->indexData($filters)['tests']);
+        return LabTestResource::collection($catalog->indexData($filters, $request->user())['tests']);
     }
 
     public function createTest(SaveLabTestRequest $request, LabCatalogService $catalog): LabTestResource
     {
-        return new LabTestResource($catalog->create($request->validated()));
+        return new LabTestResource($catalog->create($request->validated(), $request->user()));
     }
 
     public function updateTest(SaveLabTestRequest $request, LabTest $labTest, LabCatalogService $catalog): LabTestResource
     {
-        return new LabTestResource($catalog->update($labTest, $request->validated()));
+        return new LabTestResource($catalog->update($labTest, $request->validated(), $request->user()));
     }
 
-    public function toggleTest(LabTest $labTest, LabCatalogService $catalog): LabTestResource
+    public function toggleTest(Request $request, LabTest $labTest, LabCatalogService $catalog): LabTestResource
     {
-        return new LabTestResource($catalog->toggle($labTest));
+        return new LabTestResource($catalog->toggle($labTest, $request->user()));
     }
 
     public function createReferralForm(LabReferralFormRequest $request, LabReferralService $referrals): array
     {
-        $data = $referrals->createFormData($request->validated('patient'));
+        $data = $referrals->createFormData($request->validated('patient'), $request->user());
 
         return [
             'patients' => $data['patients']->map(fn ($patient) => ['id' => $patient->id, 'hospital_number' => $patient->hospital_number, 'name' => $patient->full_name]),
@@ -121,7 +121,7 @@ class LabOperationsController extends Controller
 
     public function createReferral(StoreLabReferralRequest $request, LabReferralService $referrals): array
     {
-        $result = $referrals->create($request->validated(), $request->user()->id, $request->boolean('confirm_new'));
+        $result = $referrals->create($request->validated(), $request->user()->id, $request->boolean('confirm_new'), $request->user());
         if ($result['matches']->isNotEmpty()) {
             return ['confirmation_required' => true, 'possible_matches' => $result['matches']->map(fn ($patient) => [
                 'id' => $patient->id,
@@ -138,9 +138,9 @@ class LabOperationsController extends Controller
         ];
     }
 
-    public function cancelReferral(Visit $visit, LabReferralService $referrals)
+    public function cancelReferral(Request $request, Visit $visit, LabReferralService $referrals)
     {
-        abort_unless($referrals->cancel($visit), 409, 'This request cannot be cancelled after payment has been taken or a result entered.');
+        abort_unless($referrals->cancel($visit, $request->user()), 409, 'This request cannot be cancelled after payment has been taken or a result entered.');
 
         return response()->noContent();
     }

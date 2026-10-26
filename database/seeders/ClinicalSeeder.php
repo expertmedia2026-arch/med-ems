@@ -4,12 +4,17 @@ namespace Database\Seeders;
 
 use App\Models\Drug;
 use App\Models\LabTest;
+use App\Models\Department;
 use Illuminate\Database\Seeder;
 
 class ClinicalSeeder extends Seeder
 {
     public function run(): void
     {
+        $laboratory = Department::firstOrCreate(['name' => 'Laboratory'], [
+            'description' => 'Laboratory investigations and diagnostic services.',
+        ]);
+
         $drugs = [
             ['Paracetamol', 'Paracetamol', 'Tablet', '500mg', 50, 240, 20],
             ['Ibuprofen', 'Ibuprofen', 'Tablet', '400mg', 80, 180, 20],
@@ -65,7 +70,7 @@ class ClinicalSeeder extends Seeder
 
         foreach ($tests as [$name, $code, $category, $sampleType, $turnaround, $price]) {
             LabTest::updateOrCreate(
-                ['name' => $name],
+                ['department_id' => $laboratory->id, 'name' => $name],
                 [
                     'code' => $code,
                     'category' => $category,

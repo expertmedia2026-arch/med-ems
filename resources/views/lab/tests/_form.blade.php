@@ -6,7 +6,22 @@
 
 <div class="grid gap-5 sm:grid-cols-2">
     <div class="sm:col-span-2">
-        <label for="name" class="{{ $label }}">Test name</label>
+        <label for="department_id" class="{{ $label }}">Department</label>
+        @if (auth()->user()->hasRole('admin'))
+            <select id="department_id" name="department_id" required class="{{ $input }}">
+                <option value="">Select department</option>
+                @foreach ($departments as $department)
+                    <option value="{{ $department->id }}" @selected((string) old('department_id', $selectedDepartmentId) === (string) $department->id)>{{ $department->name }}</option>
+                @endforeach
+            </select>
+        @else
+            <input type="hidden" name="department_id" value="{{ $selectedDepartmentId }}">
+            <p class="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">{{ $departments->firstWhere('id', $selectedDepartmentId)?->name }}</p>
+        @endif
+        @error('department_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+    </div>
+    <div class="sm:col-span-2">
+        <label for="name" class="{{ $label }}">Service or procedure name</label>
         <input id="name" name="name" type="text" value="{{ $val('name') }}" required class="{{ $input }}">
         @error('name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
     </div>

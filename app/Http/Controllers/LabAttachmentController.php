@@ -23,9 +23,9 @@ class LabAttachmentController extends Controller
         ]);
     }
 
-    public function destroy(LabAttachment $attachment, LabAttachmentService $attachments)
+    public function destroy(Request $request, LabAttachment $attachment, LabAttachmentService $attachments)
     {
-        $attachments->delete($attachment);
+        $attachments->delete($attachment, $request->user());
 
         return back()->with('success', 'Attachment removed.');
     }

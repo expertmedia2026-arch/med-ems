@@ -17,6 +17,7 @@ class LabTestIndexRequest extends FormRequest
             'q' => ['nullable', 'string', 'max:100'],
             'category' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'in:active,inactive'],
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
         ];
     }
 }

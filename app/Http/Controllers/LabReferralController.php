@@ -12,13 +12,13 @@ class LabReferralController extends Controller
 {
     public function create(LabReferralFormRequest $request, LabReferralService $referrals)
     {
-        return view('lab.referrals.create', $referrals->createFormData($request->validated('patient')));
+        return view('lab.referrals.create', $referrals->createFormData($request->validated('patient'), $request->user()));
     }
 
     public function store(StoreLabReferralRequest $request, LabReferralService $referrals)
     {
         $data = $request->validated();
-        $result = $referrals->create($data, $request->user()->id, $request->boolean('confirm_new'));
+        $result = $referrals->create($data, $request->user()->id, $request->boolean('confirm_new'), $request->user());
 
         if ($result['matches']->isNotEmpty()) {
             return back()->withInput()->with('possible_matches', $result['matches']->map(fn ($patient) => [
@@ -43,9 +43,9 @@ class LabReferralController extends Controller
             : redirect()->route('lab.index')->with('success', $message);
     }
 
-    public function destroy(Visit $visit, LabReferralService $referrals)
+    public function destroy(\Illuminate\Http\Request $request, Visit $visit, LabReferralService $referrals)
     {
-        if (! $referrals->cancel($visit)) {
+        if (! $referrals->cancel($visit, $request->user())) {
             return back()->with('error', 'This request cannot be cancelled after payment has been taken or a result entered.');
         }
 
