@@ -42,7 +42,7 @@ use App\Http\Controllers\TriageController;
 use App\Http\Controllers\VisitController;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/login');
+Route::view('/', 'welcome')->name('home');
 
 Route::get('patients/{patient}/photo', [PatientMediaController::class, 'photo'])
     ->middleware(['auth', 'auth.session', 'active'])
