@@ -12,18 +12,23 @@
 </head>
 <body class="medems-site">
     <header class="site-header">
-        <div class="site-header__inner">
+        <div class="site-header__inner" x-data="{ menuOpen: false }" @keydown.escape.window="menuOpen = false">
             <a class="brand-lockup" href="{{ url('/') }}" aria-label="MedEMS home">
                 <img src="{{ asset('images/expert-media-logo.png') }}" alt="Expert Media Solutions Ltd" class="brand-lockup__logo">
                 <span class="brand-lockup__divider" aria-hidden="true"></span>
                 <span class="brand-lockup__name">Med<span>EMS</span></span>
             </a>
-            <nav class="site-nav" aria-label="Main navigation">
-                <a href="#platform">Platform</a>
-                <a href="#capabilities">Capabilities</a>
-                <a href="#built-for-care">About</a>
+            <nav class="site-nav" id="site-navigation" :class="{ 'site-nav--open': menuOpen }" aria-label="Main navigation">
+                <a href="#platform" @click="menuOpen = false">Platform</a>
+                <a href="#capabilities" @click="menuOpen = false">Capabilities</a>
+                <a href="#built-for-care" @click="menuOpen = false">About</a>
             </nav>
-            <a class="button button--dark header-login" href="{{ route('login') }}">Sign in <span aria-hidden="true">↗</span></a>
+            <div class="site-header__actions">
+                <button class="menu-toggle" type="button" @click="menuOpen = !menuOpen" :aria-expanded="menuOpen.toString()" aria-controls="site-navigation" :aria-label="menuOpen ? 'Close navigation menu' : 'Open navigation menu'">
+                    <span class="menu-toggle__lines" :class="{ 'is-active': menuOpen }" aria-hidden="true"><i></i><i></i><i></i></span>
+                </button>
+                <a class="button button--dark header-login" href="{{ route('login') }}">Sign in <span aria-hidden="true">↗</span></a>
+            </div>
         </div>
     </header>
 
@@ -42,29 +47,68 @@
                     <div class="hero__note"><span class="hero__note-icon" aria-hidden="true">✓</span> Thoughtfully designed for the people behind every patient journey</div>
                 </div>
 
-                <div class="hero-visual" aria-label="Illustration of the MedEMS hospital operations dashboard">
+                <div class="hero-visual" role="img" aria-label="MedEMS admin dashboard preview showing summary cards and the live patient queue">
                     <div class="hero-visual__orb hero-visual__orb--one"></div>
                     <div class="hero-visual__orb hero-visual__orb--two"></div>
-                    <div class="dashboard-card">
-                        <div class="dashboard-card__top">
-                            <div class="dashboard-brand"><span class="dashboard-brand__mark">M</span><span>Med<span>EMS</span></span></div>
-                            <div class="dashboard-top__right"><span class="live-dot"></span> Live overview <span class="avatar">AD</span></div>
-                        </div>
-                        <div class="dashboard-card__body">
-                            <div class="dashboard-heading"><div><span class="dashboard-kicker">MONDAY, 24 JUNE 2024</span><h2>Good morning, Admin</h2><p>Here’s what’s happening at your hospital today.</p></div><span class="dashboard-menu">•••</span></div>
-                            <div class="stat-grid">
-                                <div class="stat-card"><span class="stat-card__label">Patients today</span><strong>128</strong><span class="stat-card__change">↑ 12% <small>vs last week</small></span><span class="stat-icon stat-icon--red" aria-hidden="true">＋</span></div>
-                                <div class="stat-card"><span class="stat-card__label">Appointments</span><strong>36</strong><span class="stat-card__change stat-card__change--dark">14 upcoming</span><span class="stat-icon stat-icon--gray" aria-hidden="true">▦</span></div>
-                                <div class="stat-card"><span class="stat-card__label">In consultation</span><strong>08</strong><span class="stat-card__change stat-card__change--dark">Across 4 departments</span><span class="stat-icon stat-icon--gray" aria-hidden="true">♡</span></div>
-                            </div>
-                            <div class="dashboard-lower">
-                                <div class="activity-panel"><div class="panel-heading"><strong>Today’s activity</strong><span>View report ↗</span></div><div class="chart"><div class="chart__y"><span>40</span><span>30</span><span>20</span><span>10</span></div><div class="chart__main"><div class="chart__gridlines"><i></i><i></i><i></i><i></i></div><svg viewBox="0 0 360 112" role="img" aria-label="Patient activity rising through the day" preserveAspectRatio="none"><defs><linearGradient id="chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#e51d2a" stop-opacity=".18"/><stop offset="1" stop-color="#e51d2a" stop-opacity="0"/></linearGradient></defs><path d="M0 86 C28 80 34 57 68 64 S105 80 135 52 S173 60 204 39 S247 48 269 31 S316 40 360 12 L360 112 L0 112Z" fill="url(#chart-fill)"/><path d="M0 86 C28 80 34 57 68 64 S105 80 135 52 S173 60 204 39 S247 48 269 31 S316 40 360 12" fill="none" stroke="#e51d2a" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg><div class="chart__x"><span>8 AM</span><span>10 AM</span><span>12 PM</span><span>2 PM</span><span>4 PM</span></div></div></div></div>
-                                <div class="schedule-panel"><div class="panel-heading"><strong>Next appointments</strong><span>Today⌄</span></div><div class="appointment"><span class="appointment__time">09:30</span><span class="appointment__avatar appointment__avatar--peach">AO</span><span class="appointment__details"><b>Amara Okafor</b><small>General consultation</small></span><span class="appointment__status">Waiting</span></div><div class="appointment"><span class="appointment__time">10:15</span><span class="appointment__avatar appointment__avatar--blue">TK</span><span class="appointment__details"><b>Tunde Kolawole</b><small>Cardiology follow-up</small></span><span class="appointment__status appointment__status--booked">Booked</span></div><div class="appointment"><span class="appointment__time">10:45</span><span class="appointment__avatar appointment__avatar--green">BM</span><span class="appointment__details"><b>Bisi Mohammed</b><small>Laboratory review</small></span><span class="appointment__status appointment__status--booked">Booked</span></div></div>
+                    <div class="admin-preview">
+                        <aside class="admin-preview__sidebar">
+                            <div class="preview-brand"><span class="preview-brand__mark">M</span><span>Med<span>EMS</span></span></div>
+                            <span class="preview-sidebar__label">HOSPITAL WORKSPACE</span>
+                            <div class="preview-nav preview-nav--active"><span>▦</span>Dashboard</div>
+                            <div class="preview-nav"><span>＋</span>Patients</div>
+                            <div class="preview-nav"><span>▤</span>Staff</div>
+                            <div class="preview-nav"><span>▦</span>Departments</div>
+                            <div class="preview-nav"><span>◷</span>Consultation Pricing</div>
+                            <div class="preview-nav"><span>◷</span>Appointments</div>
+                            <div class="preview-nav"><span>＋</span>A&amp;E</div>
+                            <div class="preview-nav"><span>▧</span>A&amp;E Pharmacy</div>
+                            <div class="preview-nav"><span>⌁</span>Mortuary</div>
+                            <div class="preview-nav"><span>◉</span>Triage</div>
+                            <div class="preview-nav"><span>＋</span>Medication administration</div>
+                            <div class="preview-nav"><span>◷</span>Staff Duty Roster</div>
+                            <div class="preview-nav"><span>⌁</span>Admissions</div>
+                            <div class="preview-nav"><span>⌕</span>Laboratory</div>
+                            <div class="preview-nav"><span>⌕</span>External Lab Request</div>
+                            <div class="preview-nav"><span>▧</span>Pharmacy</div>
+                            <div class="preview-nav"><span>₦</span>Billing</div>
+                            <div class="preview-nav"><span>₦</span>Finance overview</div>
+                            <div class="preview-nav"><span>⚙</span>Hospital Settings</div>
+                            <div class="preview-sidebar__foot"><span class="preview-sidebar__avatar">A</span><span><b>Hospital Admin</b><small>Administrator</small></span><span class="preview-sidebar__dots">•••</span></div>
+                        </aside>
+                        <div class="admin-preview__main">
+                            <div class="preview-topbar"><span class="preview-topbar__menu">☰</span><span>Dashboard</span><span class="preview-topbar__right"><span class="preview-notification">♧</span><span class="preview-avatar">A</span><span class="preview-user-name">Hospital Admin<small>Administrator</small></span></span></div>
+                            <div class="preview-content">
+                                <div class="preview-page-heading"><div><h2>Welcome, Hospital Admin</h2><p>Administrator · {{ now()->format('l, d F Y') }}</p></div><span class="preview-date">Today⌄</span></div>
+                                <div class="preview-card-grid">
+                                    <div class="preview-stat preview-stat--blue"><span>Patients today</span><b>24</b></div>
+                                    <div class="preview-stat preview-stat--amber"><span>In queue</span><b>16</b></div>
+                                    <div class="preview-stat preview-stat--amber"><span>Pending lab requests</span><b>06</b></div>
+                                    <div class="preview-stat preview-stat--green"><span>Revenue today</span><b>₦240k</b></div>
+                                    <div class="preview-stat preview-stat--blue"><span>Awaiting dispensing</span><b>02</b></div>
+                                    <div class="preview-stat preview-stat--teal"><span>Pharmacy patients today</span><b>08</b></div>
+                                    <div class="preview-stat preview-stat--green"><span>Dispensed today</span><b>12</b></div>
+                                    <div class="preview-stat preview-stat--teal"><span>Staff duty roster</span><b>8 shifts this week</b></div>
+                                    <div class="preview-stat preview-stat--teal"><span>Active admissions</span><b>01</b></div>
+                                    <div class="preview-stat preview-stat--amber"><span>Admission results to review</span><b>03</b></div>
+                                    <div class="preview-stat preview-stat--blue"><span>Nursing visits to finish</span><b>02</b></div>
+                                    <div class="preview-stat preview-stat--red"><span>Low-stock drugs</span><b>02</b></div>
+                                    <div class="preview-stat preview-stat--red"><span>Unpaid invoices</span><b>20</b></div>
+                                    <div class="preview-stat preview-stat--red"><span>Outstanding balance</span><b>₦100,490</b></div>
+                                    <div class="preview-stat preview-stat--red"><span>Active A&amp;E visits</span><b>03</b></div>
+                                </div>
+                                <div class="preview-queue">
+                                    <div class="preview-queue__heading"><b>Live queue</b><span>View all <i>↗</i></span></div>
+                                    <div class="preview-queue__table">
+                                        <div class="preview-queue__row preview-queue__row--head"><span>Patient</span><span>Department</span><span>Complaint</span><span>Doctor</span><span>Waiting</span><span>Status</span></div>
+                                        <div class="preview-queue__row"><span>Patient A</span><span>General Medicine</span><span>Outpatient visit</span><span>Unassigned</span><span>12 min</span><em>Waiting for triage</em></div>
+                                        <div class="preview-queue__row"><span>Patient B</span><span>Paediatrics</span><span>Outpatient visit</span><span>Unassigned</span><span>08 min</span><em>Waiting for triage</em></div>
+                                        <div class="preview-queue__row"><span>Patient C</span><span>Cardiology</span><span>Follow-up</span><span>Dr. A.</span><span>05 min</span><em class="preview-queue__status--active">In consultation</em></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="floating-pill floating-pill--top"><span class="floating-pill__icon">✓</span><span><b>Everything in sync</b><small>Across your hospital</small></span></div>
-                    <div class="floating-pill floating-pill--bottom"><span class="floating-pill__pulse"></span><span><b>Care, without the gaps</b><small>One connected workflow</small></span></div>
+                    <div class="preview-caption"><span class="preview-caption__dot"></span> Admin dashboard <span>•</span> Example overview</div>
                 </div>
             </div>
             <div class="hero__bottom"><span>ONE CONNECTED PLATFORM</span><span class="hero__bottom-line"></span><span>BUILT AROUND BETTER CARE</span></div>
