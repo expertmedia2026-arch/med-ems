@@ -7,7 +7,7 @@ return [
     ['label' => 'Departments', 'route' => 'departments.index', 'active' => 'departments.*', 'roles' => ['admin']],
     ['label' => 'Consultation Pricing', 'route' => 'consultation-types.index', 'active' => 'consultation-types.*', 'roles' => ['admin']],
     ['label' => 'Appointments', 'route' => 'appointments.index', 'active' => 'appointments.*', 'roles' => ['admin', 'receptionist', 'doctor'], 'module' => 'appointments'],
-    ['label' => 'A&E', 'route' => 'emergency.index', 'active' => 'emergency.*', 'roles' => ['admin', 'receptionist', 'nurse', 'doctor'], 'permission' => 'canAccessEmergency', 'module' => 'emergency'],
+    ['label' => 'A&E', 'route' => 'emergency.index', 'active' => ['emergency.index', 'emergency.store', 'emergency.unidentified.store', 'emergency.brought-in-dead.*', 'emergency.notes.store', 'emergency.mortuary.receive', 'emergency.items-used.store'], 'roles' => ['admin', 'receptionist', 'nurse', 'doctor'], 'permission' => 'canAccessEmergency', 'module' => 'emergency'],
     ['label' => 'A&E Pharmacy', 'route' => 'emergency.pharmacy.index', 'active' => 'emergency.pharmacy.*', 'roles' => ['admin', 'receptionist', 'pharmacist', 'chief_pharmacist', 'nurse', 'doctor'], 'permission' => 'canAccessEmergencyPharmacy', 'modules' => ['emergency', 'pharmacy', 'emergency_pharmacy']],
     ['label' => 'Mortuary', 'route' => 'mortuary.index', 'active' => 'mortuary.*', 'roles' => ['admin', 'mortuary_attendant'], 'permission' => 'canAccessMortuary', 'module' => 'mortuary'],
     ['label' => 'My Availability', 'route' => 'doctor.availability.index', 'active' => 'doctor.availability.*', 'roles' => ['doctor'], 'module' => 'appointments'],

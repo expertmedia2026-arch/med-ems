@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Models\Department;
 use App\Models\StaffDuty;
 use App\Models\User;
+use App\Notifications\HospitalActionNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -158,6 +159,13 @@ class NurseRosterService
                 }
             }
         });
+
+        $staffMember->notify(new HospitalActionNotification(
+            'Duty roster updated',
+            'Your duty roster for the week of '.$week->format('d M Y').' was updated.',
+            route('nursing.roster.index', ['week' => $week->toDateString()]),
+            'calendar',
+        ));
     }
 
     private function managerDepartmentId(User $manager): ?int

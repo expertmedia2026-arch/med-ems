@@ -7,9 +7,11 @@ use App\Enums\Role;
 use App\Enums\VisitStatus;
 use App\Enums\WorkStatus;
 use App\Models\HospitalSetting;
+use App\Models\LabTest;
 use App\Models\LabRequest;
 use App\Models\User;
 use App\Models\Visit;
+use App\Notifications\HospitalActionNotification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -29,6 +31,17 @@ class LabWorkflowService
 
             foreach ($new as $testId) {
                 $visit->labRequests()->create(['lab_test_id' => $testId, 'requested_by' => $requestedBy]);
+            }
+
+            if ($new->isNotEmpty()) {
+                $departmentIds = LabTest::query()->whereIn('id', $new)->distinct()->pluck('department_id');
+                User::ofRole(Role::Lab)->where('is_active', true)->whereIn('department_id', $departmentIds)->get()
+                    ->each(fn (User $labStaff) => $labStaff->notify(new HospitalActionNotification(
+                        'New lab request',
+                        'A clinician added tests to the laboratory queue.',
+                        route('lab.index'),
+                        'flask',
+                    )));
             }
 
             $this->billing->syncFor($visit);
@@ -111,6 +124,7 @@ class LabWorkflowService
     /** @param array<int, UploadedFile> $files */
     public function saveResult(LabRequest $labRequest, array $data, array $files, User $processor): ?string
     {
+        $wasCompleted = $labRequest->status === WorkStatus::Completed;
         $labRequest->loadMissing('test');
         $this->authorizeDepartment($labRequest, $processor);
 
@@ -142,6 +156,26 @@ class LabWorkflowService
             'result_reviewed_at' => null,
             'result_review_note' => null,
         ]);
+
+        if (! $wasCompleted) {
+            $labRequest->loadMissing(['requester', 'visit.patient.user']);
+            $labRequest->requester?->notify(new HospitalActionNotification(
+                'Lab result ready',
+                'A requested laboratory result is ready for review.',
+                route('lab.show', $labRequest),
+                'flask',
+            ));
+
+            $patientUser = $labRequest->visit->patient?->user;
+            if ($patientUser && $patientUser->hospital?->hasModule('patient_portal')) {
+                $patientUser->notify(new HospitalActionNotification(
+                    'Lab result ready',
+                    'A new laboratory result is available in your patient portal.',
+                    route('portal.visits.lab-report', $labRequest->visit),
+                    'flask',
+                ));
+            }
+        }
 
         $visit = $labRequest->visit;
         if ($visit->isLabOnly() && ! $visit->labRequests()->pending()->exists()) {

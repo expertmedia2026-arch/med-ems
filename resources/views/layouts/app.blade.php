@@ -67,26 +67,29 @@
                 @endisset
             </div>
 
-            <div x-data="{ menu: false }" class="relative">
-                <button @click="menu = !menu" class="flex items-center gap-3">
-                    <span class="text-right hidden sm:block">
-                        <span class="block text-sm font-medium leading-tight">{{ $user->name }}</span>
-                        <span class="block text-xs text-teal-700">{{ $user->role->label() }}</span>
-                    </span>
-                    <span class="flex h-9 w-9 items-center justify-center rounded-full bg-teal-700 text-sm font-semibold text-white">
-                        {{ strtoupper(substr($user->name, 0, 1)) }}
-                    </span>
-                </button>
+            <div class="flex items-center gap-3">
+                <x-notification-bell />
+                <div x-data="{ menu: false }" class="relative">
+                    <button @click="menu = !menu" class="flex items-center gap-3">
+                        <span class="text-right hidden sm:block">
+                            <span class="block text-sm font-medium leading-tight">{{ $user->name }}</span>
+                            <span class="block text-xs text-teal-700">{{ $user->role->label() }}</span>
+                        </span>
+                        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-teal-700 text-sm font-semibold text-white">
+                            {{ strtoupper(substr($user->name, 0, 1)) }}
+                        </span>
+                    </button>
 
-                <div x-show="menu" x-cloak @click.outside="menu = false"
-                     class="absolute right-0 mt-2 w-44 rounded-lg border bg-white py-1 shadow-lg">
-                    <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm hover:bg-slate-50">Profile</a>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button class="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-slate-50">
-                            Log out
-                        </button>
-                    </form>
+                    <div x-show="menu" x-cloak @click.outside="menu = false"
+                         class="absolute right-0 mt-2 w-44 rounded-lg border bg-white py-1 shadow-lg">
+                        <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm hover:bg-slate-50">Profile</a>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button class="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-slate-50">
+                                Log out
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </header>

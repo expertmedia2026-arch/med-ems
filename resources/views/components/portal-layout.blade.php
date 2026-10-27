@@ -69,6 +69,8 @@
                 @endisset
             </div>
 
+            <div class="flex items-center gap-3">
+            <x-notification-bell />
             <div x-data="{ menu: false }" class="relative">
                 <button @click="menu = !menu" class="flex items-center gap-3">
                     <span class="hidden text-right sm:block">
@@ -92,6 +94,7 @@
                         </button>
                     </form>
                 </div>
+            </div>
             </div>
         </header>
 

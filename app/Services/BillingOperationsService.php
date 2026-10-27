@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\OnlinePayment;
 use App\Models\Payment;
+use App\Notifications\HospitalActionNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -72,6 +73,18 @@ class BillingOperationsService
                 $invoice->patient()->whereNull('registration_paid_at')->update(['registration_paid_at' => now()]);
             }
         });
+
+        if ($payment) {
+            $patientUser = $invoice->patient()->with('user')->first()?->user;
+            if ($patientUser && $patientUser->hospital?->hasModule('patient_portal')) {
+                $patientUser->notify(new HospitalActionNotification(
+                    'Payment received',
+                    'A payment of ₦'.number_format((float) $payment->amount, 2).' was recorded for your invoice.',
+                    route('portal.invoices.show', $invoice),
+                    'receipt',
+                ));
+            }
+        }
 
         return $payment;
     }

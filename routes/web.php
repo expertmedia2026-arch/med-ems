@@ -27,6 +27,7 @@ use App\Http\Controllers\LabTestController;
 use App\Http\Controllers\NursingAdministrationController;
 use App\Http\Controllers\MortuaryController;
 use App\Http\Controllers\NurseRosterController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PatientMediaController;
 use App\Http\Controllers\PatientPortalController;
@@ -88,6 +89,12 @@ Route::middleware('guest')->group(function () {
 });
 
 // ---------------- Patient portal ----------------
+Route::middleware(['auth', 'auth.session', 'active', 'hospital'])->group(function () {
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
+    Route::patch('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+});
+
 Route::middleware(['auth', 'auth.session', 'active', 'hospital', 'role:patient', 'module:patient_portal'])->prefix('portal')->name('portal.')->group(function () {
     Route::get('/', [PortalController::class, 'home'])->name('home');
     Route::view('settings', 'portal.settings')->name('settings');

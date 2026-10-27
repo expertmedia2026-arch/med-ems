@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\OnlinePayment;
 use App\Models\User;
+use App\Notifications\HospitalActionNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -88,6 +89,7 @@ class OnlinePaymentService
                 'paid_at' => now(),
                 'note' => 'Amount or currency did not match what was requested. Check the gateway dashboard.',
             ]);
+            $this->notifyPaymentReview($attempt);
 
             return $attempt->fresh();
         }
@@ -115,6 +117,7 @@ class OnlinePaymentService
                     'paid_at' => now(),
                     'note' => 'Paid online, but some items were already settled at the billing desk. Refund or reconcile in the gateway dashboard.',
                 ]);
+                $this->notifyPaymentReview($attempt);
 
                 return $attempt;
             }
@@ -125,6 +128,7 @@ class OnlinePaymentService
                     'paid_at' => now(),
                     'note' => 'Payment succeeded online, but the reserved drug stock could not be reacquired. Refund or reconcile in the gateway dashboard.',
                 ]);
+                $this->notifyPaymentReview($attempt);
 
                 return $attempt;
             }
@@ -150,6 +154,17 @@ class OnlinePaymentService
                 'note' => null,
             ]);
 
+            $attempt->loadMissing('patient.user');
+            $patientUser = $attempt->patient?->user;
+            if ($patientUser && $patientUser->hospital?->hasModule('patient_portal')) {
+                $patientUser->notify(new HospitalActionNotification(
+                    'Online payment confirmed',
+                    'Your online payment of ₦'.number_format((float) $attempt->amount, 2).' has been confirmed.',
+                    route('portal.invoices.show', $invoice),
+                    'receipt',
+                ));
+            }
+
             return $attempt;
         });
     }
@@ -168,6 +183,18 @@ class OnlinePaymentService
                     report($e);
                 }
             });
+    }
+
+    private function notifyPaymentReview(OnlinePayment $attempt): void
+    {
+        User::query()->where('is_active', true)
+            ->whereIn('role', ['admin', 'accountant', 'chief_accountant'])
+            ->get()->each(fn (User $user) => $user->notify(new HospitalActionNotification(
+                'Online payment needs review',
+                'An online payment could not be applied automatically. Review the payment in Billing.',
+                route('billing.index'),
+                'receipt',
+            )));
     }
 
     /** Is a fresh payment already open for any of these items? Prevents charging twice. */

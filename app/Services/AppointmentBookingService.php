@@ -11,6 +11,7 @@ use App\Models\DoctorAvailability;
 use App\Models\LabTest;
 use App\Models\Patient;
 use App\Models\User;
+use App\Notifications\HospitalActionNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -129,6 +130,25 @@ class AppointmentBookingService
                 'reason' => $reason,
             ]);
 
+            $newDoctor->notify(new HospitalActionNotification(
+                'Appointment assigned to you',
+                'A patient appointment was assigned to you for '.$appointment->scheduled_at->format('D, d M Y').'.',
+                route('appointments.show', $appointment),
+                'calendar',
+            ));
+            $oldDoctor->notify(new HospitalActionNotification(
+                'Appointment reassigned',
+                'An appointment on '.$appointment->scheduled_at->format('D, d M Y').' was reassigned to another doctor.',
+                route('appointments.show', $appointment),
+                'calendar',
+            ));
+            $appointment->patient?->user?->notify(new HospitalActionNotification(
+                'Appointment doctor changed',
+                'Your appointment on '.$appointment->scheduled_at->format('D, d M Y').' has a new doctor.',
+                route('portal.appointments.index'),
+                'calendar',
+            ));
+
             return $appointment->refresh()->load([
                 'patient', 'doctor.department', 'labTests',
                 'reassignments.fromDoctor', 'reassignments.toDoctor', 'reassignments.reassignedBy',
@@ -237,7 +257,7 @@ class AppointmentBookingService
             throw ValidationException::withMessages(['appointment_date' => 'This patient already has an appointment with that doctor on this date.']);
         }
 
-        return $patient->appointments()->create([
+        $appointment = $patient->appointments()->create([
             'doctor_id' => $data['doctor_id'],
             'type' => 'consultation',
             'scheduled_at' => $when,
@@ -245,12 +265,17 @@ class AppointmentBookingService
             'reason' => $data['reason'] ?? null,
             'created_by' => $createdBy,
         ]);
+
+        $this->notifyNewAppointment($appointment);
+
+        return $appointment;
     }
 
     public function cancel(Appointment $appointment): void
     {
         abort_unless($appointment->status === AppointmentStatus::Scheduled, 422);
         $appointment->update(['status' => AppointmentStatus::Cancelled]);
+        $this->notifyAppointmentCancelled($appointment);
     }
 
     public function cancelForPatient(Patient $patient, Appointment $appointment): bool
@@ -266,6 +291,7 @@ class AppointmentBookingService
         }
 
         $appointment->update(['status' => AppointmentStatus::Cancelled]);
+        $this->notifyAppointmentCancelled($appointment);
 
         return true;
     }
@@ -331,7 +357,49 @@ class AppointmentBookingService
             return $appointment;
         });
 
+        $this->notifyNewAppointment($appointment);
+
         return compact('appointment', 'type', 'when', 'field') + ['error' => null];
+    }
+
+    private function notifyNewAppointment(Appointment $appointment): void
+    {
+        $appointment->loadMissing(['patient.user', 'doctor']);
+        $when = $appointment->scheduled_at->format('D, d M Y'.($appointment->isLab() ? ', g:i A' : ''));
+
+        $appointment->doctor?->notify(new HospitalActionNotification(
+            'New appointment scheduled',
+            'A patient appointment was scheduled for '.$when.'.',
+            route('appointments.show', $appointment),
+            'calendar',
+        ));
+
+        $appointment->patient?->user?->notify(new HospitalActionNotification(
+            'Appointment scheduled',
+            'Your appointment is scheduled for '.$when.'.',
+            route('portal.appointments.index'),
+            'calendar',
+        ));
+    }
+
+    private function notifyAppointmentCancelled(Appointment $appointment): void
+    {
+        $appointment->loadMissing(['patient.user', 'doctor']);
+        $when = $appointment->scheduled_at->format('D, d M Y'.($appointment->isLab() ? ', g:i A' : ''));
+
+        $appointment->doctor?->notify(new HospitalActionNotification(
+            'Appointment cancelled',
+            'An appointment scheduled for '.$when.' was cancelled.',
+            route('appointments.index'),
+            'calendar',
+        ));
+
+        $appointment->patient?->user?->notify(new HospitalActionNotification(
+            'Appointment cancelled',
+            'Your appointment scheduled for '.$when.' was cancelled.',
+            route('portal.appointments.index'),
+            'calendar',
+        ));
     }
 
     /** @return Collection<int, Carbon> */
