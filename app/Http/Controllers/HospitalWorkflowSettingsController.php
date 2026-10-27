@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\HospitalWorkflow;
+use App\Services\HospitalSettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,15 +20,17 @@ class HospitalWorkflowSettingsController extends Controller
         'insulin_machine' => 'Insulin machine chart',
     ];
 
-    public function edit(): View
+    public function edit(HospitalSettingsService $settings): View
     {
         $workflow = HospitalWorkflow::query()->where('workflow', 'admission')->where('is_active', true)->latest('version')->first();
         $enabled = collect(data_get($workflow?->definition, 'sections', []))
             ->filter(fn ($section) => ($section['enabled'] ?? false) === true)
             ->pluck('key')->all();
 
-        return view('settings.admission-workflow', [
-            'sections' => self::OPTIONAL_SECTIONS,
+        return view('settings.hospital', [
+            'settings' => $settings->current(),
+            'section' => 'admission-workflow',
+            'workflowSections' => self::OPTIONAL_SECTIONS,
             'enabledSections' => $enabled,
             'version' => $workflow?->version ?? 0,
         ]);
@@ -68,6 +71,7 @@ class HospitalWorkflowSettingsController extends Controller
             ]);
         });
 
-        return redirect()->route('settings.admission-workflow')->with('success', 'Admission workflow saved as a new version. Existing clinical records were kept.');
+        return redirect()->route('settings.admission-workflow')
+            ->with('success', 'Admission workflow saved. Existing clinical records were kept.');
     }
 }

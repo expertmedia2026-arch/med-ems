@@ -7,15 +7,20 @@
         $onlinePaymentsEnabled = auth()->user()->hospital?->hasModule('online_payments') ?? false;
         $sections = [
             'basic' => ['title' => 'Basic details', 'description' => 'Hospital name and contact details'],
+            'admission-workflow' => ['title' => 'Admission workflow', 'description' => 'Choose the inpatient charts your hospital uses'],
             'payments' => ['title' => 'Payments', 'description' => 'Registration, A&E, and mortuary charges'.($onlinePaymentsEnabled ? ', plus patient online checkout' : '')],
             'branding' => ['title' => 'Branding', 'description' => 'Colors, logo, and patient card signature'],
         ];
-        $settingsRoute = fn ($target) => $target === 'basic'
-            ? route('settings.edit')
-            : route('settings.section', ['section' => $target]);
-        $saveRoute = $section === 'basic'
-            ? route('settings.update')
-            : route('settings.update.section', ['section' => $section]);
+        $settingsRoute = fn ($target) => match ($target) {
+            'basic' => route('settings.edit'),
+            'admission-workflow' => route('settings.admission-workflow'),
+            default => route('settings.section', ['section' => $target]),
+        };
+        $saveRoute = match ($section) {
+            'basic' => route('settings.update'),
+            'admission-workflow' => route('settings.admission-workflow.update'),
+            default => route('settings.update.section', ['section' => $section]),
+        };
     @endphp
 
     <div class="max-w-6xl">
@@ -31,15 +36,11 @@
 
         <div class="mb-6">
             <h2 class="text-xl font-semibold text-slate-900">Configure your hospital</h2>
-            <p class="mt-1 text-sm text-slate-600">Manage hospital information, online payments, and the colors used throughout the staff and patient websites.</p>
+            <p class="mt-1 text-sm text-slate-600">Manage hospital information, admission charts, payment options, and branding.</p>
         </div>
 
         <div class="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
             <nav aria-label="Hospital settings sections" class="h-fit rounded-xl border bg-white p-2 shadow-sm">
-                <a href="{{ route('settings.admission-workflow') }}" class="mb-1 block rounded-lg px-4 py-3 text-slate-700 hover:bg-slate-50">
-                    <span class="block text-sm font-semibold">Admission workflow</span>
-                    <span class="mt-0.5 block text-xs text-slate-500">Choose the inpatient charts your hospital uses</span>
-                </a>
                 @foreach ($sections as $key => $item)
                     <a href="{{ $settingsRoute($key) }}" @if ($section === $key) aria-current="page" @endif
                        class="mb-1 block rounded-lg px-4 py-3 last:mb-0 {{ $section === $key ? 'bg-teal-50 text-teal-900 ring-1 ring-teal-200' : 'text-slate-700 hover:bg-slate-50' }}">
@@ -92,6 +93,22 @@
                                 <input id="receipt_footer" name="receipt_footer" type="text" value="{{ old('receipt_footer', $settings->receipt_footer) }}" placeholder="Thank you. Get well soon." maxlength="255" class="{{ $input }}">
                                 @error('receipt_footer')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
+                        </div>
+                    @elseif ($section === 'admission-workflow')
+                        <div class="space-y-5">
+                            <div>
+                                <h4 class="text-base font-semibold text-slate-900">Choose admission chart sections</h4>
+                                <p class="mt-1 text-sm text-slate-600">Admission details, vitals, and care notes stay available. Choose which specialized charts your hospital uses. Saving creates a new workflow version and keeps existing records.</p>
+                            </div>
+                            <fieldset class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                <legend class="mb-3 text-sm font-semibold text-slate-900 sm:col-span-2 xl:col-span-3">Optional sections · current version {{ $version ?: 'default' }}</legend>
+                                @foreach ($workflowSections as $key => $label)
+                                    <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-4 text-sm text-slate-700">
+                                        <input type="checkbox" name="sections[]" value="{{ $key }}" @checked(in_array($key, old('sections', $enabledSections), true)) class="mt-0.5 rounded border-slate-300 text-teal-700">
+                                        <span><strong>{{ $label }}</strong></span>
+                                    </label>
+                                @endforeach
+                            </fieldset>
                         </div>
                     @elseif ($section === 'payments')
                         <div class="grid gap-5">
