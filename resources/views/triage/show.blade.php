@@ -20,7 +20,7 @@
     <div class="mx-auto max-w-5xl space-y-5">
         <a href="{{ route('triage.index') }}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-teal-700">
             <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 0 1-.02 1.06L9.06 10l3.71 3.71a.75.75 0 1 1-1.06 1.06l-4.24-4.24a.75.75 0 0 1 0-1.06l4.24-4.24a.75.75 0 0 1 1.08 0Z" clip-rule="evenodd"/></svg>
-            Back to Central Vitals
+                            Back to Triage
         </a>
 
         <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -123,7 +123,7 @@
                         <h2 class="font-semibold text-slate-900">Nursing assessment</h2>
                     <p class="mt-1 text-sm text-slate-500">Enter the observations taken during this visit. Temperature and pulse are required for routine visits; emergency readings can be saved when unavailable.</p>
                     </div>
-                    <span class="hidden rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800 sm:inline-flex">Central Vitals</span>
+                    <span class="hidden rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800 sm:inline-flex">Triage</span>
                 </div>
             </div>
 

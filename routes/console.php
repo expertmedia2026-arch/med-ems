@@ -9,14 +9,26 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Artisan::command('pharmacy:expire-stock-reservations', function (\App\Services\DrugInventoryService $inventory) {
-    $count = $inventory->expireReservations();
+    $context = app(\App\Support\HospitalContext::class);
+    $count = 0;
+    foreach (\App\Models\Hospital::where('is_active', true)->get() as $hospital) {
+        $context->set((int) $hospital->id);
+        $count += $inventory->expireReservations();
+    }
+    $context->set(null);
     $this->info("Expired {$count} unpaid stock reservation(s).");
 })->purpose('Release expired unpaid drug stock reservations');
 
 Schedule::command('pharmacy:expire-stock-reservations')->everyMinute()->withoutOverlapping();
 
 Artisan::command('mortuary:accrue-storage', function (\App\Services\MortuaryCaseService $mortuary) {
-    $count = $mortuary->accrueStorageCharges();
+    $context = app(\App\Support\HospitalContext::class);
+    $count = 0;
+    foreach (\App\Models\Hospital::where('is_active', true)->get() as $hospital) {
+        $context->set((int) $hospital->id);
+        $count += $mortuary->accrueStorageCharges();
+    }
+    $context->set(null);
     $this->info("Updated storage charges for {$count} mortuary case(s).");
 })->purpose('Add elapsed mortuary storage charges to invoices');
 

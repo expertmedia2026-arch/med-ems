@@ -4,6 +4,10 @@ use App\Http\Middleware\ApiResponseEnvelope;
 use App\Http\Middleware\EnsureNotPatient;
 use App\Http\Middleware\EnsureMainPharmacyAccess;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\EnsureGlobalAdmin;
+use App\Http\Middleware\EnsureHospitalModule;
+use App\Http\Middleware\SetHospitalContext;
+use App\Http\Middleware\EnsureWorkflowSection;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -30,10 +34,18 @@ return Application::configure(basePath: dirname(__DIR__))
             'active' => EnsureUserIsActive::class,
             'staff' => EnsureNotPatient::class,
             'main.pharmacy' => EnsureMainPharmacyAccess::class,
+            'global.admin' => EnsureGlobalAdmin::class,
+            'hospital' => SetHospitalContext::class,
+            'module' => EnsureHospitalModule::class,
+            'workflow.section' => EnsureWorkflowSection::class,
             'auth.session' => AuthenticateSession::class,
 
         ]);
         $middleware->api(append: [ApiResponseEnvelope::class]);
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            SetHospitalContext::class,
+        );
         // The payment gateway calls this URL itself, so it cannot carry a CSRF token
         $middleware->validateCsrfTokens(except: ['webhooks/*']);
 

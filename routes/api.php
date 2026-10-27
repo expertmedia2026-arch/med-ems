@@ -23,7 +23,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::post('auth/staff-invitations/{token}/accept', [AuthController::class, 'acceptStaffInvitation'])->name('auth.staff-invitations.accept');
     Route::post('auth/patient-invitations/{token}/accept', [AuthController::class, 'acceptPatientInvitation'])->name('auth.patient-invitations.accept');
 
-    Route::middleware(['auth:sanctum', 'active'])->group(function () {
+    Route::middleware(['auth:sanctum', 'active', 'hospital'])->group(function () {
         // Shared authenticated identity endpoints; logout revokes the current Sanctum token.
         Route::get('auth/me', [AuthController::class, 'show'])->name('auth.me');
         Route::delete('auth/logout', [AuthController::class, 'destroy'])->name('auth.logout');
@@ -39,20 +39,23 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::delete('profile', [AccountController::class, 'destroy'])->name('profile.destroy');
 
         // Patient-owned appointment booking and cancellation; staff use the /staff/appointments endpoints below.
-        Route::get('appointments', [AppointmentController::class, 'index'])->name('appointments.index');
-        Route::get('appointments/lab-options', [AppointmentController::class, 'labOptions'])->name('appointments.lab-options');
-        Route::post('appointments', [AppointmentController::class, 'store'])->name('appointments.store');
+        Route::get('appointments', [AppointmentController::class, 'index'])->middleware(['module:patient_portal', 'module:appointments'])->name('appointments.index');
+        Route::get('appointments/lab-options', [AppointmentController::class, 'labOptions'])->middleware(['module:patient_portal', 'module:appointments'])->name('appointments.lab-options');
+        Route::post('appointments', [AppointmentController::class, 'store'])->middleware(['module:patient_portal', 'module:appointments'])->name('appointments.store');
         Route::delete('appointments/{appointment}', [AppointmentController::class, 'cancel'])
+            ->middleware(['module:patient_portal', 'module:appointments'])
             ->whereNumber('appointment')
             ->name('appointments.cancel');
 
         // Patient portal reads are scoped to the authenticated patient's own record and files.
-        Route::get('patient/profile', [PatientController::class, 'profile'])->name('patient.profile');
-        Route::get('patient/visits', [PatientController::class, 'visits'])->name('patient.visits.index');
+        Route::get('patient/profile', [PatientController::class, 'profile'])->middleware('module:patient_portal')->name('patient.profile');
+        Route::get('patient/visits', [PatientController::class, 'visits'])->middleware('module:patient_portal')->name('patient.visits.index');
         Route::get('patient/visits/{visit}', [PatientController::class, 'showVisit'])
+            ->middleware('module:patient_portal')
             ->whereNumber('visit')
             ->name('patient.visits.show');
         Route::get('patient/attachments/{attachment}', [PatientController::class, 'attachment'])
+            ->middleware('module:patient_portal')
             ->whereNumber('attachment')
             ->name('patient.attachments.show');
 
@@ -63,11 +66,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             ->name('departments.consultation-types.index');
         Route::get('doctors', [ReferenceDataController::class, 'doctors'])->name('doctors.index');
         Route::get('doctors/{doctor}/availability', [ReferenceDataController::class, 'availability'])
+            ->middleware('module:appointments')
             ->whereNumber('doctor')
             ->name('doctors.availability.index');
 
         // Doctor-owned availability calendar management.
-        Route::middleware('role:doctor')->prefix('doctor')->name('doctor.')->group(function () {
+        Route::middleware(['role:doctor', 'module:appointments'])->prefix('doctor')->name('doctor.')->group(function () {
             Route::get('availability', [ReferenceDataController::class, 'myAvailability'])->name('availability.index');
             Route::post('availability', [ReferenceDataController::class, 'addAvailability'])->name('availability.store');
             Route::delete('availability/{doctorAvailability}', [ReferenceDataController::class, 'removeAvailability'])->whereNumber('doctorAvailability')->name('availability.destroy');
@@ -84,17 +88,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('patients', [PatientController::class, 'store'])->name('patients.store');
             Route::put('patients/{patient}', [PatientController::class, 'update'])->whereNumber('patient')->name('patients.update');
             Route::post('patients/{patient}/walk-ins', [PatientController::class, 'walkIn'])->whereNumber('patient')->name('patients.walk-ins.store');
-            Route::post('patients/{patient}/portal-invitation', [PatientController::class, 'invite'])->whereNumber('patient')->name('patients.invite');
-            Route::get('patients/{patient}/card', [PatientController::class, 'card'])->whereNumber('patient')->name('patients.card');
-            Route::post('appointments', [AppointmentController::class, 'staffStore'])->name('appointments.store');
-            Route::patch('appointments/{appointment}/doctor', [AppointmentController::class, 'reassignDoctor'])->whereNumber('appointment')->name('appointments.reassign-doctor');
-            Route::patch('appointments/{appointment}/cancel', [AppointmentController::class, 'staffCancel'])->whereNumber('appointment')->name('appointments.cancel');
-            Route::post('appointments/{appointment}/check-in', [AppointmentController::class, 'checkIn'])->whereNumber('appointment')->name('appointments.check-in');
+            Route::post('patients/{patient}/portal-invitation', [PatientController::class, 'invite'])->middleware('module:patient_portal')->whereNumber('patient')->name('patients.invite');
+            Route::get('patients/{patient}/card', [PatientController::class, 'card'])->middleware('module:patient_id_card')->whereNumber('patient')->name('patients.card');
+            Route::post('appointments', [AppointmentController::class, 'staffStore'])->middleware('module:appointments')->name('appointments.store');
+            Route::patch('appointments/{appointment}/doctor', [AppointmentController::class, 'reassignDoctor'])->middleware('module:appointments')->whereNumber('appointment')->name('appointments.reassign-doctor');
+            Route::patch('appointments/{appointment}/cancel', [AppointmentController::class, 'staffCancel'])->middleware('module:appointments')->whereNumber('appointment')->name('appointments.cancel');
+            Route::post('appointments/{appointment}/check-in', [AppointmentController::class, 'checkIn'])->middleware('module:appointments')->whereNumber('appointment')->name('appointments.check-in');
         });
-        Route::middleware('role:admin,receptionist,doctor')->prefix('staff')->name('staff.')->group(function () {
+        Route::middleware(['role:admin,receptionist,doctor', 'module:appointments'])->prefix('staff')->name('staff.')->group(function () {
             Route::get('appointments', [AppointmentController::class, 'staffIndex'])->name('appointments.index');
         });
-        Route::middleware('role:doctor')->get('staff/appointments/{appointment}', [AppointmentController::class, 'staffShow'])
+        Route::middleware(['role:doctor', 'module:appointments'])->get('staff/appointments/{appointment}', [AppointmentController::class, 'staffShow'])
             ->whereNumber('appointment')->name('staff.appointments.show');
 
         // Admin configuration: departments, consultation prices, staff accounts/invitations, and hospital settings.
@@ -118,20 +122,20 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         });
 
         // Triage queue and vitals capture; service rules lock vitals after consultation begins.
-        Route::middleware('role:admin,nurse')->prefix('triage')->name('triage.')->group(function () {
+        Route::middleware(['role:admin,nurse'])->prefix('triage')->name('triage.')->group(function () {
             Route::get('queue', [ClinicalController::class, 'triageIndex'])->name('queue');
             Route::get('{visit}', [ClinicalController::class, 'triageShow'])->whereNumber('visit')->name('show');
             Route::put('{visit}/vitals', [ClinicalController::class, 'triageStore'])->whereNumber('visit')->name('vitals.update');
         });
 
-        Route::middleware('role:admin,nurse')->prefix('nursing/medication-administrations')->name('nursing.administrations.')->group(function () {
+        Route::middleware(['role:admin,nurse', 'module:medication_administration'])->prefix('nursing/medication-administrations')->name('nursing.administrations.')->group(function () {
             Route::get('/', [NursingAdministrationController::class, 'index'])->name('index');
             Route::get('visits/{visit}', [NursingAdministrationController::class, 'show'])->whereNumber('visit')->name('show');
             Route::post('visits/{visit}/prescriptions/{prescription}', [NursingAdministrationController::class, 'store'])
                 ->whereNumber('visit')->whereNumber('prescription')->name('store');
             Route::post('visits/{visit}/discharge', [NursingAdministrationController::class, 'discharge'])->whereNumber('visit')->name('discharge');
         });
-        Route::middleware('role:admin,doctor')->post('nursing/medication-administrations/visits/{visit}/prescriptions/{prescription}/waiver', [NursingAdministrationController::class, 'waive'])
+        Route::middleware(['role:admin,doctor', 'module:medication_administration'])->post('nursing/medication-administrations/visits/{visit}/prescriptions/{prescription}/waiver', [NursingAdministrationController::class, 'waive'])
             ->whereNumber('visit')->whereNumber('prescription')->name('nursing.administrations.waive');
 
         // Doctor consultation workspace, including prescriptions and linked lab requests.
@@ -144,14 +148,14 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('{visit}/start', [ClinicalController::class, 'consultationStart'])->whereNumber('visit')->name('start');
             Route::put('{visit}', [ClinicalController::class, 'consultationUpdate'])->whereNumber('visit')->name('update');
             Route::put('{visit}/complete', [ClinicalController::class, 'consultationComplete'])->whereNumber('visit')->name('complete');
-            Route::post('{visit}/lab-requests', [ClinicalController::class, 'requestLabTests'])->whereNumber('visit')->name('lab-requests.store');
-            Route::delete('{visit}/lab-requests/{labRequest}', [ClinicalController::class, 'removeLabRequest'])->whereNumber('visit')->whereNumber('labRequest')->name('lab-requests.destroy');
+            Route::post('{visit}/lab-requests', [ClinicalController::class, 'requestLabTests'])->middleware('module:laboratory')->whereNumber('visit')->name('lab-requests.store');
+            Route::delete('{visit}/lab-requests/{labRequest}', [ClinicalController::class, 'removeLabRequest'])->middleware('module:laboratory')->whereNumber('visit')->whereNumber('labRequest')->name('lab-requests.destroy');
             Route::post('{visit}/prescriptions', [ClinicalController::class, 'prescribe'])->whereNumber('visit')->name('prescriptions.store');
             Route::delete('{visit}/prescriptions/{prescription}', [ClinicalController::class, 'removePrescription'])->whereNumber('visit')->whereNumber('prescription')->name('prescriptions.destroy');
         });
 
         // Lab reads and result reporting; doctors may read only results they are allowed to see.
-        Route::middleware('role:admin,lab,doctor')->prefix('lab')->name('lab.')->group(function () {
+        Route::middleware(['role:admin,lab,doctor', 'module:laboratory'])->prefix('lab')->name('lab.')->group(function () {
             Route::get('requests', [LabOperationsController::class, 'index'])->name('requests.index');
             Route::get('requests/{labRequest}', [LabOperationsController::class, 'show'])->whereNumber('labRequest')->name('requests.show');
             Route::get('visits/{visit}/report', [LabOperationsController::class, 'report'])->whereNumber('visit')->name('visits.report');
@@ -159,7 +163,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('tests', [LabOperationsController::class, 'tests'])->name('tests.index');
         });
         // Lab processing and catalogue mutations are restricted to lab staff and admins.
-        Route::middleware('role:admin,lab')->prefix('lab')->name('lab.')->group(function () {
+        Route::middleware(['role:admin,lab', 'module:laboratory'])->prefix('lab')->name('lab.')->group(function () {
             Route::put('requests/{labRequest}', [LabOperationsController::class, 'update'])->whereNumber('labRequest')->name('requests.update');
             Route::post('requests/{labRequest}/result', [LabOperationsController::class, 'update'])->whereNumber('labRequest')->name('requests.result');
             Route::delete('attachments/{attachment}', [LabOperationsController::class, 'deleteAttachment'])->whereNumber('attachment')->name('attachments.destroy');
@@ -168,14 +172,14 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::patch('tests/{labTest}/toggle', [LabOperationsController::class, 'toggleTest'])->whereNumber('labTest')->name('tests.toggle');
         });
         // Standalone external/walk-in lab orders: existing or new patient, without a consultation.
-        Route::middleware('role:admin,receptionist,lab')->prefix('lab/referrals')->name('lab.referrals.')->group(function () {
+        Route::middleware(['role:admin,receptionist,lab', 'module:laboratory', 'module:external_lab'])->prefix('lab/referrals')->name('lab.referrals.')->group(function () {
             Route::get('form-options', [LabOperationsController::class, 'createReferralForm'])->name('options');
             Route::post('/', [LabOperationsController::class, 'createReferral'])->name('store');
             Route::delete('{visit}', [LabOperationsController::class, 'cancelReferral'])->whereNumber('visit')->name('destroy');
         });
 
         // Pharmacy dispensing, inventory, restocking, and drug catalogue operations.
-        Route::middleware(['role:admin,pharmacist,chief_pharmacist', 'main.pharmacy'])->prefix('pharmacy')->name('pharmacy.')->group(function () {
+        Route::middleware(['role:admin,pharmacist,chief_pharmacist', 'main.pharmacy', 'module:pharmacy'])->prefix('pharmacy')->name('pharmacy.')->group(function () {
             Route::get('dashboard', [PharmacyOperationsController::class, 'dashboard'])->name('dashboard');
             Route::get('inventory', [PharmacyOperationsController::class, 'inventory'])->name('inventory');
             Route::post('inventory/{drug}/restock', [PharmacyOperationsController::class, 'restock'])->whereNumber('drug')->name('restock');
@@ -195,13 +199,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         });
 
         // Patient portal dashboard and own invoices, online payment confirmation, and receipts.
-        Route::middleware('role:patient')->prefix('patient')->name('patient.')->group(function () {
+        Route::middleware(['role:patient', 'module:patient_portal'])->prefix('patient')->name('patient.')->group(function () {
             Route::get('dashboard', [PatientController::class, 'dashboard'])->name('dashboard');
             Route::get('invoices', [BillingOperationsController::class, 'patientInvoices'])->name('invoices.index');
             Route::get('invoices/{invoice}', [BillingOperationsController::class, 'patientInvoice'])->whereNumber('invoice')->name('invoices.show');
-            Route::post('invoices/{invoice}/pay', [BillingOperationsController::class, 'startOnlinePayment'])->whereNumber('invoice')->name('invoices.pay');
-            Route::get('payments/confirm', [BillingOperationsController::class, 'confirmOnlinePayment'])->name('payments.confirm');
-            Route::get('payments/{payment}/receipt', [BillingOperationsController::class, 'patientReceipt'])->whereNumber('payment')->name('payments.receipt');
+            Route::post('invoices/{invoice}/pay', [BillingOperationsController::class, 'startOnlinePayment'])->middleware('module:online_payments')->whereNumber('invoice')->name('invoices.pay');
+            Route::get('payments/confirm', [BillingOperationsController::class, 'confirmOnlinePayment'])->middleware('module:online_payments')->name('payments.confirm');
+            Route::get('payments/{payment}/receipt', [BillingOperationsController::class, 'patientReceipt'])->middleware('module:online_payments')->whereNumber('payment')->name('payments.receipt');
         });
     });
 });

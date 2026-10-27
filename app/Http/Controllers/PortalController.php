@@ -12,6 +12,9 @@ class PortalController extends Controller
         $patient = $request->user()->patient;
         abort_unless($patient, 403);
 
-        return view('portal.home', $dashboard->data($patient));
+        return view('portal.home', $dashboard->data($patient) + [
+            'appointmentsEnabled' => $request->user()->hospital?->hasModule('appointments') ?? false,
+            'onlinePaymentsEnabled' => $request->user()->hospital?->hasModule('online_payments') ?? false,
+        ]);
     }
 }

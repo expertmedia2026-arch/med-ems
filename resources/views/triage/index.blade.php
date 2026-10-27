@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">Central Vitals</x-slot>
+    <x-slot name="header">Triage</x-slot>
 
     <div class="space-y-6">
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -11,7 +11,7 @@
                         </svg>
                     </span>
                     <div>
-                        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Central Vitals</h1>
+                        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Triage</h1>
                         <p class="mt-1 text-sm text-slate-500">Record observations and route patients to their doctor. Emergency visits are prioritized and do not wait for billing.</p>
                     </div>
                 </div>
@@ -26,7 +26,7 @@
                         <p class="text-sm font-medium text-slate-500">Awaiting vitals</p>
                         <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{{ $waitingCount }}</p>
                     </div>
-                    <span class="rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">OPD queue</span>
+                    <span class="rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Department queue</span>
                 </div>
                 <p class="mt-3 text-xs text-slate-500">Patients checked in and ready for nursing assessment.</p>
             </div>

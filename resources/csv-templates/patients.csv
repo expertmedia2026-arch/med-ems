@@ -1,0 +1,2 @@
+hospital_number,first_name,last_name,gender,date_of_birth,phone,email,address,blood_group,genotype,allergies,next_of_kin_name,next_of_kin_phone,is_nhis,nhis_number,registration_paid_at
+,Sample,Patient,female,1990-04-15,08000000002,sample.patient@example.test,"Demo address, Enugu",O+,AA,,Next of Kin,08000000003,0,,

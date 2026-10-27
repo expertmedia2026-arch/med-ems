@@ -11,11 +11,12 @@
             <p class="text-sm text-slate-500">Outstanding balance</p>
             <p class="mt-2 text-3xl font-bold {{ $outstanding > 0 ? 'text-red-700' : 'text-green-700' }}">₦{{ number_format($outstanding, 2) }}</p>
             <p class="mt-1 text-xs text-slate-400">{{ $unpaidInvoices }} unpaid invoice(s)</p>
-            @if ($outstanding > 0)
+            @if ($outstanding > 0 && $onlinePaymentsEnabled)
                 <a href="{{ route('portal.invoices.index') }}" class="mt-2 inline-block text-xs font-medium text-teal-700 hover:underline">Pay now</a>
             @endif
         </div>
 
+        @if ($appointmentsEnabled)
         <div class="rounded-xl border bg-white p-5 shadow-sm">
             <p class="text-sm text-slate-500">Next appointment</p>
             @if ($nextAppointment)
@@ -25,6 +26,7 @@
                 <p class="mt-2 text-sm text-slate-500">Nothing booked.</p>
             @endif
         </div>
+        @endif
 
         <div class="rounded-xl border bg-white p-5 shadow-sm">
             <p class="text-sm text-slate-500">Last visit</p>

@@ -8,7 +8,7 @@
                 <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Accident &amp; Emergency (A&amp;E)</h1>
                 <p class="mt-1 text-sm text-slate-500">Register arrivals, prioritize triage, and follow patients through A&amp;E.</p>
             </div>
-            @if (auth()->user()->canAccessEmergencyPharmacy())
+            @if (auth()->user()->canAccessEmergencyPharmacy() && auth()->user()->hospital?->hasModule('emergency_pharmacy'))
                 <a href="{{ route('emergency.pharmacy.index') }}" class="rounded-lg border border-rose-700 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50">A&amp;E Pharmacy and stock</a>
             @endif
             @if (auth()->user()->hasRole('admin', 'nurse'))
@@ -205,7 +205,7 @@
                                         <a href="{{ route('consultations.show', $visit) }}" class="font-semibold text-teal-700 hover:underline">Open consultation</a>
                                     @elseif (in_array($visit->status->value, ['waiting_doctor', 'in_consultation']) && auth()->user()->hasRole('admin', 'nurse'))
                                         <a href="{{ route('triage.show', $visit) }}" class="font-semibold text-teal-700 hover:underline">Monitor vitals</a>
-                                        @if ($visit->status->value === 'in_consultation' && $visit->nursing_orders_count)
+                                        @if ($visit->status->value === 'in_consultation' && $visit->nursing_orders_count && auth()->user()->hospital?->hasModule('medication_administration'))
                                             <span class="mx-1 text-slate-300">·</span>
                                             <a href="{{ route('nursing.administrations.show', $visit) }}" class="font-semibold text-teal-700 hover:underline">Nursing care</a>
                                         @endif

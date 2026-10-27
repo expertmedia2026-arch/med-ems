@@ -19,6 +19,7 @@ use App\Models\Visit;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use App\Support\HospitalContext;
 
 class DashboardService
 {
@@ -233,6 +234,8 @@ class DashboardService
     {
         return (int) DB::table('prescriptions')
             ->join('visits', 'visits.id', '=', 'prescriptions.visit_id')
+            ->where('prescriptions.hospital_id', app(HospitalContext::class)->id())
+            ->whereColumn('prescriptions.hospital_id', 'visits.hospital_id')
             ->where('prescriptions.status', 'completed')
             ->whereDate('prescriptions.dispensed_at', today())
             ->distinct('visits.patient_id')

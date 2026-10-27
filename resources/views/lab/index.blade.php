@@ -21,7 +21,7 @@
         </div>
     </form>
 
-    @if (auth()->user()->hasRole('admin', 'lab'))
+    @if (auth()->user()->hasRole('admin', 'lab') && auth()->user()->hospital?->hasModule('external_lab'))
         <div class="mb-6">
             <a href="{{ route('lab.referrals.create') }}"
                class="inline-block rounded-lg border border-teal-700 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">

@@ -4,12 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Support\HospitalContext;
 
 class HospitalSetting extends Model
 {
     protected $guarded = [];
-
-    private static ?self $current = null;
 
     protected function casts(): array
     {
@@ -28,8 +28,25 @@ class HospitalSetting extends Model
 
     public static function current(): self
     {
-        return self::$current ??= static::first()
-            ?? static::create(['name' => config('app.name', 'Hospital')]);
+        $hospitalId = app(HospitalContext::class)->id() ?? auth()->user()?->hospital_id;
+
+        if ($hospitalId === null) {
+            return static::withoutGlobalScope('hospital')->orderBy('id')->first()
+                ?? new static(['name' => config('app.name', 'Hospital')]);
+        }
+
+        return static::query()
+            ->where('hospital_id', $hospitalId)
+            ->first()
+            ?? static::create([
+                'hospital_id' => $hospitalId,
+                'name' => config('app.name', 'Hospital'),
+            ]);
+    }
+
+    public function hospital(): BelongsTo
+    {
+        return $this->belongsTo(Hospital::class);
     }
 
     protected function logoUrl(): Attribute

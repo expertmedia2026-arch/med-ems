@@ -13,6 +13,7 @@ use App\Models\Visit;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use App\Support\HospitalContext;
 
 class PharmacyService
 {
@@ -82,6 +83,9 @@ class PharmacyService
             ->join('visits', 'visits.id', '=', 'prescriptions.visit_id')
             ->join('drugs', 'drugs.id', '=', 'prescriptions.drug_id')
             ->where('prescriptions.status', WorkStatus::Completed->value)
+            ->where('prescriptions.hospital_id', app(HospitalContext::class)->id())
+            ->whereColumn('prescriptions.hospital_id', 'visits.hospital_id')
+            ->whereColumn('prescriptions.hospital_id', 'drugs.hospital_id')
             ->whereNotNull('prescriptions.dispensed_at')
             ->when($start, fn ($query) => $query->where('prescriptions.dispensed_at', '>=', $start->startOfDay()))
             ->when($end, fn ($query) => $query->where('prescriptions.dispensed_at', '<=', $end->endOfDay()));
@@ -95,6 +99,8 @@ class PharmacyService
         $activePharmacists = DB::table('prescriptions')
             ->join('users as dispensers', 'dispensers.id', '=', 'prescriptions.dispensed_by')
             ->where('prescriptions.status', WorkStatus::Completed->value)
+            ->where('prescriptions.hospital_id', app(HospitalContext::class)->id())
+            ->whereColumn('prescriptions.hospital_id', 'dispensers.hospital_id')
             ->whereNotNull('prescriptions.dispensed_at')
             ->whereIn('dispensers.role', [Role::Pharmacist->value, Role::ChiefPharmacist->value])
             ->where('dispensers.department_id', $pharmacyDepartmentId ?? 0)
@@ -116,6 +122,9 @@ class PharmacyService
             ->join('visits', 'visits.id', '=', 'prescriptions.visit_id')
             ->join('drugs', 'drugs.id', '=', 'prescriptions.drug_id')
             ->where('prescriptions.status', WorkStatus::Completed->value)
+            ->where('prescriptions.hospital_id', app(HospitalContext::class)->id())
+            ->whereColumn('prescriptions.hospital_id', 'visits.hospital_id')
+            ->whereColumn('prescriptions.hospital_id', 'drugs.hospital_id')
             ->whereNotNull('prescriptions.dispensed_at')
             ->whereNotNull('prescriptions.dispensed_by')
             ->when($start, fn ($query) => $query->where('prescriptions.dispensed_at', '>=', $start->startOfDay()))

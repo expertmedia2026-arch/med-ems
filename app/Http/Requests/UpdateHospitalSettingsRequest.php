@@ -69,7 +69,9 @@ class UpdateHospitalSettingsRequest extends FormRequest
 
         return match ($section ?? 'basic') {
             'payments' => [
-                'payment_gateway' => ['required', Rule::in(['paystack', 'manual'])],
+                'payment_gateway' => $this->user()?->hospital?->hasModule('online_payments')
+                    ? ['required', Rule::in(['paystack', 'manual'])]
+                    : ['nullable', Rule::in(['paystack', 'manual'])],
                 'registration_fee' => ['required', 'numeric', 'min:0', 'max:99999999'],
                 'emergency_fee' => ['required', 'numeric', 'min:0', 'max:99999999'],
                 'mortuary_intake_fee' => ['required', 'numeric', 'min:0', 'max:99999999'],

@@ -185,32 +185,31 @@
             @endif
 
             @if ($frontDesk)
-                @if ($patient->registration_paid_at)
+                @if ($patientIdCardEnabled && $patient->registration_paid_at)
                     <a href="{{ route('patients.card', $patient) }}" class="block rounded-xl bg-teal-700 p-4 text-center text-sm font-medium text-white shadow-sm hover:bg-teal-800">
                         Print patient card
                     </a>
-                @else
+                @elseif ($patientIdCardEnabled)
                     <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                         Patient card printing will be available after the registration fee is paid.
                     </div>
                 @endif
-                <a href="{{ route('appointments.create', ['patient' => $patient->hospital_number]) }}"
-                   class="block rounded-xl border bg-white p-4 text-center text-sm font-medium text-teal-700 shadow-sm hover:bg-slate-50">
-                    Book appointment
-                </a>
-                <a href="{{ route('lab.referrals.create', ['patient' => $patient->id]) }}"
-                    class="block rounded-xl border bg-white p-4 text-center text-sm font-medium text-teal-700 shadow-sm hover:bg-slate-50">
-                    Lab-only request (referral)
-                </a>
+                @if ($appointmentsEnabled)
+                    <a href="{{ route('appointments.create', ['patient' => $patient->hospital_number]) }}" class="block rounded-xl border bg-white p-4 text-center text-sm font-medium text-teal-700 shadow-sm hover:bg-slate-50">Book appointment</a>
+                @endif
+                @if ($externalLabEnabled)
+                    <a href="{{ route('lab.referrals.create', ['patient' => $patient->id]) }}" class="block rounded-xl border bg-white p-4 text-center text-sm font-medium text-teal-700 shadow-sm hover:bg-slate-50">Lab-only request (referral)</a>
+                @endif
             @endif
 
 
-            @if (session('portal_invitation_sent'))
+            @if ($patientPortalEnabled && session('portal_invitation_sent'))
                 <div class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-900">
                     <p class="font-medium">Portal invitation link (valid 7 days, single use)</p>
                 </div>
             @endif
 
+            @if ($patientPortalEnabled)
             <div class="rounded-xl border bg-white p-5 text-sm shadow-sm">
                 <p class="font-semibold">Patient portal</p>
 
@@ -253,6 +252,7 @@
                     </form>
                 @endif
             </div>
+            @endif
 
         </div>
     </div>

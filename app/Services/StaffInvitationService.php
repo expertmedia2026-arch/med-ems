@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\HospitalSetting;
 use App\Models\StaffInvitation;
 use App\Models\User;
+use App\Support\HospitalContext;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -15,9 +16,15 @@ use Illuminate\Support\Str;
 
 class StaffInvitationService
 {
+    public function __construct(private readonly HospitalContext $context) {}
+
     public function findUsable(string $token): ?StaffInvitation
     {
         $invitation = StaffInvitation::findByToken($token);
+
+        if ($invitation) {
+            $this->context->set((int) $invitation->hospital_id);
+        }
 
         if (! $invitation?->isUsable() || User::where('email', $invitation->email)->exists()) {
             return null;

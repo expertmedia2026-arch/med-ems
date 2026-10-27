@@ -11,11 +11,14 @@
 <body class="bg-slate-50 font-sans antialiased text-slate-800">
 @php
     $user = auth()->user();
-    $menu = collect(config('menu'))->filter(
-        fn ($item) => isset($item['permission'])
+    $menu = collect(config('menu'))->filter(function ($item) use ($user, $hospitalModules) {
+        $allowedByRole = isset($item['permission'])
             ? $user->{$item['permission']}()
-            : ($item['roles'] === '*' || $user->hasRole(...$item['roles']))
-    );
+            : ($item['roles'] === '*' || $user->hasRole(...$item['roles']));
+        $requiredModules = $item['modules'] ?? (isset($item['module']) ? [$item['module']] : []);
+
+        return $allowedByRole && collect($requiredModules)->every(fn ($module) => in_array($module, $hospitalModules ?? [], true));
+    });
 @endphp
 
 <div x-data="{ open: false }" class="min-h-screen lg:flex">

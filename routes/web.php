@@ -13,6 +13,10 @@ use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DepartmentInventoryController;
 use App\Http\Controllers\DoctorAvailabilityController;
 use App\Http\Controllers\FinanceController;
+use App\Http\Controllers\HospitalWorkflowSettingsController;
+use App\Http\Controllers\GlobalAdmin\HospitalOnboardingController;
+use App\Http\Controllers\GlobalAdmin\PlatformAdminController;
+use App\Http\Controllers\GlobalAdmin\ProfileController as GlobalAdminProfileController;
 use App\Http\Controllers\DrugController;
 use App\Http\Controllers\InvitationAcceptController;
 use App\Http\Controllers\LabAttachmentController;
@@ -45,8 +49,27 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'welcome')->name('home');
 
 Route::get('patients/{patient}/photo', [PatientMediaController::class, 'photo'])
-    ->middleware(['auth', 'auth.session', 'active'])
+    ->middleware(['auth', 'auth.session', 'active', 'hospital'])
     ->name('patients.photo');
+
+Route::middleware(['auth', 'auth.session', 'active', 'global.admin'])
+    ->prefix('global-admin')->name('global-admin.')
+    ->group(function () {
+        Route::get('/', [HospitalOnboardingController::class, 'dashboard'])->name('dashboard');
+        Route::get('hospitals', [HospitalOnboardingController::class, 'index'])->name('hospitals.index');
+        Route::get('hospitals/create', [HospitalOnboardingController::class, 'create'])->name('hospitals.create');
+        Route::post('hospitals', [HospitalOnboardingController::class, 'store'])->name('hospitals.store');
+        Route::get('configuration', [HospitalOnboardingController::class, 'configuration'])->name('configuration');
+        Route::get('admins', [PlatformAdminController::class, 'index'])->name('admins.index');
+        Route::post('admins', [PlatformAdminController::class, 'store'])->name('admins.store');
+        Route::patch('admins/{user}/toggle', [PlatformAdminController::class, 'toggle'])->whereNumber('user')->name('admins.toggle');
+        Route::get('profile', [GlobalAdminProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('profile', [GlobalAdminProfileController::class, 'update'])->name('profile.update');
+        Route::put('profile/password', [GlobalAdminProfileController::class, 'updatePassword'])->name('profile.password');
+        Route::get('hospitals/{hospital}/edit', [HospitalOnboardingController::class, 'edit'])->whereNumber('hospital')->name('hospitals.edit');
+        Route::put('hospitals/{hospital}', [HospitalOnboardingController::class, 'update'])->whereNumber('hospital')->name('hospitals.update');
+        Route::patch('hospitals/{hospital}/toggle', [HospitalOnboardingController::class, 'toggle'])->whereNumber('hospital')->name('hospitals.toggle');
+    });
 
 // Payment gateway notifications (no login, no CSRF; protected by the gateway's signature)
 Route::post('webhooks/paystack', PaystackWebhookController::class)->name('webhooks.paystack');
@@ -65,7 +88,7 @@ Route::middleware('guest')->group(function () {
 });
 
 // ---------------- Patient portal ----------------
-Route::middleware(['auth', 'auth.session', 'active', 'role:patient'])->prefix('portal')->name('portal.')->group(function () {
+Route::middleware(['auth', 'auth.session', 'active', 'hospital', 'role:patient', 'module:patient_portal'])->prefix('portal')->name('portal.')->group(function () {
     Route::get('/', [PortalController::class, 'home'])->name('home');
     Route::view('settings', 'portal.settings')->name('settings');
 
@@ -76,24 +99,24 @@ Route::middleware(['auth', 'auth.session', 'active', 'role:patient'])->prefix('p
     Route::get('attachments/{attachment}', [PortalVisitController::class, 'attachment'])->whereNumber('attachment')->name('attachments.show');
 
     // Appointments
-    Route::get('appointments', [PortalAppointmentController::class, 'index'])->name('appointments.index');
-    Route::get('appointments/create', [PortalAppointmentController::class, 'create'])->name('appointments.create');
-    Route::post('appointments', [PortalAppointmentController::class, 'store'])->name('appointments.store');
-    Route::patch('appointments/{appointment}/cancel', [PortalAppointmentController::class, 'cancel'])->whereNumber('appointment')->name('appointments.cancel');
+    Route::get('appointments', [PortalAppointmentController::class, 'index'])->middleware('module:appointments')->name('appointments.index');
+    Route::get('appointments/create', [PortalAppointmentController::class, 'create'])->middleware('module:appointments')->name('appointments.create');
+    Route::post('appointments', [PortalAppointmentController::class, 'store'])->middleware('module:appointments')->name('appointments.store');
+    Route::patch('appointments/{appointment}/cancel', [PortalAppointmentController::class, 'cancel'])->middleware('module:appointments')->whereNumber('appointment')->name('appointments.cancel');
 
     // Invoices and online payment
     Route::get('invoices', [PortalInvoiceController::class, 'index'])->name('invoices.index');
     Route::get('invoices/{invoice}', [PortalInvoiceController::class, 'show'])->whereNumber('invoice')->name('invoices.show');
-    Route::post('invoices/{invoice}/pay', [PortalInvoiceController::class, 'pay'])->whereNumber('invoice')->name('invoices.pay');
-    Route::get('payments/callback', [PortalInvoiceController::class, 'callback'])->name('payments.callback');
-    Route::get('payments/{payment}/receipt', [PortalInvoiceController::class, 'receipt'])->whereNumber('payment')->name('payments.receipt');
+    Route::post('invoices/{invoice}/pay', [PortalInvoiceController::class, 'pay'])->middleware('module:online_payments')->whereNumber('invoice')->name('invoices.pay');
+    Route::get('payments/callback', [PortalInvoiceController::class, 'callback'])->middleware('module:online_payments')->name('payments.callback');
+    Route::get('payments/{payment}/receipt', [PortalInvoiceController::class, 'receipt'])->middleware('module:online_payments')->whereNumber('payment')->name('payments.receipt');
 });
 
 // ---------------- Staff ----------------
-Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function () {
+Route::middleware(['auth', 'auth.session', 'active', 'hospital', 'staff'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
-    Route::middleware('role:admin,mortuary_attendant')->prefix('mortuary')->name('mortuary.')->group(function () {
+    Route::middleware(['role:admin,mortuary_attendant', 'module:mortuary'])->prefix('mortuary')->name('mortuary.')->group(function () {
         Route::get('/', [MortuaryController::class, 'index'])->name('index');
         Route::post('walk-in', [MortuaryController::class, 'storeWalkIn'])->name('walk-in.store');
         Route::get('{mortuaryCase}', [MortuaryController::class, 'show'])->whereNumber('mortuaryCase')->name('show');
@@ -102,7 +125,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         Route::post('{mortuaryCase}/release', [MortuaryController::class, 'release'])->whereNumber('mortuaryCase')->name('release');
     });
 
-    Route::middleware('role:admin,receptionist,nurse,doctor')->group(function () {
+    Route::middleware(['role:admin,receptionist,nurse,doctor', 'module:emergency'])->group(function () {
         Route::get('emergency', [EmergencyController::class, 'index'])->name('emergency.index');
         Route::post('emergency/patients/{patient}', [EmergencyController::class, 'store'])
             ->middleware('role:admin,receptionist,nurse')->name('emergency.store');
@@ -117,9 +140,10 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         Route::post('emergency/visits/{visit}/notes', [EmergencyController::class, 'addProgressNote'])
             ->middleware('role:doctor,nurse')->whereNumber('visit')->name('emergency.notes.store');
         Route::post('emergency/mortuary/{mortuaryCase}/receive', [EmergencyController::class, 'receiveMortuaryCase'])
-            ->middleware('role:admin,nurse')->whereNumber('mortuaryCase')->name('emergency.mortuary.receive');
+            ->middleware(['role:admin,nurse', 'module:mortuary'])->whereNumber('mortuaryCase')->name('emergency.mortuary.receive');
     });
 
+    Route::middleware(['module:emergency', 'module:pharmacy', 'module:emergency_pharmacy'])->group(function () {
     Route::get('emergency/pharmacy', [EmergencyPharmacyController::class, 'index'])->name('emergency.pharmacy.index');
     Route::post('emergency/pharmacy/items', [EmergencyPharmacyController::class, 'storeItem'])->name('emergency.pharmacy.items.store');
     Route::put('emergency/pharmacy/items/{emergencyPharmacyItem}', [EmergencyPharmacyController::class, 'update'])->whereNumber('emergencyPharmacyItem')->name('emergency.pharmacy.items.update');
@@ -127,6 +151,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
     Route::patch('emergency/pharmacy/items/{emergencyPharmacyItem}/status', [EmergencyPharmacyController::class, 'toggle'])->whereNumber('emergencyPharmacyItem')->name('emergency.pharmacy.items.status');
     Route::post('emergency/visits/{visit}/items-used', [EmergencyPharmacyController::class, 'recordUse'])
         ->middleware('role:admin,nurse,doctor')->whereNumber('visit')->name('emergency.items-used.store');
+    });
 
     Route::get('data/{dataset}/export', [CsvTransferController::class, 'export'])->name('data.export');
     Route::post('data/{dataset}/import', [CsvTransferController::class, 'import'])->name('data.import');
@@ -135,7 +160,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::middleware('role:doctor')->prefix('doctor')->name('doctor.')->group(function () {
+    Route::middleware(['role:doctor', 'module:appointments'])->prefix('doctor')->name('doctor.')->group(function () {
         Route::get('availability', [DoctorAvailabilityController::class, 'index'])->name('availability.index');
         Route::post('availability', [DoctorAvailabilityController::class, 'store'])->name('availability.store');
         Route::delete('availability/{doctorAvailability}', [DoctorAvailabilityController::class, 'destroy'])->name('availability.destroy');
@@ -146,6 +171,8 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
 
     // Admin: staff management and hospital settings
     Route::middleware('role:admin')->group(function () {
+        Route::get('settings/admission-workflow', [HospitalWorkflowSettingsController::class, 'edit'])->name('settings.admission-workflow');
+        Route::put('settings/admission-workflow', [HospitalWorkflowSettingsController::class, 'update'])->name('settings.admission-workflow.update');
         Route::resource('departments', DepartmentController::class)->except('show');
         Route::resource('consultation-types', ConsultationTypeController::class)->except(['show', 'destroy']);
 
@@ -178,15 +205,15 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         Route::post('patients', [PatientController::class, 'store'])->name('patients.store');
         Route::get('patients/{patient}/edit', [PatientController::class, 'edit'])->name('patients.edit');
         Route::put('patients/{patient}', [PatientController::class, 'update'])->name('patients.update');
-        Route::get('patients/{patient}/card', [PatientController::class, 'card'])->name('patients.card');
+        Route::get('patients/{patient}/card', [PatientController::class, 'card'])->middleware('module:patient_id_card')->name('patients.card');
         Route::post('patients/{patient}/check-in', [VisitController::class, 'walkIn'])->name('patients.check-in');
-        Route::post('patients/{patient}/portal-invite', [PatientPortalController::class, 'invite'])->name('patients.portal-invite');
+        Route::post('patients/{patient}/portal-invite', [PatientPortalController::class, 'invite'])->middleware('module:patient_portal')->name('patients.portal-invite');
 
-        Route::get('appointments/create', [AppointmentController::class, 'create'])->name('appointments.create');
-        Route::post('appointments', [AppointmentController::class, 'store'])->name('appointments.store');
-        Route::patch('appointments/{appointment}/doctor', [AppointmentController::class, 'reassignDoctor'])->whereNumber('appointment')->name('appointments.reassign-doctor');
-        Route::patch('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
-        Route::post('appointments/{appointment}/check-in', [VisitController::class, 'fromAppointment'])->name('appointments.check-in');
+        Route::get('appointments/create', [AppointmentController::class, 'create'])->middleware('module:appointments')->name('appointments.create');
+        Route::post('appointments', [AppointmentController::class, 'store'])->middleware('module:appointments')->name('appointments.store');
+        Route::patch('appointments/{appointment}/doctor', [AppointmentController::class, 'reassignDoctor'])->middleware('module:appointments')->whereNumber('appointment')->name('appointments.reassign-doctor');
+        Route::patch('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->middleware('module:appointments')->name('appointments.cancel');
+        Route::post('appointments/{appointment}/check-in', [VisitController::class, 'fromAppointment'])->middleware('module:appointments')->name('appointments.check-in');
     });
 
     // Read access
@@ -197,11 +224,11 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
     });
 
     Route::get('appointments', [AppointmentController::class, 'index'])
-        ->middleware('role:admin,receptionist,doctor')
+        ->middleware(['role:admin,receptionist,doctor', 'module:appointments'])
         ->name('appointments.index');
 
     Route::get('appointments/{appointment}', [AppointmentController::class, 'show'])
-        ->middleware('role:admin,doctor')
+        ->middleware(['role:admin,doctor', 'module:appointments'])
         ->name('appointments.show');
 
     // Read-only completed consultation details are available to administrators and the assigned doctor.
@@ -209,10 +236,11 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         ->middleware('role:admin,doctor')
         ->name('consultations.history');
 
-    Route::middleware('role:admin,doctor,nurse')->prefix('admissions')->name('admissions.')->group(function () {
+    Route::middleware(['role:admin,doctor,nurse', 'module:inpatient'])->prefix('admissions')->name('admissions.')->group(function () {
         Route::get('/', [AdmissionController::class, 'index'])->name('index');
         Route::get('{admission}', [AdmissionController::class, 'show'])->whereNumber('admission')->name('show');
     });
+    Route::middleware('module:inpatient')->group(function () {
     Route::post('admissions/{admission}/lab-results/{labRequest}/review', [AdmissionController::class, 'reviewLabResult'])
         ->middleware('role:admin,doctor')->whereNumber('admission')->whereNumber('labRequest')->name('admissions.lab-results.review');
     Route::post('admissions/{admission}/discharge', [AdmissionController::class, 'discharge'])
@@ -230,44 +258,45 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
     Route::post('admissions/{admission}/prescriptions', [AdmissionController::class, 'prescribe'])
         ->middleware('role:doctor')->whereNumber('admission')->name('admissions.prescriptions.store');
     Route::post('admissions/{admission}/sugar-checks', [AdmissionController::class, 'sugarCheck'])
-        ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.sugar-checks.store');
+        ->middleware(['role:admin,nurse,doctor', 'workflow.section:sugar_checks'])->whereNumber('admission')->name('admissions.sugar-checks.store');
     Route::post('admissions/{admission}/fluid-entries', [AdmissionController::class, 'fluidEntry'])
-        ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.fluid-entries.store');
+        ->middleware(['role:admin,nurse,doctor', 'workflow.section:fluid_balance'])->whereNumber('admission')->name('admissions.fluid-entries.store');
     Route::post('admissions/{admission}/oxygen', [AdmissionController::class, 'oxygen'])
-        ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.oxygen.store');
+        ->middleware(['role:admin,nurse,doctor', 'workflow.section:oxygen'])->whereNumber('admission')->name('admissions.oxygen.store');
     Route::post('admissions/{admission}/nebulizer-uses', [AdmissionController::class, 'nebulizer'])
-        ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.nebulizer.store');
+        ->middleware(['role:admin,nurse,doctor', 'workflow.section:nebulizer'])->whereNumber('admission')->name('admissions.nebulizer.store');
     Route::post('admissions/{admission}/insulin-machine-blocks', [AdmissionController::class, 'startInsulinMachineBlock'])
-        ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.insulin-machine-blocks.store');
+        ->middleware(['role:admin,nurse,doctor', 'workflow.section:insulin_machine'])->whereNumber('admission')->name('admissions.insulin-machine-blocks.store');
     Route::post('admissions/{admission}/insulin-machine-blocks/uses', [AdmissionController::class, 'recordInsulinMachineUse'])
-        ->middleware('role:admin,nurse,doctor')->whereNumber('admission')->name('admissions.insulin-machine-blocks.uses.store');
+        ->middleware(['role:admin,nurse,doctor', 'workflow.section:insulin_machine'])->whereNumber('admission')->name('admissions.insulin-machine-blocks.uses.store');
     Route::post('admissions/{admission}/dama', [AdmissionController::class, 'dama'])
         ->middleware('role:admin,doctor')->whereNumber('admission')->name('admissions.dama.store');
     Route::get('admissions/{admission}/dama/print', [AdmissionController::class, 'printDama'])
         ->whereNumber('admission')->name('admissions.dama.print');
     Route::get('admissions/{admission}/dama/witnesses/{witness}', [AdmissionController::class, 'damaWitness'])
         ->whereNumber('admission')->whereNumber('witness')->name('admissions.dama.witness');
+    });
 
     // Department staff duty roster
     Route::get('nursing/roster', [NurseRosterController::class, 'index'])
-        ->middleware('role:admin,receptionist,nurse,chief_nurse,doctor,lab,pharmacist,chief_pharmacist,accountant,chief_accountant,mortuary_attendant')->name('nursing.roster.index');
+        ->middleware(['role:admin,receptionist,nurse,chief_nurse,doctor,lab,pharmacist,chief_pharmacist,accountant,chief_accountant,mortuary_attendant', 'module:staff_roster'])->name('nursing.roster.index');
     Route::put('nursing/roster/{staff}', [NurseRosterController::class, 'update'])
-        ->middleware('role:admin,receptionist,nurse,chief_nurse,doctor,lab,pharmacist,chief_pharmacist,accountant,chief_accountant,mortuary_attendant')->whereNumber('staff')->name('nursing.roster.update');
+        ->middleware(['role:admin,receptionist,nurse,chief_nurse,doctor,lab,pharmacist,chief_pharmacist,accountant,chief_accountant,mortuary_attendant', 'module:staff_roster'])->whereNumber('staff')->name('nursing.roster.update');
 
-    Route::middleware('role:admin,nurse')->prefix('triage')->name('triage.')->group(function () {
+    Route::middleware(['role:admin,nurse'])->prefix('triage')->name('triage.')->group(function () {
         Route::get('/', [TriageController::class, 'index'])->name('index');
         Route::get('{visit}', [TriageController::class, 'show'])->name('show');
         Route::post('{visit}', [TriageController::class, 'store'])->name('store');
     });
 
-    Route::middleware('role:admin,nurse')->prefix('nursing/medication-administrations')->name('nursing.administrations.')->group(function () {
+    Route::middleware(['role:admin,nurse', 'module:medication_administration'])->prefix('nursing/medication-administrations')->name('nursing.administrations.')->group(function () {
         Route::get('/', [NursingAdministrationController::class, 'index'])->name('index');
         Route::get('visits/{visit}', [NursingAdministrationController::class, 'show'])->whereNumber('visit')->name('show');
         Route::post('visits/{visit}/prescriptions/{prescription}', [NursingAdministrationController::class, 'store'])
             ->whereNumber('visit')->whereNumber('prescription')->name('store');
         Route::post('visits/{visit}/discharge', [NursingAdministrationController::class, 'discharge'])->whereNumber('visit')->name('discharge');
     });
-    Route::middleware('role:admin,doctor')->post('nursing/medication-administrations/visits/{visit}/prescriptions/{prescription}/waiver', [NursingAdministrationController::class, 'waive'])
+    Route::middleware(['role:admin,doctor', 'module:medication_administration'])->post('nursing/medication-administrations/visits/{visit}/prescriptions/{prescription}/waiver', [NursingAdministrationController::class, 'waive'])
         ->whereNumber('visit')->whereNumber('prescription')->name('nursing.administrations.waive');
 
     // Doctor: consultation workspace
@@ -292,7 +321,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
     // Order matters: the specific lab/... routes must come BEFORE lab/{labRequest}
 
     // Test catalog (admin and lab only)
-    Route::middleware('role:admin,lab')->prefix('lab/tests')->name('lab.tests.')->group(function () {
+    Route::middleware(['role:admin,lab', 'module:laboratory'])->prefix('lab/tests')->name('lab.tests.')->group(function () {
         Route::get('/', [LabTestController::class, 'index'])->name('index');
         Route::get('create', [LabTestController::class, 'create'])->name('create');
         Route::post('/', [LabTestController::class, 'store'])->name('store');
@@ -301,7 +330,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
         Route::patch('{labTest}/toggle', [LabTestController::class, 'toggle'])->name('toggle');
     });
 
-    Route::middleware('role:admin,lab')->prefix('lab/inventory')->name('lab.inventory.')->group(function () {
+    Route::middleware(['role:admin,lab', 'module:laboratory', 'module:lab_inventory'])->prefix('lab/inventory')->name('lab.inventory.')->group(function () {
         Route::get('/', [DepartmentInventoryController::class, 'index'])->name('index');
         Route::post('/', [DepartmentInventoryController::class, 'store'])->name('store');
         Route::post('{item}/restock', [DepartmentInventoryController::class, 'restock'])->name('restock');
@@ -309,7 +338,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
     });
 
     // External lab requests (patients referred from other hospitals, or walk-in lab clients)
-    Route::middleware('role:admin,receptionist,lab')->prefix('lab/referrals')->name('lab.referrals.')->group(function () {
+    Route::middleware(['role:admin,receptionist,lab', 'module:laboratory', 'module:external_lab'])->prefix('lab/referrals')->name('lab.referrals.')->group(function () {
         Route::get('create', [LabReferralController::class, 'create'])->name('create');
         Route::post('/', [LabReferralController::class, 'store'])->name('store');
         Route::delete('{visit}', [LabReferralController::class, 'destroy'])->name('destroy');
@@ -317,29 +346,29 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
 
     // Result attachments (private files, served through the controller)
     Route::get('lab/attachments/{attachment}', [LabAttachmentController::class, 'show'])
-        ->middleware('role:admin,lab,doctor,nurse')
+        ->middleware(['role:admin,lab,doctor,nurse', 'module:laboratory'])
         ->whereNumber('attachment')
         ->name('lab.attachments.show');
 
     Route::delete('lab/attachments/{attachment}', [LabAttachmentController::class, 'destroy'])
-        ->middleware('role:admin,lab')
+        ->middleware(['role:admin,lab', 'module:laboratory'])
         ->whereNumber('attachment')
         ->name('lab.attachments.destroy');
 
     // Lab requests and printable report: doctors get read-only access to results they requested
-    Route::middleware('role:admin,lab,doctor')->prefix('lab')->name('lab.')->group(function () {
+    Route::middleware(['role:admin,lab,doctor', 'module:laboratory'])->prefix('lab')->name('lab.')->group(function () {
         Route::get('/', [LabController::class, 'index'])->name('index');
         Route::get('visits/{visit}/report', [LabController::class, 'report'])->name('report');
         Route::get('{labRequest}', [LabController::class, 'show'])->whereNumber('labRequest')->name('show');
     });
 
     Route::put('lab/{labRequest}', [LabController::class, 'update'])
-        ->middleware('role:admin,lab')
+        ->middleware(['role:admin,lab', 'module:laboratory'])
         ->whereNumber('labRequest')
         ->name('lab.update');
 
     // Pharmacy
-    Route::middleware(['role:admin,pharmacist,chief_pharmacist', 'main.pharmacy'])->prefix('pharmacy')->name('pharmacy.')->group(function () {
+    Route::middleware(['role:admin,pharmacist,chief_pharmacist', 'main.pharmacy', 'module:pharmacy'])->prefix('pharmacy')->name('pharmacy.')->group(function () {
         Route::get('/', [PharmacyController::class, 'index'])->name('index');
         Route::get('audit', [PharmacyController::class, 'audit'])->middleware('role:admin,chief_pharmacist')->name('audit');
         Route::get('inventory', [PharmacyController::class, 'inventory'])->name('inventory');
@@ -355,7 +384,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'staff'])->group(function (
     });
 
     // Finance reporting for administrators and accounting leadership.
-    Route::middleware('role:admin,chief_accountant')->prefix('finance')->name('finance.')->group(function () {
+    Route::middleware(['role:admin,chief_accountant', 'module:finance_reports'])->prefix('finance')->name('finance.')->group(function () {
         Route::get('/', [FinanceController::class, 'index'])->name('index');
         Route::get('export/pdf', [FinanceController::class, 'exportPdf'])->name('export.pdf');
     });

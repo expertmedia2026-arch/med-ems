@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\HospitalSetting;
+use App\Support\HospitalContext;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -73,11 +74,18 @@ class PaystackGateway
 
     public function publicKey(): ?string
     {
-        return HospitalSetting::current()->paystack_public_key ?: config('services.paystack.public_key');
+        return $this->currentHospitalSetting()?->paystack_public_key ?: config('services.paystack.public_key');
     }
 
     private function secretKey(): ?string
     {
-        return HospitalSetting::current()->paystack_secret_key ?: config('services.paystack.secret_key');
+        return $this->currentHospitalSetting()?->paystack_secret_key ?: config('services.paystack.secret_key');
+    }
+
+    private function currentHospitalSetting(): ?HospitalSetting
+    {
+        $hospitalId = app(HospitalContext::class)->id() ?? auth()->user()?->hospital_id;
+
+        return $hospitalId ? HospitalSetting::current() : null;
     }
 }

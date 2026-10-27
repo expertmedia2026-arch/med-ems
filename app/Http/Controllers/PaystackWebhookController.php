@@ -2,20 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\OnlinePayment;
 use App\Services\OnlinePaymentService;
 use App\Services\PaystackGateway;
+use App\Support\HospitalContext;
 use Illuminate\Http\Request;
 
 class PaystackWebhookController extends Controller
 {
-    public function __invoke(Request $request, PaystackGateway $gateway, OnlinePaymentService $payments)
+    public function __invoke(Request $request, PaystackGateway $gateway, OnlinePaymentService $payments, HospitalContext $context)
     {
+        $reference = $request->input('data.reference');
+        if ($reference) {
+            $attempt = OnlinePayment::withoutGlobalScope('hospital')->where('reference', $reference)->first();
+            if ($attempt) {
+                $context->set((int) $attempt->hospital_id);
+            }
+        }
+
         // Only genuine Paystack calls carry a valid signature
         if (! $gateway->validSignature($request->getContent(), $request->header('x-paystack-signature'))) {
             abort(401);
         }
-
-        $reference = $request->input('data.reference');
 
         if ($request->input('event') === 'charge.success' && $reference) {
             try {

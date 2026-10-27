@@ -29,6 +29,10 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        if ($request->user()->isGlobalAdmin()) {
+            return redirect()->intended(route('global-admin.dashboard', absolute: false));
+        }
+
         $defaultRoute = $request->user()->role === Role::Patient ? 'portal.home' : 'dashboard';
 
         return redirect()->intended(route($defaultRoute, absolute: false));

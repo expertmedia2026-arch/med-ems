@@ -1,7 +1,8 @@
 @php
     $hospital = \App\Models\HospitalSetting::current();
     $user     = auth()->user();
-    $menu     = config('portal_menu');
+    $hospitalModules = $hospital->hospital?->modules()->where('enabled', true)->pluck('module')->all() ?? [];
+    $menu     = collect(config('portal_menu'))->filter(fn ($item) => ! isset($item['module']) || in_array($item['module'], $hospitalModules, true));
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">

@@ -15,20 +15,22 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
-                    @if (Auth::user()->canAccessEmergency())
+                    @if (Auth::user()->canAccessEmergency() && in_array('emergency', $hospitalModules ?? [], true))
                         <x-nav-link :href="route('emergency.index')" :active="request()->routeIs('emergency.*')">
                             {{ __('A&E') }}
                         </x-nav-link>
                     @endif
                     @if (Auth::user()->hasRole('admin', 'nurse'))
                         <x-nav-link :href="route('triage.index')" :active="request()->routeIs('triage.*')">
-                            {{ __('Central Vitals') }}
+                            {{ __('Triage') }}
                         </x-nav-link>
+                    @endif
+                    @if (Auth::user()->hasRole('admin', 'nurse') && in_array('medication_administration', $hospitalModules ?? [], true))
                         <x-nav-link :href="route('nursing.administrations.index')" :active="request()->routeIs('nursing.administrations.*')">
                             {{ __('Medication administration') }}
                         </x-nav-link>
                     @endif
-                    @if (! Auth::user()->hasRole('patient'))
+                    @if (! Auth::user()->hasRole('patient') && in_array('staff_roster', $hospitalModules ?? [], true))
                         <x-nav-link :href="route('nursing.roster.index')" :active="request()->routeIs('nursing.roster.*')">
                             {{ __('Staff Duty Roster') }}
                         </x-nav-link>
@@ -52,6 +54,11 @@
                     </x-slot>
 
                     <x-slot name="content">
+                        @if (Auth::user()->isGlobalAdmin())
+                            <x-dropdown-link :href="route('global-admin.dashboard')">
+                                {{ __('Global hospital onboarding') }}
+                            </x-dropdown-link>
+                        @endif
                         <x-dropdown-link :href="route('profile.edit')">
                             {{ __('Profile') }}
                         </x-dropdown-link>
@@ -88,20 +95,22 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
-            @if (Auth::user()->canAccessEmergency())
+            @if (Auth::user()->canAccessEmergency() && in_array('emergency', $hospitalModules ?? [], true))
                 <x-responsive-nav-link :href="route('emergency.index')" :active="request()->routeIs('emergency.*')">
                     {{ __('A&E') }}
                 </x-responsive-nav-link>
             @endif
             @if (Auth::user()->hasRole('admin', 'nurse'))
                 <x-responsive-nav-link :href="route('triage.index')" :active="request()->routeIs('triage.*')">
-                    {{ __('Central Vitals') }}
+                    {{ __('Triage') }}
                 </x-responsive-nav-link>
+            @endif
+            @if (Auth::user()->hasRole('admin', 'nurse') && in_array('medication_administration', $hospitalModules ?? [], true))
                 <x-responsive-nav-link :href="route('nursing.administrations.index')" :active="request()->routeIs('nursing.administrations.*')">
                     {{ __('Medication administration') }}
                 </x-responsive-nav-link>
             @endif
-            @if (! Auth::user()->hasRole('patient'))
+            @if (! Auth::user()->hasRole('patient') && in_array('staff_roster', $hospitalModules ?? [], true))
                 <x-responsive-nav-link :href="route('nursing.roster.index')" :active="request()->routeIs('nursing.roster.*')">
                     {{ __('Staff Duty Roster') }}
                 </x-responsive-nav-link>

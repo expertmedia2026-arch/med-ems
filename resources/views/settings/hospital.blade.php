@@ -4,9 +4,10 @@
     @php
         $input = 'mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-teal-600 focus:ring-teal-600';
         $label = 'block text-sm font-medium text-slate-700';
+        $onlinePaymentsEnabled = auth()->user()->hospital?->hasModule('online_payments') ?? false;
         $sections = [
             'basic' => ['title' => 'Basic details', 'description' => 'Hospital name and contact details'],
-            'payments' => ['title' => 'Payments', 'description' => 'Registration, A&E, and mortuary charges, plus payment gateway'],
+            'payments' => ['title' => 'Payments', 'description' => 'Registration, A&E, and mortuary charges'.($onlinePaymentsEnabled ? ', plus patient online checkout' : '')],
             'branding' => ['title' => 'Branding', 'description' => 'Colors, logo, and patient card signature'],
         ];
         $settingsRoute = fn ($target) => $target === 'basic'
@@ -35,6 +36,10 @@
 
         <div class="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
             <nav aria-label="Hospital settings sections" class="h-fit rounded-xl border bg-white p-2 shadow-sm">
+                <a href="{{ route('settings.admission-workflow') }}" class="mb-1 block rounded-lg px-4 py-3 text-slate-700 hover:bg-slate-50">
+                    <span class="block text-sm font-semibold">Admission workflow</span>
+                    <span class="mt-0.5 block text-xs text-slate-500">Choose the inpatient charts your hospital uses</span>
+                </a>
                 @foreach ($sections as $key => $item)
                     <a href="{{ $settingsRoute($key) }}" @if ($section === $key) aria-current="page" @endif
                        class="mb-1 block rounded-lg px-4 py-3 last:mb-0 {{ $section === $key ? 'bg-teal-50 text-teal-900 ring-1 ring-teal-200' : 'text-slate-700 hover:bg-slate-50' }}">
@@ -90,18 +95,25 @@
                         </div>
                     @elseif ($section === 'payments')
                         <div class="grid gap-5">
-                            <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                                <p class="font-semibold">Online gateway availability</p>
-                                <p class="mt-1">Paystack is the online gateway currently connected to patient checkout. Choose in-person billing to turn off online checkout while continuing to record payments at the billing desk.</p>
-                            </div>
-                            <div>
-                                <label for="payment_gateway" class="{{ $label }}">Payment option <span class="text-red-600">*</span></label>
-                                <select id="payment_gateway" name="payment_gateway" required x-model="gateway" class="{{ $input }}">
-                                    <option value="paystack" @selected(old('payment_gateway', $settings->payment_gateway ?: 'paystack') === 'paystack')>Paystack online payments</option>
-                                    <option value="manual" @selected(old('payment_gateway', $settings->payment_gateway ?: 'paystack') === 'manual')>In-person billing only</option>
-                                </select>
-                                @error('payment_gateway')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-                            </div>
+                            @if ($onlinePaymentsEnabled)
+                                <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                                    <p class="font-semibold">Patient online checkout</p>
+                                    <p class="mt-1">Patients can pay invoices in the portal using Paystack. You can choose in-person billing to keep online checkout off while continuing to record payments at the billing desk.</p>
+                                </div>
+                                <div>
+                                    <label for="payment_gateway" class="{{ $label }}">Payment option <span class="text-red-600">*</span></label>
+                                    <select id="payment_gateway" name="payment_gateway" required x-model="gateway" class="{{ $input }}">
+                                        <option value="paystack" @selected(old('payment_gateway', $settings->payment_gateway ?: 'paystack') === 'paystack')>Paystack online payments</option>
+                                        <option value="manual" @selected(old('payment_gateway', $settings->payment_gateway ?: 'paystack') === 'manual')>In-person billing only</option>
+                                    </select>
+                                    @error('payment_gateway')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                            @else
+                                <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                                    <p class="font-semibold">Online Payments is not enabled</p>
+                                    <p class="mt-1">Patients will not see an online payment link. Staff can still record in-person payments at the billing desk. Enable Online Payments in the global hospital configuration to connect a gateway.</p>
+                                </div>
+                            @endif
                             <div>
                                 <label for="registration_fee" class="{{ $label }}">Patient registration fee (₦) <span class="text-red-600">*</span></label>
                                 <input id="registration_fee" name="registration_fee" type="number" step="0.01" min="0" max="99999999" required value="{{ old('registration_fee', $settings->registration_fee) }}" class="{{ $input }}">
@@ -154,6 +166,7 @@
                                 <p class="mt-1 text-xs text-slate-500">Added to the inpatient invoice for each sugar check recorded by nursing staff. Use 0 for no charge.</p>
                                 @error('sugar_check_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
+                            @if ($onlinePaymentsEnabled)
                             <div class="border-t pt-5">
                                 <div class="mb-4">
                                     <h4 class="font-semibold text-slate-900">Paystack credentials</h4>
@@ -181,6 +194,7 @@
                                     Online checkout will be unavailable while in-person billing is selected. Saved Paystack credentials are retained in case online payments are re-enabled.
                                 </div>
                             </div>
+                            @endif
                         </div>
                     @else
                         <p class="mb-5 text-sm text-slate-600">Choose two required brand colors and up to two additional colors. Changes apply across the staff interface and patient portal.</p>

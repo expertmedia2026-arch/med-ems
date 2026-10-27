@@ -1,0 +1,4 @@
+department_name,name,description,price,is_active
+General Medicine,General Consultation,Initial general medical assessment.,5000,1
+General Medicine,Follow-up Consultation,Review visit for an existing concern.,3000,1
+Paediatrics,Paediatric Consultation,Medical assessment for a child.,5000,1

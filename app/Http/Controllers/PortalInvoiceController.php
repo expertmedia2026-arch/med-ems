@@ -18,7 +18,9 @@ class PortalInvoiceController extends Controller
         $patient = $this->patient($request);
         $data = $invoices->indexData($patient);
 
-        return view('portal.invoices.index', $data);
+        return view('portal.invoices.index', $data + [
+            'onlinePaymentsEnabled' => $request->user()->hospital?->hasModule('online_payments') ?? false,
+        ]);
     }
 
     public function show(Request $request, Invoice $invoice, PortalInvoiceService $invoices)
@@ -28,7 +30,9 @@ class PortalInvoiceController extends Controller
 
         return view('portal.invoices.show', [
             'invoice' => $invoice,
-            'paymentGateway' => HospitalSetting::current()->payment_gateway ?: 'paystack',
+            'paymentGateway' => auth()->user()->hospital?->hasModule('online_payments')
+                ? (HospitalSetting::current()->payment_gateway ?: 'paystack')
+                : null,
         ] + $data);
     }
 

@@ -5,13 +5,20 @@ namespace App\Services;
 use App\Enums\Role;
 use App\Models\PatientInvitation;
 use App\Models\User;
+use App\Support\HospitalContext;
 use Illuminate\Support\Facades\DB;
 
 class PatientInvitationAcceptanceService
 {
+    public function __construct(private readonly HospitalContext $context) {}
+
     public function findUsable(string $token): ?PatientInvitation
     {
         $invitation = PatientInvitation::findByToken($token);
+
+        if ($invitation) {
+            $this->context->set((int) $invitation->hospital_id);
+        }
 
         if (! $invitation
             || ! $invitation->isUsable()

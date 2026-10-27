@@ -32,7 +32,7 @@ class TriageService
         $isAdmin = $staff->hasRole(Role::Admin);
         $isCentralNurse = $staff->isCentralVitalsNurse();
         abort_if(! $isAdmin && ! $isCentralNurse && ! $staff->department_id, 403,
-            'Assign this nurse to a clinical department or the OPD department to access Central Vitals.');
+            'Assign this nurse to a clinical department, or enable Central Vitals for OPD-wide access.');
         $selectedDepartment = ($isAdmin || $isCentralNurse) ? ($filters['department_id'] ?? null) : null;
         $departmentId = $isAdmin || $isCentralNurse ? $selectedDepartment : $staff->department_id;
         $search = trim((string) ($filters['q'] ?? ''));

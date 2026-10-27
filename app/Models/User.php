@@ -50,9 +50,23 @@ class User extends Authenticatable
         return false;
     }
 
+    public function hospital(): BelongsTo
+    {
+        return $this->belongsTo(Hospital::class);
+    }
+
+    public function isGlobalAdmin(): bool
+    {
+        return (bool) $this->is_global_admin;
+    }
+
     public function isCentralVitalsNurse(): bool
     {
         if (! $this->hasRole(Role::Nurse)) {
+            return false;
+        }
+
+        if (! $this->hospital?->hasModule('central_vitals')) {
             return false;
         }
 

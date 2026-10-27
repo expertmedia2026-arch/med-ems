@@ -52,7 +52,13 @@ class PatientController extends Controller
 
     public function show(Patient $patient, PatientService $patients)
     {
-        return view('patients.show', $patients->showData($patient));
+        return view('patients.show', $patients->showData($patient) + [
+            'patientIdCardEnabled' => auth()->user()->hospital?->hasModule('patient_id_card') ?? false,
+            'appointmentsEnabled' => auth()->user()->hospital?->hasModule('appointments') ?? false,
+            'externalLabEnabled' => auth()->user()->hospital?->hasModule('laboratory')
+                && auth()->user()->hospital?->hasModule('external_lab'),
+            'patientPortalEnabled' => auth()->user()->hospital?->hasModule('patient_portal') ?? false,
+        ]);
     }
 
     public function card(Patient $patient, PatientService $patients)

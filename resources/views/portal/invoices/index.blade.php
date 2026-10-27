@@ -40,7 +40,7 @@
                         <td class="px-4 py-3"><x-badge :color="$invoice->status->color()">{{ $invoice->status->label() }}</x-badge></td>
                         <td class="px-4 py-3 text-right">
                             <a href="{{ route('portal.invoices.show', $invoice) }}" class="text-teal-700 hover:underline">
-                                {{ $invoice->unpaid_items_count ? 'Pay' : 'View' }}
+                                {{ $invoice->unpaid_items_count && $onlinePaymentsEnabled ? 'Pay' : 'View' }}
                             </a>
                         </td>
                     </tr>

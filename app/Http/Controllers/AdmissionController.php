@@ -10,6 +10,7 @@ use App\Http\Requests\StoreAdmissionNoteRequest;
 use App\Http\Requests\StoreAdmissionDeathRequest;
 use App\Models\Admission;
 use App\Models\HospitalSetting;
+use App\Models\HospitalWorkflow;
 use App\Models\LabRequest;
 use App\Services\AdmissionService;
 use App\Services\AdmissionCareChartService;
@@ -30,7 +31,10 @@ class AdmissionController extends Controller
 
     public function show(Request $request, Admission $admission, AdmissionService $admissions)
     {
-        return view('admissions.show', $admissions->showData($admission, $request->user()));
+        return view('admissions.show', array_merge(
+            $admissions->showData($admission, $request->user()),
+            ['admissionWorkflow' => HospitalWorkflow::activeDefinition('admission')],
+        ));
     }
 
     public function discharge(DischargeAdmissionRequest $request, Admission $admission, AdmissionService $admissions)

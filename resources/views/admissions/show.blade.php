@@ -24,12 +24,15 @@
         $fluidDefaultFlow = $fluidPrescriptions->isEmpty() ? 'output' : old('flow', 'intake');
         $input = 'mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600';
         $label = 'block text-sm font-medium text-slate-700';
+        $enabledAdmissionSections = collect($admissionWorkflow['sections'] ?? [])
+            ->filter(fn ($section) => ($section['enabled'] ?? false) === true)
+            ->pluck('key')->all();
     @endphp
 
     <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
         <a href="{{ route('admissions.index') }}" class="text-sm font-medium text-teal-700 hover:underline">← Admissions</a>
         <div class="flex flex-wrap gap-2">
-            @if ($visit->prescriptions->contains(fn ($prescription) => $prescription->requires_in_facility_administration))
+            @if (auth()->user()->hospital?->hasModule('medication_administration') && $visit->prescriptions->contains(fn ($prescription) => $prescription->requires_in_facility_administration))
                 <a href="{{ route('nursing.administrations.show', $visit) }}" class="rounded-lg border border-teal-700 px-3 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">Open nursing care</a>
             @endif
             <a href="{{ route('patients.show', $admission->patient) }}" class="rounded-lg border px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Patient record</a>
@@ -76,6 +79,7 @@
                 <div class="border-b px-5 py-4"><h3 class="font-semibold text-slate-900">Inpatient nursing charts</h3><p class="mt-1 text-sm text-slate-500">Each entry is time-stamped and attributed to the staff member recording or providing care.</p></div>
                 @if ($isActive && $canRecordCare)
                     <div class="grid gap-5 border-b bg-slate-50 p-5 lg:grid-cols-2">
+                        @if (in_array('sugar_checks', $enabledAdmissionSections, true))
                         <details class="rounded-lg border bg-white p-4" @if (old('reading_type')) open @endif>
                             <summary class="cursor-pointer list-none rounded-lg bg-teal-700 px-3 py-2 text-center text-sm font-semibold text-white">Sugar check</summary>
                             <form method="POST" action="{{ route('admissions.sugar-checks.store', $admission) }}" class="mt-4 space-y-3">
@@ -90,7 +94,9 @@
                                 <button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Save sugar check</button>
                             </form>
                         </details>
+                        @endif
 
+                        @if (in_array('fluid_balance', $enabledAdmissionSections, true))
                         <form method="POST" action="{{ route('admissions.fluid-entries.store', $admission) }}" class="space-y-3 rounded-lg border bg-white p-4">
                             @csrf<h4 class="font-semibold">Fluid balance</h4>
                             <p class="text-xs text-slate-500">Fluid intake must match a fluid prescription that pharmacy has paid and dispensed. Output measurements can be recorded directly. Entry time is recorded when saved.</p>
@@ -117,7 +123,9 @@
                                 })();
                             </script>
                         </form>
+                        @endif
 
+                        @if (in_array('oxygen', $enabledAdmissionSections, true))
                         <form method="POST" action="{{ route('admissions.oxygen.store', $admission) }}" class="space-y-3 rounded-lg border bg-white p-4">
                             @csrf<h4 class="font-semibold">Oxygen chart and administration</h4>
                             <p class="text-xs text-slate-500">The administration time is recorded automatically when saved.</p>
@@ -127,7 +135,9 @@
                                 <label class="{{ $label }} sm:col-span-2">Clinical indication / order context<input name="indication" maxlength="1000" class="{{ $input }}" placeholder="Brief reason or emergency order context"></label>
                             </div><p class="text-xs text-slate-500">Each recorded oxygen administration adds the configured flat oxygen fee, regardless of pharmacy stock.</p><button class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Record oxygen care</button>
                         </form>
+                        @endif
 
+                        @if (in_array('insulin_machine', $enabledAdmissionSections, true))
                         @if ($hasInsulinPrescription || $insulinMachineBlock)
                         <details id="insulin-machine-chart" class="rounded-lg border bg-white p-4" @if (session('open_insulin_machine_chart')) open @endif>
                             <summary class="cursor-pointer list-none rounded-lg bg-teal-700 px-3 py-2 text-center text-sm font-semibold text-white">
@@ -184,10 +194,11 @@
                                 <p class="mt-2 text-center text-xs">The machine chart becomes available after a doctor adds an insulin prescription.</p>
                             </div>
                         @endif
+                        @endif
                     </div>
                 @endif
                 <div class="grid divide-y lg:grid-cols-2 lg:divide-x lg:divide-y-0">
-                    @if ($admission->sugarChecks->isNotEmpty())
+                    @if (in_array('sugar_checks', $enabledAdmissionSections, true) && $admission->sugarChecks->isNotEmpty())
                         <div class="p-5">
                             <h4 class="mb-3 text-sm font-semibold text-slate-700">Sugar checks</h4>
                             <div class="space-y-2">
@@ -197,6 +208,7 @@
                             </div>
                         </div>
                     @endif
+                    @if (in_array('fluid_balance', $enabledAdmissionSections, true))
                     <div class="p-5">
                         <h4 class="mb-3 text-sm font-semibold text-slate-700">Fluid intake and output · mL</h4>
                         <div class="space-y-2">
@@ -216,6 +228,8 @@
                             @endforelse
                         </div>
                     </div>
+                    @endif
+                    @if (in_array('oxygen', $enabledAdmissionSections, true))
                     <div class="border-t p-5">
                         <h4 class="mb-3 text-sm font-semibold text-slate-700">Oxygen administrations</h4>
                         <div class="space-y-2">
@@ -235,6 +249,8 @@
                             @endforelse
                         </div>
                     </div>
+                    @endif
+                    @if (in_array('nebulizer', $enabledAdmissionSections, true))
                     <div class="border-t p-5">
                         <h4 class="mb-3 text-sm font-semibold text-slate-700">Nebulizer machine uses</h4>
                         <div class="space-y-2">
@@ -251,6 +267,7 @@
                             @endforelse
                         </div>
                     </div>
+                    @endif
                 </div>
             </section>
 
