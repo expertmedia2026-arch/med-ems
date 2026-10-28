@@ -55,7 +55,7 @@ class MedicationAdministrationService
 
     public function record(Visit $visit, Prescription $prescription, array $data, User $nurse): MedicationAdministration
     {
-        return DB::transaction(function () use ($visit, $prescription, $data, $nurse) {
+        $record = DB::transaction(function () use ($visit, $prescription, $data, $nurse) {
             $visit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
             $this->assertDepartmentAccess($visit, $nurse);
             $prescription = Prescription::query()->lockForUpdate()->findOrFail($prescription->id);
@@ -100,6 +100,10 @@ class MedicationAdministrationService
                 'administered_at' => $data['status'] === 'administered' ? now() : null,
             ]);
         });
+
+        DB::afterCommit(fn () => app(WorkflowNotificationService::class)->medicationOutcome($record));
+
+        return $record;
     }
 
     public function waive(Visit $visit, Prescription $prescription, string $reason, User $actor): Prescription
@@ -107,7 +111,7 @@ class MedicationAdministrationService
         abort_unless($actor->hasRole(Role::Admin, Role::Doctor), 403);
         abort_unless($actor->hasRole(Role::Admin) || $visit->doctor_id === $actor->id, 403, 'Only the attending doctor or an administrator can waive this administration.');
 
-        return DB::transaction(function () use ($visit, $prescription, $reason, $actor) {
+        $prescription = DB::transaction(function () use ($visit, $prescription, $reason, $actor) {
             $visit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
             $this->assertDepartmentAccess($visit, $actor);
             $prescription = Prescription::query()->lockForUpdate()->findOrFail($prescription->id);
@@ -125,6 +129,10 @@ class MedicationAdministrationService
 
             return $prescription->refresh();
         });
+
+        DB::afterCommit(fn () => app(WorkflowNotificationService::class)->medicationWaived($visit, $prescription));
+
+        return $prescription;
     }
 
     public function discharge(Visit $visit, User $actor): Visit

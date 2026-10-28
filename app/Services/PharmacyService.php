@@ -232,6 +232,15 @@ class PharmacyService
             }
         });
 
+        if ($nursingReady > 0) {
+            $visit->loadMissing('patient');
+            app(WorkflowNotificationService::class)->medicationNursesFor(
+                $visit,
+                'Medication ready for administration',
+                "Pharmacy dispensed {$nursingReady} hospital medication order(s) for {$visit->patient->full_name} ({$visit->patient->hospital_number}). The nursing administration task is ready.",
+            );
+        }
+
         return [
             'dispensed' => $dispensed,
             'nursing_ready' => $nursingReady,

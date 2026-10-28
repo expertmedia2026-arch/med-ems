@@ -19,7 +19,7 @@ class PrescriptionService
     /** @return array{drug: Drug|null, error: string|null, reserved_quantity?: int, shortage?: int} */
     public function prescribe(Visit $visit, array $data, int $doctorId): array
     {
-        return DB::transaction(function () use ($visit, $data, $doctorId) {
+        $result = DB::transaction(function () use ($visit, $data, $doctorId) {
             $drug = $this->inventory->lockDrug((int) $data['drug_id']);
             $allergies = strtolower($visit->patient->allergies ?? '');
             $matches = collect([$drug->name, $drug->generic_name])->filter()
@@ -52,6 +52,19 @@ class PrescriptionService
                 'shortage' => (int) $data['quantity'] - $reservedQuantity,
             ];
         });
+
+        if (! $result['error'] && ($data['requires_in_facility_administration'] ?? false)) {
+            $visit->loadMissing('patient');
+            DB::afterCommit(function () use ($visit, $result) {
+                app(WorkflowNotificationService::class)->medicationNursesFor(
+                    $visit,
+                    'New medication administration order',
+                    "Drugs requiring administration at the hospital were ordered for {$visit->patient->full_name} ({$visit->patient->hospital_number}). {$result['drug']->display_name} is awaiting payment and pharmacy dispensing.",
+                );
+            });
+        }
+
+        return $result;
     }
 
     public function remove(Visit $visit, Prescription $prescription): bool

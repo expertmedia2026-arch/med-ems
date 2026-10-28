@@ -3,7 +3,10 @@
 namespace App\Services;
 
 use App\Enums\Role;
+use App\Enums\VisitStatus;
 use App\Models\Admission;
+use App\Models\MedicationAdministration;
+use App\Models\Prescription;
 use App\Models\Visit;
 use App\Models\User;
 use App\Notifications\HospitalActionNotification;
@@ -32,6 +35,74 @@ class WorkflowNotificationService
                 || $nurse->isCentralVitalsNurse());
 
         $this->notify($nurses, $title, $message, route('triage.index'), 'activity');
+    }
+
+    /** Notify nurses who administer medication in the visit's care department. */
+    public function medicationNursesFor(Visit $visit, string $title, string $message): void
+    {
+        $departmentId = $visit->department_id;
+        if ($visit->status === VisitStatus::Inpatient) {
+            $departmentId = $visit->admission()->where('status', 'active')->value('department_id') ?? $departmentId;
+        }
+
+        if (! $departmentId) {
+            return;
+        }
+
+        $nurses = $this->staff((int) $visit->hospital_id, [Role::Nurse])
+            ->where('department_id', (int) $departmentId);
+
+        $this->notify($nurses, $title, $message, route('nursing.administrations.show', $visit), 'pill');
+    }
+
+    public function medicationWaived(Visit $visit, Prescription $prescription): void
+    {
+        $visit->loadMissing('patient');
+        $prescription->loadMissing('drug');
+
+        $this->medicationNursesFor(
+            $visit,
+            'Medication administration waived',
+            "The administration requirement for {$prescription->drug?->display_name} for {$visit->patient->full_name} ({$visit->patient->hospital_number}) was waived. Reason: {$prescription->administration_waiver_reason}.",
+        );
+    }
+
+    /** Notify the attending doctor (or department doctors) and hospital admins after a nurse records an outcome. */
+    public function medicationOutcome(MedicationAdministration $record): void
+    {
+        $record->loadMissing(['visit.patient', 'prescription.drug', 'nurse']);
+        $visit = $record->visit;
+        $patient = $visit?->patient;
+        $prescription = $record->prescription;
+
+        if (! $visit || ! $patient || ! $prescription) {
+            return;
+        }
+
+        $outcome = ucfirst(str_replace('_', ' ', (string) $record->status));
+        $dose = filled($record->dose) ? " ({$record->dose})" : '';
+        $message = "{$record->nurse?->name} recorded {$outcome} for {$prescription->drug?->display_name}{$dose} for {$patient->full_name} ({$patient->hospital_number}).";
+        $title = 'Medication administration recorded';
+
+        $admins = $this->staff((int) $visit->hospital_id, [Role::Admin]);
+        $this->notify($admins, $title, $message, route('nursing.administrations.show', $visit), 'pill');
+
+        $doctors = $this->staff((int) $visit->hospital_id, [Role::Doctor]);
+        if ($visit->doctor_id) {
+            $doctors = $doctors->where('id', (int) $visit->doctor_id);
+        } elseif ($visit->department_id) {
+            $doctors = $doctors->where('department_id', (int) $visit->department_id);
+        } else {
+            $doctors = collect();
+        }
+
+        $doctorUrl = $visit->status === VisitStatus::Inpatient
+            ? route('admissions.index')
+            : ($visit->status === VisitStatus::Completed
+                ? route('consultations.history', $visit)
+                : route('consultations.show', $visit));
+
+        $this->notify($doctors, $title, $message, $doctorUrl, 'pill');
     }
 
     /** Notify the assigned doctor, or doctors who can pick up an unassigned visit in that department. */
