@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\View\View;
 
@@ -17,6 +18,24 @@ class NotificationController extends Controller
         ]);
     }
 
+    public function latest(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $notifications = $user->notifications()->latest()->limit(5)->get();
+
+        return response()->json([
+            'unread_count' => $user->unreadNotifications()->count(),
+            'notifications' => $notifications->map(fn ($notification) => [
+                'id' => $notification->id,
+                'title' => $notification->data['title'] ?? 'Notification',
+                'message' => $notification->data['message'] ?? '',
+                'created_at' => $notification->created_at->diffForHumans(),
+                'unread' => $notification->unread(),
+                'open_url' => route('notifications.open', $notification->id),
+            ])->values(),
+        ]);
+    }
+
     public function open(Request $request, string $notification): RedirectResponse
     {
         $item = $request->user()->notifications()->whereKey($notification)->firstOrFail();
@@ -25,9 +44,13 @@ class NotificationController extends Controller
         return redirect()->to($this->safeDestination($item));
     }
 
-    public function markAllRead(Request $request): RedirectResponse
+    public function markAllRead(Request $request): RedirectResponse|JsonResponse
     {
         $request->user()->unreadNotifications->markAsRead();
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
 
         return back();
     }
