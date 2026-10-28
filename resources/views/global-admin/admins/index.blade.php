@@ -6,7 +6,7 @@
     @if (session('success')) <div class="rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">{{ session('success') }}</div> @endif
     @if ($errors->any()) <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"><ul class="list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div> @endif
 
-    <form method="POST" action="{{ route('global-admin.admins.store') }}" class="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <form method="POST" action="{{ route('global-admin.admins.store') }}" class="space-y-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         @csrf
         <div><h2 class="text-lg font-bold">Add sub-admin</h2><p class="mt-1 text-sm text-slate-600">Sub-admins get platform-wide access. Set their initial password and share it with them directly.</p></div>
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -20,7 +20,7 @@
 
     <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="border-b border-slate-100 px-5 py-4"><h2 class="font-bold">Platform admin accounts</h2><p class="mt-1 text-xs text-slate-500">Deactivated accounts can no longer sign in.</p></div>
-        <div class="overflow-x-auto"><table class="min-w-full text-left text-sm">
+        <div class="overflow-x-auto"><table class="min-w-[600px] text-left text-sm">
             <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-5 py-3">Admin</th><th class="px-5 py-3">Email</th><th class="px-5 py-3">Status</th><th class="px-5 py-3"></th></tr></thead>
             <tbody class="divide-y divide-slate-100">
                 @forelse ($admins as $admin)

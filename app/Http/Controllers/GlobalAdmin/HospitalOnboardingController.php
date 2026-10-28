@@ -44,37 +44,14 @@ class HospitalOnboardingController
     public function dashboard(): View
     {
         $hospitals = $this->hospitalSummaries();
-        $hospitalSizeChart = $hospitals->sortByDesc('patient_count')->take(6)->values();
 
         return view('global-admin.dashboard', [
             'hospitalCount' => $hospitals->count(),
             'staffCount' => $hospitals->sum('staff_count'),
             'patientCount' => $hospitals->sum('patient_count'),
-            'hospitals' => $hospitals->take(5),
+            'hospitals' => $hospitals,
             'modules' => self::MODULES,
-            'growthChart' => $this->growthChart(),
-            'hospitalSizeChart' => $hospitalSizeChart,
         ]);
-    }
-
-    private function growthChart(): array
-    {
-        $firstMonth = now()->startOfMonth()->subMonths(11);
-        $months = collect(range(0, 11))->map(fn (int $offset) => $firstMonth->copy()->addMonths($offset));
-
-        $hospitalMonthly = Hospital::query()->where('created_at', '>=', $firstMonth)->get(['created_at'])
-            ->groupBy(fn ($hospital) => $hospital->created_at->format('Y-m'))->map->count();
-        $hospitalCount = Hospital::query()->where('created_at', '<', $firstMonth)->count();
-        $chart = ['labels' => [], 'hospitals' => []];
-
-        foreach ($months as $month) {
-            $key = $month->format('Y-m');
-            $hospitalCount += (int) $hospitalMonthly->get($key, 0);
-            $chart['labels'][] = $month->format('M y');
-            $chart['hospitals'][] = $hospitalCount;
-        }
-
-        return $chart;
     }
 
     public function index(): View

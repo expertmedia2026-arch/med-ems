@@ -10,7 +10,7 @@
     @if (session('warning')) <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">{{ session('warning') }}</div> @endif
     <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="overflow-x-auto">
-            <table class="min-w-full text-left text-sm">
+            <table class="min-w-[760px] text-left text-sm">
                 <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-5 py-3">Hospital</th><th class="px-5 py-3">Staff</th><th class="px-5 py-3">Patients</th><th class="px-5 py-3">Features running</th><th class="px-5 py-3">Status</th><th class="px-5 py-3"></th></tr></thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($hospitals as $hospital)

@@ -14,7 +14,7 @@
     @if ($errors->any())
         <div class="rounded-lg bg-red-50 p-4 text-red-800"><ul class="list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
     @endif
-    <form method="POST" action="{{ route('global-admin.hospitals.update', $hospital) }}" class="space-y-7 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+    <form method="POST" action="{{ route('global-admin.hospitals.update', $hospital) }}" class="space-y-7 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
         @csrf
         @method('PUT')
         <fieldset>

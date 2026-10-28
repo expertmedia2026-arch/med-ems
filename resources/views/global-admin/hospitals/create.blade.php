@@ -12,7 +12,7 @@
     @if ($errors->any())
         <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"><ul class="list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
     @endif
-    <form method="POST" action="{{ route('global-admin.hospitals.store') }}" class="space-y-7 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+    <form method="POST" action="{{ route('global-admin.hospitals.store') }}" class="space-y-7 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
         @csrf
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <label class="block text-sm font-semibold">Hospital name<input name="name" value="{{ old('name') }}" required maxlength="255" class="mt-2 block w-full rounded-md border-slate-300 font-normal"></label>

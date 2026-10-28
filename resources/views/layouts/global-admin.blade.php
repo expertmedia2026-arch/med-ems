@@ -8,13 +8,17 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-white font-sans antialiased text-slate-900">
-    <div class="min-h-screen md:flex">
-        <aside class="flex w-full shrink-0 flex-col bg-[#171719] text-white md:sticky md:top-0 md:h-screen md:w-64">
-            <a href="{{ route('global-admin.dashboard') }}" class="flex items-center gap-3 border-b border-white/10 px-6 py-5">
+    <div x-data="{ mobileNavOpen: false }" @keydown.escape.window="mobileNavOpen = false" class="min-h-screen xl:flex">
+        <div x-cloak x-show="mobileNavOpen" x-transition.opacity @click="mobileNavOpen = false" class="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[2px] xl:hidden" aria-hidden="true"></div>
+        <aside id="global-admin-navigation" :class="mobileNavOpen ? 'translate-x-0' : '-translate-x-full'" class="fixed inset-y-0 left-0 z-50 flex h-screen w-72 max-w-[calc(100vw-3rem)] min-w-0 flex-col bg-[#171719] text-white shadow-2xl transition-transform duration-200 ease-out xl:sticky xl:top-0 xl:z-auto xl:h-screen xl:w-64 xl:max-w-none xl:shrink-0 xl:translate-x-0 xl:shadow-none">
+            <a href="{{ route('global-admin.dashboard') }}" class="flex items-center gap-3 border-b border-white/10 px-4 py-4 sm:px-6 xl:py-5">
                 <span class="grid h-10 w-10 place-items-center rounded-lg bg-[#e51d2a] text-xl font-black">M</span>
                 <span class="text-xl font-extrabold tracking-tight">Med<span class="text-[#ff4651]">EMS</span><span class="mt-1 block text-[10px] font-semibold uppercase tracking-[.18em] text-white/50">Platform admin</span></span>
             </a>
-            <nav class="flex gap-1 overflow-x-auto px-3 py-4 md:flex-1 md:flex-col md:overflow-visible">
+            <button type="button" @click="mobileNavOpen = false" class="absolute right-3 top-4 grid h-10 w-10 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/70 xl:hidden" aria-label="Close navigation menu">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 6 12 12M18 6 6 18" /></svg>
+            </button>
+            <nav aria-label="Platform administration" class="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
                 @php($navItems = [
                     ['route' => 'global-admin.dashboard', 'label' => 'Overview', 'match' => 'global-admin.dashboard'],
                     ['route' => 'global-admin.hospitals.index', 'label' => 'Hospitals', 'match' => 'global-admin.hospitals.*'],
@@ -24,14 +28,23 @@
                 ])
                 @foreach ($navItems as $item)
                     @php($isActive = request()->routeIs($item['match']) && !($item['route'] === 'global-admin.hospitals.index' && request()->routeIs('global-admin.hospitals.create')))
-                    <a href="{{ route($item['route']) }}" class="whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold transition {{ $isActive ? 'bg-[#e51d2a] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white' }}">{{ $item['label'] }}</a>
+                    <a href="{{ route($item['route']) }}" @click="mobileNavOpen = false" class="whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-white/70 {{ $isActive ? 'bg-[#e51d2a] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white' }}">{{ $item['label'] }}</a>
                 @endforeach
             </nav>
-            <div class="hidden border-t border-white/10 px-6 py-4 text-xs text-white/50 md:block">Platform workspace</div>
+            <div class="border-t border-white/10 px-6 py-4 text-xs text-white/50">Platform workspace</div>
         </aside>
         <div class="min-w-0 flex-1">
-            <header class="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-5 sm:px-8">
-                <div class="text-xs font-semibold uppercase tracking-[.16em] text-slate-500">Platform management</div>
+            <div class="flex items-center justify-between border-b border-white/10 bg-[#171719] px-4 py-3 text-white xl:hidden">
+                <a href="{{ route('global-admin.dashboard') }}" class="flex min-w-0 items-center gap-2.5">
+                    <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#e51d2a] text-lg font-black">M</span>
+                    <span class="truncate text-lg font-extrabold tracking-tight">Med<span class="text-[#ff4651]">EMS</span></span>
+                </a>
+                <button type="button" @click="mobileNavOpen = true" :aria-expanded="mobileNavOpen.toString()" aria-controls="global-admin-navigation" aria-label="Open navigation menu" class="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/70">
+                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+            </div>
+            <header class="flex min-h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 lg:px-8">
+                <div class="min-w-0 truncate text-[10px] font-semibold uppercase tracking-[.14em] text-slate-500 sm:text-xs sm:tracking-[.16em]">Platform management</div>
                 <div x-data="{ userMenu: false }" class="relative">
                     <button type="button" @click="userMenu = ! userMenu" @keydown.escape.window="userMenu = false" :aria-expanded="userMenu.toString()" aria-label="Open account menu" class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-[#e51d2a] hover:text-[#c81020] focus:outline-none focus:ring-2 focus:ring-[#e51d2a]/30">
                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4.5 20a7.5 7.5 0 0 1 15 0" /></svg>
@@ -43,7 +56,7 @@
                     </div>
                 </div>
             </header>
-            <main class="mx-auto max-w-[1500px] px-5 py-7 sm:px-8 sm:py-9">
+            <main class="mx-auto w-full max-w-[1500px] min-w-0 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-9">
                 @yield('content')
             </main>
         </div>
