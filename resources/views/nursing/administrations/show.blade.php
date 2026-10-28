@@ -9,7 +9,7 @@
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-5 shadow-sm">
         <div>
             <p class="font-medium">{{ $visit->patient->full_name }} <span class="font-mono text-sm text-slate-500">{{ $visit->patient->hospital_number }}</span></p>
-            <p class="mt-1 text-sm text-slate-500">Department: {{ $visit->department?->name ?? '—' }} · Doctor: {{ $visit->doctor?->name ?? '—' }} · {{ $visit->is_emergency ? 'A&E care started' : 'Consultation completed' }} {{ ($visit->closed_at ?? $visit->checked_in_at)?->format('d M Y, g:i A') }}</p>
+            <p class="mt-1 text-sm text-slate-500">Department: {{ $visit->department?->name ?? '—' }} · Doctor: {{ $visit->doctor?->name ?? '—' }} · {{ $visit->status->value === 'in_consultation' ? 'Consultation in progress' : ($visit->is_emergency ? 'A&E care started' : 'Consultation completed') }} {{ ($visit->closed_at ?? $visit->checked_in_at)?->format('d M Y, g:i A') }}</p>
         </div>
         <a href="{{ route('nursing.administrations.index') }}" class="text-sm text-teal-700 hover:underline">← Nursing queue</a>
     </div>
@@ -26,7 +26,7 @@
                 <h2 class="font-semibold text-blue-950">Consultation details</h2>
                 <p class="mt-0.5 text-xs text-blue-800">For nursing reference · view only</p>
             </div>
-            <span class="text-xs text-slate-600">{{ $visit->is_emergency ? 'A&E care in progress' : 'Seen by '.($visit->doctor?->name ?? '—').' · '.$visit->closed_at?->format('d M Y, g:i A') }}</span>
+            <span class="text-xs text-slate-600">{{ $visit->status->value === 'in_consultation' ? 'Doctor’s work in progress' : ($visit->is_emergency ? 'A&E care in progress' : 'Seen by '.($visit->doctor?->name ?? '—').' · '.$visit->closed_at?->format('d M Y, g:i A')) }}</span>
         </div>
         <div class="grid gap-5 p-5 lg:grid-cols-2">
             <dl class="space-y-3 text-sm">
@@ -87,6 +87,8 @@
                 </div>
                 @if ($rx->administration_waived_at)
                     <x-badge color="slate">Waived by doctor/admin</x-badge>
+                @elseif (! $rx->is_paid)
+                    <x-badge color="amber">Waiting for payment</x-badge>
                 @elseif ($rx->status->value === 'completed' && $rx->stockReservation?->status === 'fulfilled')
                     <x-badge color="green">Dispensed · ready for nursing</x-badge>
                 @else
@@ -96,6 +98,12 @@
 
             @if ($rx->administration_waived_at)
                 <p class="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">Waiver reason: {{ $rx->administration_waiver_reason }}</p>
+            @endif
+
+            @if (! $rx->administration_waived_at && ! $rx->is_paid && $rx->administered_count < $rx->required_administration_count)
+                <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Administration is locked until this medicine is paid for.</p>
+            @elseif (! $rx->administration_waived_at && ($rx->status->value !== 'completed' || $rx->stockReservation?->status !== 'fulfilled') && $rx->administered_count < $rx->required_administration_count)
+                <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Administration is locked until pharmacy dispenses this medicine.</p>
             @endif
 
             @if ($rx->administrations->isNotEmpty())
@@ -135,7 +143,7 @@
                     <div><label class="mb-1 block text-xs font-medium text-slate-600">Site</label><input name="site" placeholder="e.g. left deltoid" class="w-full rounded-lg border-slate-300 text-sm"></div>
                     <div><label class="mb-1 block text-xs font-medium text-slate-600">Reason if not given</label><input name="reason" maxlength="2000" class="w-full rounded-lg border-slate-300 text-sm"></div>
                     <div><label class="mb-1 block text-xs font-medium text-slate-600">Notes</label><input name="notes" maxlength="2000" class="w-full rounded-lg border-slate-300 text-sm"></div>
-                    <div class="sm:col-span-2"><button class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">Record outcome</button></div>
+                    <div class="sm:col-span-2"><button @disabled(! $rx->is_paid) class="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 disabled:hover:bg-slate-300">Record outcome</button></div>
                 </form>
             @elseif (! $rx->administration_waived_at && $isInpatientInsulin && ! $hasPaidMachineBottle && $rx->administered_count < $rx->required_administration_count)
                 <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Open and record a bottle in a paid insulin machine block before charting this dose.</p>
@@ -155,6 +163,8 @@
         @elseif ($visit->status->value === 'inpatient' && $visit->admission)
             <p class="text-sm text-teal-800">This patient is admitted to {{ $visit->admission->department?->name ?? 'the ward' }}. Nursing administrations are recorded here; the attending doctor completes the discharge from the admission record.</p>
             <a href="{{ route('admissions.show', $visit->admission) }}" class="mt-3 inline-flex rounded-lg border border-teal-700 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">Open inpatient record</a>
+        @elseif ($visit->status->value === 'in_consultation')
+            <p class="text-sm text-blue-800">The consultation is still in progress. You can review the doctor’s notes and vitals here; nursing administration becomes available after payment and pharmacy dispensing.</p>
         @elseif ($visit->discharged_at)
             <p class="text-sm text-green-800">Discharged {{ $visit->discharged_at->format('d M Y, g:i A') }} by {{ $visit->dischargeActor?->name ?? 'staff' }}.</p>
         @elseif ($incomplete->isEmpty())

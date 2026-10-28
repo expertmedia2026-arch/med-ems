@@ -22,13 +22,14 @@ class MedicationAdministrationService
 
         return Visit::query()
             ->where(fn ($query) => $query
-                ->whereIn('status', [VisitStatus::Completed->value, VisitStatus::Inpatient->value])
-                ->orWhere(fn ($emergency) => $emergency->where('is_emergency', true)->where('status', VisitStatus::InConsultation->value)))
+                ->whereIn('status', [VisitStatus::Completed->value, VisitStatus::Inpatient->value, VisitStatus::InConsultation->value]))
             ->whereNull('discharged_at')
             ->when($departmentId, fn ($query) => $query->where(function ($scope) use ($departmentId, $staff) {
                 $scope->where(fn ($outpatient) => $outpatient->where('status', VisitStatus::Completed->value)->where('department_id', $departmentId))
                     ->orWhere(fn ($inpatient) => $inpatient->where('status', VisitStatus::Inpatient->value)
                         ->whereHas('admission', fn ($admission) => $admission->where('status', 'active')->where('department_id', $departmentId)))
+                    ->orWhere(fn ($consultation) => $consultation->where('status', VisitStatus::InConsultation->value)
+                        ->where('is_emergency', false)->where('department_id', $departmentId))
                     ->when($staff->canAccessEmergency(), fn ($query) => $query->orWhere(fn ($emergency) => $emergency
                         ->where('is_emergency', true)->where('status', VisitStatus::InConsultation->value)));
             }))
@@ -61,7 +62,7 @@ class MedicationAdministrationService
             abort_unless($prescription->visit_id === $visit->id, 404);
             abort_unless($this->isOpenForNursing($visit), 422, 'This visit is not open for nursing care.');
             abort_unless($prescription->requires_in_facility_administration, 422, 'This prescription is not marked for administration at the hospital.');
-            abort_unless($prescription->is_paid || $visit->is_emergency, 422, 'The medication must be paid for before administration.');
+            abort_unless($prescription->is_paid, 422, 'The medication must be paid for before administration.');
             abort_unless($prescription->status === WorkStatus::Completed && $prescription->stockReservation?->status === 'fulfilled', 422, 'Pharmacy must dispense this medication before it can be administered.');
             abort_unless(! $prescription->administration_waived_at, 422, 'This administration requirement was waived by the doctor.');
 
@@ -174,8 +175,7 @@ class MedicationAdministrationService
     private function isOpenForNursing(Visit $visit): bool
     {
         return ! $visit->discharged_at && (
-            in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient], true)
-            || ($visit->is_emergency && $visit->status === VisitStatus::InConsultation)
+            in_array($visit->status, [VisitStatus::Completed, VisitStatus::Inpatient, VisitStatus::InConsultation], true)
         );
     }
 

@@ -2,7 +2,7 @@
     <x-slot name="header">Medication administration</x-slot>
 
     <p class="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-        This queue shows medicines linked to consultations and admissions. Pharmacy must dispense each medicine before a nurse records it; active A&E medicines can be dispensed and administered before billing.
+        This queue follows your department and includes active doctor consultations so you can review the doctor’s work and recorded vitals. A nurse can record an administration only after its charge is paid and pharmacy has dispensed the medicine.
     </p>
 
     <div class="overflow-x-auto rounded-xl border bg-white shadow-sm">
@@ -14,7 +14,8 @@
                 @forelse ($visits as $visit)
                     @php
                         $remaining = $visit->prescriptions->sum(fn ($rx) => $rx->administration_waived_at ? 0 : max(0, $rx->required_administration_count - $rx->administered_count));
-                        $notDispensed = $visit->prescriptions->filter(fn ($rx) => ! $rx->administration_waived_at && $rx->administered_count < $rx->required_administration_count && $rx->status->value !== 'completed')->count();
+                        $notDispensed = $visit->prescriptions->filter(fn ($rx) => ! $rx->administration_waived_at && $rx->administered_count < $rx->required_administration_count && ($rx->status->value !== 'completed' || $rx->stockReservation?->status !== 'fulfilled'))->count();
+                        $awaitingPayment = $visit->prescriptions->filter(fn ($rx) => ! $rx->administration_waived_at && $rx->administered_count < $rx->required_administration_count && ! $rx->is_paid)->count();
                     @endphp
                     <tr>
                         <td class="px-4 py-3">
@@ -25,6 +26,8 @@
                         <td class="px-4 py-3">{{ $visit->doctor?->name ?? '—' }}</td>
                         <td class="px-4 py-3">
                             <span>{{ $remaining }} dose(s) remain</span>
+                            @if ($visit->status->value === 'in_consultation')<span class="mt-1 block text-xs font-medium text-blue-700">Doctor consultation in progress · view only until ready</span>@endif
+                            @if ($awaitingPayment)<span class="mt-1 block text-xs text-amber-700">{{ $awaitingPayment }} order(s) awaiting payment</span>@endif
                             @if ($notDispensed)<span class="block text-xs text-amber-700">{{ $notDispensed }} prescription(s) awaiting pharmacy</span>@endif
                             @if ($visit->is_emergency)<span class="mt-1 block"><x-badge color="red">Active A&E</x-badge></span>@endif
                         </td>
