@@ -165,6 +165,17 @@ class OnlinePaymentService
                 ));
             }
 
+            $visit = $items->contains('category', 'consultation')
+                ? $invoice->loadMissing('visit.patient')->visit
+                : null;
+            if ($visit) {
+                app(WorkflowNotificationService::class)->nursesFor(
+                    $visit,
+                    'Patient ready for triage',
+                    "{$visit->patient->full_name} ({$visit->patient->hospital_number}) has paid the consultation charge and is ready for vitals.",
+                );
+            }
+
             return $attempt;
         });
     }
@@ -187,14 +198,17 @@ class OnlinePaymentService
 
     private function notifyPaymentReview(OnlinePayment $attempt): void
     {
-        User::query()->where('is_active', true)
-            ->whereIn('role', ['admin', 'accountant', 'chief_accountant'])
-            ->get()->each(fn (User $user) => $user->notify(new HospitalActionNotification(
-                'Online payment needs review',
-                'An online payment could not be applied automatically. Review the payment in Billing.',
-                route('billing.index'),
-                'receipt',
-            )));
+        $attempt->loadMissing('patient');
+        $hospitalId = (int) $attempt->patient?->hospital_id;
+        if ($hospitalId <= 0) {
+            return;
+        }
+
+        app(WorkflowNotificationService::class)->billing(
+            $hospitalId,
+            'Online payment needs review',
+            'An online payment could not be applied automatically. Review the payment in Billing.',
+        );
     }
 
     /** Is a fresh payment already open for any of these items? Prevents charging twice. */

@@ -17,7 +17,7 @@ class VisitCheckInService
     /** Return null if the patient already has an active consultation visit. */
     public function walkIn(Patient $patient, array $attributes): ?Visit
     {
-        return DB::transaction(function () use ($patient, $attributes) {
+        $visit = DB::transaction(function () use ($patient, $attributes) {
             $lockedPatient = Patient::query()->lockForUpdate()->findOrFail($patient->id);
 
             if ($lockedPatient->activeAdmission()->exists() || $lockedPatient->currentVisit()) {
@@ -33,12 +33,23 @@ class VisitCheckInService
 
             return $visit->load('consultationType');
         });
+
+        if ($visit) {
+            $visit->loadMissing('patient');
+            app(WorkflowNotificationService::class)->nursesFor(
+                $visit,
+                'New walk-in patient',
+                "{$visit->patient->full_name} ({$visit->patient->hospital_number}) checked in and is awaiting consultation payment before triage.",
+            );
+        }
+
+        return $visit;
     }
 
     /** Return null when no active tests remain on the lab appointment. */
     public function fromLabAppointment(Appointment $appointment, int $requestedBy): ?Visit
     {
-        return DB::transaction(function () use ($appointment, $requestedBy) {
+        $visit = DB::transaction(function () use ($appointment, $requestedBy) {
             $appointment = $this->lockScheduledAppointment($appointment);
             $tests = $appointment->labTests()->where('is_active', true)->get();
 
@@ -71,13 +82,24 @@ class VisitCheckInService
 
             return $visit->load('patient');
         });
+
+        if ($visit) {
+            $testDepartments = $visit->labRequests()->with('test')->get()->pluck('test.department_id');
+            app(WorkflowNotificationService::class)->labStaff(
+                (int) $visit->hospital_id,
+                $testDepartments,
+                "A lab appointment for {$visit->patient->full_name} ({$visit->patient->hospital_number}) has been checked in.",
+            );
+        }
+
+        return $visit;
     }
 
     public function fromDoctorAppointment(
         Appointment $appointment,
         int $consultationTypeId
     ): ?Visit {
-        return DB::transaction(function () use ($appointment, $consultationTypeId) {
+        $visit = DB::transaction(function () use ($appointment, $consultationTypeId) {
             $appointment = $this->lockScheduledAppointment($appointment);
             $lockedPatient = Patient::query()->lockForUpdate()->findOrFail($appointment->patient_id);
 
@@ -107,6 +129,16 @@ class VisitCheckInService
 
             return $visit->load(['consultationType', 'patient']);
         });
+
+        if ($visit) {
+            app(WorkflowNotificationService::class)->nursesFor(
+                $visit,
+                'Patient checked in',
+                "{$visit->patient->full_name} ({$visit->patient->hospital_number}) checked in for an appointment and is awaiting consultation payment before triage.",
+            );
+        }
+
+        return $visit;
     }
 
     public function doctorDepartmentId(Appointment $appointment): ?int

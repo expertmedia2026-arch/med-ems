@@ -35,13 +35,11 @@ class LabWorkflowService
 
             if ($new->isNotEmpty()) {
                 $departmentIds = LabTest::query()->whereIn('id', $new)->distinct()->pluck('department_id');
-                User::ofRole(Role::Lab)->where('is_active', true)->whereIn('department_id', $departmentIds)->get()
-                    ->each(fn (User $labStaff) => $labStaff->notify(new HospitalActionNotification(
-                        'New lab request',
-                        'A clinician added tests to the laboratory queue.',
-                        route('lab.index'),
-                        'flask',
-                    )));
+                app(WorkflowNotificationService::class)->labStaff(
+                    (int) $visit->hospital_id,
+                    $departmentIds,
+                    'A clinician added tests to the laboratory queue.',
+                );
             }
 
             $this->billing->syncFor($visit);

@@ -114,6 +114,12 @@ class AdmissionController extends Controller
             return back()->withInput()->withErrors([$field => $result['error']]);
         }
 
+        $admission->loadMissing('patient', 'visit');
+        app(\App\Services\WorkflowNotificationService::class)->pharmacy(
+            $admission->visit,
+            "An inpatient medication order for {$admission->patient->full_name} ({$admission->patient->hospital_number}) is ready in the pharmacy queue.",
+        );
+
         $message = $result['shortage'] > 0
             ? "{$result['reserved_quantity']} of {$request->validated('quantity')} {$result['drug']->name} unit(s) reserved; {$result['shortage']} unavailable. Review the stock shortage and arrange an alternative or external supply."
             : "{$result['drug']->name} added to the inpatient medication orders and sent to pharmacy.";

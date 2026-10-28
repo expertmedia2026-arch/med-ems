@@ -84,6 +84,16 @@ class BillingOperationsService
                     'receipt',
                 ));
             }
+
+            $payment->load(['invoice.visit.patient', 'items']);
+            $visit = $payment->invoice?->visit;
+            if ($visit && $payment->items->contains('category', 'consultation')) {
+                app(WorkflowNotificationService::class)->nursesFor(
+                    $visit,
+                    'Patient ready for triage',
+                    "{$visit->patient->full_name} ({$visit->patient->hospital_number}) has paid the consultation charge and is ready for vitals.",
+                );
+            }
         }
 
         return $payment;

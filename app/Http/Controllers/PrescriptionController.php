@@ -38,6 +38,12 @@ class PrescriptionController extends Controller
             return back()->with('error', 'Add at least one prescription before placing the pharmacy order.');
         }
 
+        $visit->loadMissing('patient');
+        app(\App\Services\WorkflowNotificationService::class)->pharmacy(
+            $visit,
+            "A prescription order for {$visit->patient->full_name} ({$visit->patient->hospital_number}) is ready in the pharmacy queue.",
+        );
+
         return back()->with('success', $count === 1
             ? 'Prescription order sent to the pharmacy queue.'
             : "{$count} prescription items sent to the pharmacy queue.");

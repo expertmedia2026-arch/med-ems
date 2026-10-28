@@ -98,7 +98,7 @@ class AdmissionService
     {
         abort_unless($doctor->hasRole(Role::Doctor), 403);
 
-        return DB::transaction(function () use ($visit, $data, $doctor) {
+        $admission = DB::transaction(function () use ($visit, $data, $doctor) {
             $visit = Visit::query()->lockForUpdate()->findOrFail($visit->id);
             abort_unless($visit->isOpenFor($doctor), 403, 'Only the attending doctor can admit a patient from an open consultation.');
             abort_if($visit->admission()->exists(), 422, 'An admission record already exists for this consultation.');
@@ -138,13 +138,22 @@ class AdmissionService
 
             return $admission->refresh();
         });
+
+        $admission->loadMissing('patient');
+        app(WorkflowNotificationService::class)->wardNursesFor(
+            $admission,
+            'New inpatient admission',
+            "{$admission->patient->full_name} ({$admission->patient->hospital_number}) was admitted to your ward.",
+        );
+
+        return $admission;
     }
 
     public function discharge(Admission $admission, array $data, User $actor): Admission
     {
         $this->assertCanManage($admission, $actor);
 
-        return DB::transaction(function () use ($admission, $data, $actor) {
+        $admission = DB::transaction(function () use ($admission, $data, $actor) {
             $admission = Admission::query()->lockForUpdate()->findOrFail($admission->id);
             abort_unless($admission->status === AdmissionStatus::Active, 422, 'This admission has already been discharged.');
             $visit = Visit::query()->lockForUpdate()->findOrFail($admission->visit_id);
@@ -181,6 +190,20 @@ class AdmissionService
 
             return $admission->refresh();
         });
+
+        $admission->loadMissing('patient');
+        app(WorkflowNotificationService::class)->wardNursesFor(
+            $admission,
+            'Patient discharged',
+            "{$admission->patient->full_name} ({$admission->patient->hospital_number}) has been discharged from the ward.",
+        );
+        app(WorkflowNotificationService::class)->billing(
+            (int) $admission->hospital_id,
+            'Discharge completed',
+            "{$admission->patient->full_name} ({$admission->patient->hospital_number}) was discharged. Review any outstanding invoice balance.",
+        );
+
+        return $admission;
     }
 
     public function declareDeceased(Admission $admission, array $data, User $actor): MortuaryCase
@@ -218,11 +241,21 @@ class AdmissionService
             $this->assertCanManage($admission, $author);
         }
 
-        return $admission->notes()->create([
+        $progressNote = $admission->notes()->create([
             'author_id' => $author->id,
             'note_type' => $author->hasRole(Role::Nurse) ? 'nursing' : 'medical',
             'note' => $note,
         ]);
+
+        $admission->loadMissing('patient');
+        $message = "A new {$progressNote->note_type} progress note was added for {$admission->patient->full_name} ({$admission->patient->hospital_number}).";
+        if ($author->hasRole(Role::Nurse)) {
+            app(WorkflowNotificationService::class)->attendingDoctorFor($admission, 'Inpatient update', $message);
+        } else {
+            app(WorkflowNotificationService::class)->wardNursesFor($admission, 'Inpatient update', $message);
+        }
+
+        return $progressNote;
     }
 
     public function recordVitals(Admission $admission, array $data, User $nurse): AdmissionVital
@@ -230,7 +263,7 @@ class AdmissionService
         abort_unless($nurse->hasRole(Role::Admin, Role::Nurse), 403);
         $this->assertAdmissionAccess($admission, $nurse);
 
-        return DB::transaction(function () use ($admission, $data, $nurse) {
+        $vitals = DB::transaction(function () use ($admission, $data, $nurse) {
             $admission = Admission::query()->lockForUpdate()->findOrFail($admission->id);
             abort_unless($admission->status === AdmissionStatus::Active, 422, 'Vitals can only be recorded during an active admission.');
             abort_unless($admission->visit()->where('status', VisitStatus::Inpatient->value)->exists(), 422, 'This admission is not linked to an active inpatient visit.');
@@ -241,6 +274,15 @@ class AdmissionService
                 'recorded_at' => now(),
             ]);
         });
+
+        $admission->loadMissing('patient');
+        app(WorkflowNotificationService::class)->attendingDoctorFor(
+            $admission,
+            'Inpatient observations recorded',
+            "New ward observations for {$admission->patient->full_name} ({$admission->patient->hospital_number}) are ready for review.",
+        );
+
+        return $vitals;
     }
 
     /** @return array{drug: Drug|null, error: string|null, reserved_quantity?: int, shortage?: int} */

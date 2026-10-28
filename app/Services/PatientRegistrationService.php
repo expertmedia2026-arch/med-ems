@@ -21,7 +21,7 @@ class PatientRegistrationService
         $photo = $attributes['photo'] ?? null;
         unset($attributes['photo']);
 
-        return DB::transaction(function () use ($attributes, $photo) {
+        $registration = DB::transaction(function () use ($attributes, $photo) {
             $patient = Patient::create($attributes);
 
             app(PatientPhotoService::class)->replace($patient, $photo instanceof UploadedFile ? $photo : null);
@@ -29,5 +29,19 @@ class PatientRegistrationService
 
             return compact('patient', 'invoice');
         });
+
+        $patient = $registration['patient'];
+        $message = "{$patient->full_name} ({$patient->hospital_number}) was registered.";
+        $message .= $registration['invoice']
+            ? ' Registration charge of ₦'.number_format((float) $registration['invoice']->total, 2).' is ready for payment.'
+            : ' No registration charge is outstanding.';
+
+        app(WorkflowNotificationService::class)->billing(
+            (int) $registration['patient']->hospital_id,
+            'New patient registered',
+            $message,
+        );
+
+        return $registration;
     }
 }

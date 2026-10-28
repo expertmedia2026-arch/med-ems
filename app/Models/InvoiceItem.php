@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Support\Facades\DB;
 
 class InvoiceItem extends Model
 {
@@ -21,6 +22,29 @@ class InvoiceItem extends Model
 
     protected static function booted(): void
     {
+        static::created(function (InvoiceItem $item) {
+            // Registration has a dedicated patient-registration notification.
+            if ($item->category === 'registration' || (float) $item->total <= 0) {
+                return;
+            }
+
+            DB::afterCommit(function () use ($item) {
+                $item->loadMissing('invoice.patient');
+                $invoice = $item->invoice;
+                $patient = $invoice?->patient;
+
+                if (! $invoice || ! $patient) {
+                    return;
+                }
+
+                app(\App\Services\WorkflowNotificationService::class)->billing(
+                    (int) $invoice->hospital_id,
+                    'New charge awaiting payment',
+                    "A {$item->descriptionForBilling()} charge for {$patient->full_name} ({$patient->hospital_number}) was added to Billing.",
+                );
+            });
+        });
+
         static::saving(function (InvoiceItem $item) {
             $item->total = $item->quantity * $item->unit_price;
         });

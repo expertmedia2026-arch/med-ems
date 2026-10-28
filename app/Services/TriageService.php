@@ -114,6 +114,15 @@ class TriageService
                 'triaged_at' => $visit->is_emergency && ! $visit->triaged_at ? now() : null,
             ]));
         });
+
+        DB::afterCommit(function () use ($visit) {
+            $visit->loadMissing('patient');
+            app(WorkflowNotificationService::class)->doctorsFor(
+                $visit,
+                'Patient ready for consultation',
+                "{$visit->patient->full_name} ({$visit->patient->hospital_number}) has completed triage and is waiting for a doctor.",
+            );
+        });
     }
 
     private function assertDepartmentAccess(Visit $visit, User $staff): void
