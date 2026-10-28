@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 class Patient extends Model
 {
@@ -34,8 +35,18 @@ class Patient extends Model
     public static function nextHospitalNumber(): string
     {
         $next = (self::max('id') ?? 0) + 1;
+        $hospitalName = HospitalSetting::current()->name;
+        $prefix = self::hospitalNumberPrefix($hospitalName);
 
-        return 'HN-'.now()->format('y').'-'.str_pad($next, 5, '0', STR_PAD_LEFT);
+        return $prefix.'-'.now()->format('y').'-'.str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+    }
+
+    private static function hospitalNumberPrefix(?string $hospitalName): string
+    {
+        $words = preg_split('/[^A-Za-z0-9]+/', Str::ascii(trim((string) $hospitalName)), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $initials = implode('', array_map(fn (string $word) => $word[0], $words));
+
+        return Str::upper($initials ?: 'HOSP');
     }
 
     protected function fullName(): Attribute
