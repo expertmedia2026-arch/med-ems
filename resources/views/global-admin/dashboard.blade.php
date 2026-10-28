@@ -27,11 +27,19 @@
         </div>
         <div class="divide-y divide-slate-100">
             @forelse ($hospitals as $hospital)
-                <article class="grid gap-4 px-4 py-4 transition hover:bg-slate-50/80 sm:px-6 sm:py-5 lg:grid-cols-[minmax(0,1.5fr)_repeat(2,minmax(7rem,.55fr))_minmax(0,1.4fr)_auto] lg:items-center lg:gap-6">
+                <article class="grid gap-4 px-4 py-4 transition hover:bg-slate-50/80 sm:px-6 sm:py-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(5rem,.45fr)_minmax(5rem,.45fr)_minmax(0,1.3fr)_auto] lg:items-center lg:gap-6">
                     <a href="{{ route('global-admin.hospitals.edit', $hospital) }}" class="min-w-0">
                         <span class="block truncate font-bold text-slate-900">{{ $hospital->name }}</span>
                         <span class="mt-1 block truncate text-xs text-slate-500">{{ $hospital->slug }}</span>
                     </a>
+                    <div class="min-w-0">
+                        <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Admin email</span>
+                        <div class="flex flex-col gap-1">
+                            @forelse ($hospital->admin_emails as $email)
+                                <a href="mailto:{{ $email }}" class="break-all text-xs font-medium text-[#a70e1a] hover:underline">{{ $email }}</a>
+                            @empty <span class="text-xs text-slate-500">No active admin email</span> @endforelse
+                        </div>
+                    </div>
                     <div class="grid grid-cols-2 gap-3 sm:max-w-sm lg:contents">
                         <div class="rounded-lg bg-slate-50 px-3 py-2 lg:bg-transparent lg:px-0"><span class="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Staff</span><span class="mt-1 block font-bold text-slate-800">{{ number_format($hospital->staff_count) }}</span></div>
                         <div class="rounded-lg bg-slate-50 px-3 py-2 lg:bg-transparent lg:px-0"><span class="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Patients</span><span class="mt-1 block font-bold text-slate-800">{{ number_format($hospital->patient_count) }}</span></div>

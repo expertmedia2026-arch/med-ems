@@ -92,8 +92,20 @@ class HospitalOnboardingController
         $moduleSelections = \App\Models\HospitalModule::withoutGlobalScope('hospital')
             ->where('enabled', true)->get()->groupBy('hospital_id')
             ->map(fn ($modules) => $modules->pluck('module')->all());
+        $adminEmails = User::withoutGlobalScope('hospital')
+            ->whereIn('hospital_id', $hospitals->pluck('id'))
+            ->where('role', 'admin')
+            ->where('is_global_admin', false)
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->get(['hospital_id', 'email'])
+            ->groupBy('hospital_id')
+            ->map(fn ($admins) => $admins->pluck('email')->unique()->values());
 
-        return $hospitals->each(fn ($hospital) => $hospital->setAttribute('enabled_modules', $moduleSelections->get($hospital->id, [])));
+        return $hospitals->each(function ($hospital) use ($moduleSelections, $adminEmails): void {
+            $hospital->setAttribute('enabled_modules', $moduleSelections->get($hospital->id, []));
+            $hospital->setAttribute('admin_emails', $adminEmails->get($hospital->id, collect()));
+        });
     }
 
     public function edit(Hospital $hospital): View
