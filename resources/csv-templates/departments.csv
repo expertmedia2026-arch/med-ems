@@ -1,3 +1,5 @@
 name,description
-Paediatrics,Basic child health and paediatric care.
-General Medicine,Outpatient care and the basic inpatient ward.
+General Medicine,Outpatient care and adult medical services.
+Paediatrics,Child health and paediatric care.
+Maternity,Antenatal postnatal and maternity services.
+Laboratory,Diagnostic testing and laboratory services.

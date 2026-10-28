@@ -1,0 +1,60 @@
+department_name,name,code,category,sample_type,price,turnaround_hours,description,is_active
+Laboratory,Complete Blood Count,CBC,Haematology,Blood,3500,24,Full blood count with differential,1
+Laboratory,Haemoglobin,HB,Haematology,Blood,1200,4,Haemoglobin estimation,1
+Laboratory,Packed Cell Volume,PCV,Haematology,Blood,1000,4,Packed cell volume measurement,1
+Laboratory,Erythrocyte Sedimentation Rate,ESR,Haematology,Blood,1500,8,ESR measurement,1
+Laboratory,Peripheral Blood Film,PBF,Haematology,Blood,2500,24,Peripheral blood film review,1
+Laboratory,Platelet Count,PLT,Haematology,Blood,1800,8,Platelet count,1
+Laboratory,Reticulocyte Count,RETIC,Haematology,Blood,2500,24,Reticulocyte count,1
+Laboratory,Clotting Profile,PTAPTT,Haematology,Blood,5000,24,Prothrombin time and activated partial thromboplastin time,1
+Laboratory,Blood Group and Rhesus,BGRH,Haematology,Blood,2500,8,Blood group and Rhesus factor,1
+Laboratory,Crossmatch,XMATCH,Haematology,Blood,5000,8,Compatibility testing before transfusion,1
+Laboratory,Fasting Blood Glucose,FBS,Chemistry,Blood,1500,4,Fasting blood glucose measurement,1
+Laboratory,Random Blood Glucose,RBS,Chemistry,Blood,1200,2,Random blood glucose measurement,1
+Laboratory,Glycated Haemoglobin,HBA1C,Chemistry,Blood,6500,24,Three month average glucose assessment,1
+Laboratory,Urea Creatinine and Electrolytes,UCE,Chemistry,Blood,6000,24,Urea creatinine and electrolyte panel,1
+Laboratory,Liver Function Tests,LFT,Chemistry,Blood,7000,24,Liver enzyme and function panel,1
+Laboratory,Lipid Profile,LIPID,Chemistry,Blood,6500,24,Cholesterol and triglyceride panel,1
+Laboratory,Serum Uric Acid,URIC,Chemistry,Blood,2500,8,Serum uric acid measurement,1
+Laboratory,Serum Calcium,CALCIUM,Chemistry,Blood,3000,8,Serum calcium measurement,1
+Laboratory,Serum Albumin,ALBUMIN,Chemistry,Blood,2500,8,Serum albumin measurement,1
+Laboratory,Troponin I,TROP1,Chemistry,Blood,9000,8,Troponin I assay,1
+Laboratory,Malaria Parasite Microscopy,MP,Parasitology,Blood,1500,4,Malaria parasite microscopy,1
+Laboratory,Malaria Rapid Diagnostic Test,MRDT,Parasitology,Blood,2000,2,Malaria rapid diagnostic test,1
+Laboratory,Stool Microscopy and Culture,STOOLMC,Parasitology,Stool,4500,48,Stool microscopy culture and sensitivity,1
+Laboratory,Stool Occult Blood,FOBT,Parasitology,Stool,2500,8,Faecal occult blood screening,1
+Laboratory,Stool Ova and Parasites,OAP,Parasitology,Stool,2500,24,Stool ova and parasite examination,1
+Laboratory,Widal Test,WIDAL,Serology,Blood,2500,8,Widal agglutination test,1
+Laboratory,HIV Screening,HIV,Serology,Blood,3000,8,HIV screening assay,1
+Laboratory,Hepatitis B Surface Antigen,HBSAG,Serology,Blood,3000,8,Hepatitis B surface antigen screening,1
+Laboratory,Hepatitis C Antibody,HCVAB,Serology,Blood,3500,8,Hepatitis C antibody screening,1
+Laboratory,VDRL Screening,VDRL,Serology,Blood,2500,8,Syphilis screening test,1
+Laboratory,Rheumatoid Factor,RF,Serology,Blood,3500,24,Rheumatoid factor assay,1
+Laboratory,C Reactive Protein,CRP,Serology,Blood,4500,8,C reactive protein assay,1
+Laboratory,Urinalysis,URINAL,Urinalysis,Urine,1500,2,Urine dipstick analysis,1
+Laboratory,Urine Microscopy Culture and Sensitivity,UMCS,Urinalysis,Urine,5000,48,Urine microscopy culture and sensitivity,1
+Laboratory,Urine Pregnancy Test,UPT,Urinalysis,Urine,1500,2,Urine pregnancy screening,1
+Laboratory,Urine Protein and Creatinine Ratio,UPCR,Urinalysis,Urine,4000,24,Urine protein creatinine ratio,1
+Laboratory,Urine Albumin Creatinine Ratio,UACR,Urinalysis,Urine,4500,24,Urine albumin creatinine ratio,1
+Laboratory,Thyroid Stimulating Hormone,TSH,Hormones,Blood,7000,24,Thyroid stimulating hormone assay,1
+Laboratory,Thyroid Function Tests,TFT,Hormones,Blood,12000,24,T3 T4 and TSH panel,1
+Laboratory,Prolactin,PROL,Hormones,Blood,6500,24,Serum prolactin assay,1
+Laboratory,Follicle Stimulating Hormone,FSH,Hormones,Blood,6500,24,Follicle stimulating hormone assay,1
+Laboratory,Luteinizing Hormone,LH,Hormones,Blood,6500,24,Luteinizing hormone assay,1
+Laboratory,Prostate Specific Antigen,PSA,Hormones,Blood,7500,24,Prostate specific antigen assay,1
+Laboratory,Beta Human Chorionic Gonadotropin,BHCG,Hormones,Blood,7000,24,Serum beta hCG assay,1
+Laboratory,Sputum Acid Fast Bacilli,AFB,Microbiology,Sputum,3000,48,Sputum AFB microscopy,1
+Laboratory,Blood Culture and Sensitivity,BCS,Microbiology,Blood,9000,120,Blood culture and sensitivity,1
+Laboratory,Wound Swab Culture and Sensitivity,WSCS,Microbiology,Swab,6500,72,Wound swab culture and sensitivity,1
+Laboratory,High Vaginal Swab Culture,HVS,Microbiology,Swab,6500,72,High vaginal swab culture,1
+Laboratory,Urethral Swab Culture,USCS,Microbiology,Swab,6000,72,Urethral swab culture and sensitivity,1
+Laboratory,Semen Analysis,SEMEN,Other,Other,5000,24,Semen analysis,1
+Laboratory,Electrocardiogram,ECG,Other,Other,5000,2,Resting twelve lead electrocardiogram,1
+Laboratory,Chest X Ray,CXR,Other,Other,8000,24,Chest radiograph service,1
+Laboratory,Abdominal Ultrasound,USABD,Other,Other,15000,24,Abdominal ultrasound scan,1
+Laboratory,Pelvic Ultrasound,USPEL,Other,Other,15000,24,Pelvic ultrasound scan,1
+Laboratory,Obstetric Ultrasound,USOBS,Other,Other,18000,24,Obstetric ultrasound scan,1
+Laboratory,Peak Expiratory Flow,PEF,Other,Other,2500,2,Peak expiratory flow measurement,1
+Laboratory,Spirometry,SPIRO,Other,Other,8000,24,Spirometry assessment,1
+Laboratory,Stool H Pylori Antigen,HPSTOOL,Parasitology,Stool,6500,24,Stool H pylori antigen assay,1
+Laboratory,Serum H Pylori Antibody,HPAB,Serology,Blood,5000,24,Serum H pylori antibody assay,1

@@ -1,3 +1,27 @@
 name,email,role,department_name
-Dr Example,doctor@example.test,doctor,Paediatrics
-Nurse Example,nurse@example.test,nurse,Paediatrics
+Dr Chinedu Okafor,chinedu.okafor.doctor@example.test,doctor,General Medicine
+Dr Ifeanyi Nwankwo,ifeanyi.nwankwo.doctor@example.test,doctor,General Medicine
+Nurse Adaobi Eze,adaobi.eze.nurse@example.test,nurse,General Medicine
+Nurse Chiamaka Umeh,chiamaka.umeh.nurse@example.test,nurse,General Medicine
+Dr Nnamdi Obi,nnamdi.obi.doctor@example.test,doctor,Paediatrics
+Dr Obinna Madu,obinna.madu.doctor@example.test,doctor,Paediatrics
+Nurse Ngozi Nwosu,ngozi.nwosu.nurse@example.test,nurse,Paediatrics
+Nurse Uchechi Okeke,uchechi.okeke.nurse@example.test,nurse,Paediatrics
+Dr Chika Nwachukwu,chika.nwachukwu.doctor@example.test,doctor,Maternity
+Dr Kenechukwu Opara,kenechukwu.opara.doctor@example.test,doctor,Maternity
+Nurse Amara Onu,amara.onu.nurse@example.test,nurse,Maternity
+Nurse Nkiruka Igwe,nkiruka.igwe.nurse@example.test,nurse,Maternity
+Dr Somtochukwu Anya,somtochukwu.anya.doctor@example.test,doctor,Laboratory
+Dr Tochukwu Ekwueme,tochukwu.ekwueme.doctor@example.test,doctor,Laboratory
+Nurse Amarachi Ibe,amarachi.ibe.nurse@example.test,nurse,Laboratory
+Nurse Ifunanya Oji,ifunanya.oji.nurse@example.test,nurse,Laboratory
+Lab Scientist Chisom Mba,chisom.mba.lab@example.test,lab,Laboratory
+Lab Scientist Kelechi Nnamani,kelechi.nnamani.lab@example.test,lab,Laboratory
+Receptionist Ugochi Eze,ugochi.eze.reception@example.test,receptionist,
+Receptionist Chukwudi Nnamdi,chukwudi.nnamdi.reception@example.test,receptionist,
+Accountant Obioma Uzo,obioma.uzo.accountant@example.test,accountant,
+Chief Accountant Chukwuemeka Onyekachi,chukwuemeka.onyekachi.accountant@example.test,chief_accountant,
+Pharmacist Ikenna Mgboko,ikenna.mgboko.pharmacist@example.test,pharmacist,
+Chief Pharmacist Onyinyechi Okafor,onyinyechi.okafor.pharmacist@example.test,chief_pharmacist,
+Chief Nurse Nkiru Mbah,nkiru.mbah.chiefnurse@example.test,chief_nurse,
+Hospital Administrator Uchenna Okeke,uchenna.okeke.admin@example.test,admin,

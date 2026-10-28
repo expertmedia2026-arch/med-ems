@@ -1,0 +1,31 @@
+name,generic_name,form,strength,unit_price,stock_quantity,reorder_level,is_active
+Paracetamol 500 mg,Paracetamol,Tablet,500mg,100,100,20,1
+Paracetamol 120 mg per 5 ml,Paracetamol,Suspension,120mg/5ml,1200,30,8,1
+Ibuprofen 400 mg,Ibuprofen,Tablet,400mg,150,80,15,1
+Ibuprofen 100 mg per 5 ml,Ibuprofen,Suspension,100mg/5ml,1500,25,8,1
+Amoxicillin 500 mg,Amoxicillin,Capsule,500mg,250,60,12,1
+Amoxicillin 125 mg per 5 ml,Amoxicillin,Suspension,125mg/5ml,1800,25,8,1
+Metronidazole 400 mg,Metronidazole,Tablet,400mg,150,60,12,1
+Metronidazole 200 mg per 5 ml,Metronidazole,Suspension,200mg/5ml,1600,20,6,1
+Cetirizine 10 mg,Cetirizine,Tablet,10mg,120,50,10,1
+Cetirizine 5 mg per 5 ml,Cetirizine,Syrup,5mg/5ml,1400,20,6,1
+Omeprazole 20 mg,Omeprazole,Capsule,20mg,180,60,12,1
+Oral Rehydration Salts,Oral rehydration salts,Sachet,Standard,250,100,20,1
+Zinc Sulphate 20 mg,Zinc sulphate,Tablet,20mg,100,80,15,1
+Artemether Lumefantrine 20/120 mg,Artemether/Lumefantrine,Tablet,20mg/120mg,1200,40,10,1
+Artemether Lumefantrine 20/120 mg per 5 ml,Artemether/Lumefantrine,Suspension,20mg/120mg per 5ml,2800,15,5,1
+Amlodipine 5 mg,Amlodipine,Tablet,5mg,150,50,10,1
+Metformin 500 mg,Metformin,Tablet,500mg,180,60,12,1
+Salbutamol 100 mcg,Salbutamol,Inhaler,100mcg per puff,3500,15,5,1
+Ceftriaxone 1 g,Ceftriaxone,Injection,1g,1800,30,8,1
+Gentamicin 80 mg,Gentamicin,Injection,80mg/2ml,900,25,8,1
+Diclofenac 75 mg,Diclofenac,Injection,75mg/3ml,700,25,8,1
+Hydrocortisone 100 mg,Hydrocortisone,Injection,100mg,1200,20,6,1
+Normal Saline 0.9 percent,Sodium chloride,IV Fluid,0.9 percent 500ml,1200,30,8,1
+Dextrose 5 percent,Dextrose,IV Fluid,5 percent 500ml,1400,25,8,1
+Folic Acid 5 mg,Folic acid,Tablet,5mg,80,100,20,1
+Vitamin C 100 mg,Ascorbic acid,Tablet,100mg,80,80,15,1
+Clotrimazole 1 percent cream,Clotrimazole,Cream,1 percent 20g,900,20,6,1
+Chloramphenicol eye drops,Chloramphenicol,Drops,0.5 percent 10ml,1000,15,5,1
+Ferrous Sulphate 200 mg,Ferrous sulphate,Tablet,200mg,100,100,20,1
+Loratadine 10 mg,Loratadine,Tablet,10mg,150,40,8,1

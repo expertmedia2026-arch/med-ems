@@ -1,4 +1,16 @@
 department_name,name,description,price,is_active
-General Medicine,General Consultation,Initial general medical assessment.,5000,1
-General Medicine,Follow-up Consultation,Review visit for an existing concern.,3000,1
-Paediatrics,Paediatric Consultation,Medical assessment for a child.,5000,1
+General Medicine,General Consultation,Initial general medical assessment,5000,1
+General Medicine,Follow-up Consultation,Review visit for an existing concern,3000,1
+General Medicine,Specialist Physician Consultation,Extended specialist assessment,8000,1
+General Medicine,Chronic Disease Review,Review for ongoing medical conditions,4500,1
+General Medicine,Pre-employment Medical Assessment,General pre-employment assessment,10000,1
+Paediatrics,Paediatric Consultation,Initial assessment for a child,6000,1
+Paediatrics,Paediatric Follow-up,Review visit for a child,3500,1
+Paediatrics,Well-child Assessment,Routine child health assessment,4500,1
+Paediatrics,Newborn Assessment,Newborn clinical assessment,6500,1
+Paediatrics,Adolescent Health Consultation,Assessment for adolescent health concerns,6000,1
+Maternity,First Antenatal Consultation,Initial antenatal assessment,7000,1
+Maternity,Antenatal Follow-up,Routine antenatal review,5000,1
+Maternity,Postnatal Consultation,Postnatal assessment and review,5000,1
+Maternity,Gynaecology Consultation,Assessment for gynaecological concerns,7000,1
+Maternity,Family Planning Consultation,Family planning counselling and assessment,4000,1
