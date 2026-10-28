@@ -6,7 +6,7 @@
         $label = 'block text-sm font-medium text-slate-700';
     @endphp
 
-    <form method="POST" action="{{ route('appointments.store') }}" class="max-w-2xl space-y-5 rounded-xl border bg-white p-6 shadow-sm">
+    <form method="POST" action="{{ route('appointments.store') }}" class="grid w-full gap-5 rounded-xl border bg-white p-4 shadow-sm sm:p-6 md:grid-cols-2 lg:p-8 xl:grid-cols-4">
         @csrf
 
         <div>
@@ -52,16 +52,16 @@
             @error('appointment_date')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
         </div>
 
-        <p class="rounded-lg bg-teal-50 px-4 py-3 text-sm text-teal-900">This booking reserves a date only. Patients will be seen in the order they arrive at the hospital.</p>
+        <p class="rounded-lg bg-teal-50 px-4 py-3 text-sm text-teal-900 md:col-span-2 xl:col-span-4">This booking reserves a date only. Patients will be seen in the order they arrive at the hospital.</p>
 
-        <div>
+        <div class="xl:col-span-4">
             <label for="reason" class="{{ $label }}">Reason</label>
             <input id="reason" name="reason" type="text" value="{{ old('reason') }}" class="{{ $input }}">
         </div>
 
-        <div class="flex items-center gap-3 pt-2">
-            <button class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800">Book appointment</button>
-            <a href="{{ route('appointments.index') }}" class="text-sm text-slate-500 hover:underline">Cancel</a>
+        <div class="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-5 md:col-span-2 xl:col-span-4">
+            <a href="{{ route('appointments.index') }}" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">Cancel</a>
+            <button class="inline-flex min-h-11 min-w-40 items-center justify-center rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2">Book appointment</button>
         </div>
     </form>
 

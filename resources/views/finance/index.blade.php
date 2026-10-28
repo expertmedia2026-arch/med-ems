@@ -8,11 +8,11 @@
                 <h2 class="mt-1 text-2xl font-semibold text-slate-900">Collections overview</h2>
                 <p class="mt-2 text-sm text-slate-500">Review payments, collection activity, and outstanding balances.</p>
             </div>
-            <div class="flex flex-wrap items-center gap-3">
-                <a href="{{ route('finance.export.pdf', request()->query()) }}" class="inline-flex items-center gap-2 rounded-lg bg-teal-800 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-900">
+            <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+                <a href="{{ route('finance.export.pdf', request()->query()) }}" class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-teal-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-900 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 sm:w-auto">
                     <span aria-hidden="true">↓</span> Export PDF
                 </a>
-                <div class="rounded-lg bg-slate-50 px-4 py-3 text-sm">
+                <div class="rounded-lg bg-slate-50 px-4 py-3 text-sm sm:shrink-0">
                     <p class="text-slate-500">Selected reporting period</p>
                     <p class="mt-1 font-semibold text-slate-900">{{ $rangeLabel }}</p>
                 </div>

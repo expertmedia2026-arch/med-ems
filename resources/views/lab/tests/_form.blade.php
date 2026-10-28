@@ -4,8 +4,8 @@
     $val   = fn ($field) => old($field, $test?->{$field});
 @endphp
 
-<div class="grid gap-5 sm:grid-cols-2">
-    <div class="sm:col-span-2">
+<div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+    <div class="sm:col-span-2 xl:col-span-3">
         <label for="department_id" class="{{ $label }}">Department</label>
         @if (auth()->user()->hasRole('admin'))
             <select id="department_id" name="department_id" required class="{{ $input }}">
@@ -20,7 +20,7 @@
         @endif
         @error('department_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
-    <div class="sm:col-span-2">
+    <div class="sm:col-span-2 xl:col-span-3">
         <label for="name" class="{{ $label }}">Service or procedure name</label>
         <input id="name" name="name" type="text" value="{{ $val('name') }}" required class="{{ $input }}">
         @error('name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
@@ -62,7 +62,7 @@
         @error('turnaround_hours')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
 
-    <div class="sm:col-span-2">
+    <div class="sm:col-span-2 xl:col-span-3">
         <label for="description" class="{{ $label }}">Description / preparation notes</label>
         <textarea id="description" name="description" rows="3" placeholder="e.g. Fasting for 8 hours required" class="{{ $input }}">{{ $val('description') }}</textarea>
     </div>

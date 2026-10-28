@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">Edit {{ $patient->full_name }}</x-slot>
 
-    <form method="POST" action="{{ route('patients.update', $patient) }}" enctype="multipart/form-data" class="max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
+    <form method="POST" action="{{ route('patients.update', $patient) }}" enctype="multipart/form-data" class="w-full min-w-0 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-3 shadow-sm sm:space-y-6 sm:p-5 lg:p-7">
         @csrf
         @method('PUT')
         @if ($patient->identity_status === 'unidentified')
@@ -11,9 +11,9 @@
         @endif
         @include('patients._form')
 
-        <div class="mt-6 flex items-center gap-3">
-            <button class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800">Save changes</button>
-            <a href="{{ route('patients.show', $patient) }}" class="text-sm text-slate-500 hover:underline">Cancel</a>
+        <div class="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-5">
+            <a href="{{ route('patients.show', $patient) }}" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-white">Cancel</a>
+            <button class="inline-flex min-h-11 min-w-40 items-center justify-center rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2">Save changes</button>
         </div>
     </form>
 </x-app-layout>

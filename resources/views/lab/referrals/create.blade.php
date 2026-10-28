@@ -8,7 +8,7 @@
         $matches    = session('possible_matches', []);
     @endphp
 
-    <form method="POST" action="{{ route('lab.referrals.store') }}" class="max-w-3xl space-y-6"
+    <form method="POST" action="{{ route('lab.referrals.store') }}" class="w-full space-y-6"
           @submit="submitting = true"
           x-data="{
               mode: @js(old('mode', 'existing')),
@@ -49,7 +49,7 @@
                 <p class="font-semibold">This patient may already be registered</p>
                 <ul class="mt-3 divide-y divide-amber-200">
                     @foreach ($matches as $m)
-                        <li class="flex items-center justify-between gap-3 py-2">
+                        <li class="flex flex-col items-start gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <span class="font-medium">{{ $m['name'] }}</span>
                                 <span class="ml-1 font-mono text-xs">{{ $m['hospital_number'] }}</span>
@@ -71,7 +71,7 @@
         @endif
 
         {{-- Who is the patient --}}
-        <div class="space-y-5 rounded-xl border bg-white p-6 shadow-sm">
+        <div class="space-y-5 rounded-xl border bg-white p-4 shadow-sm sm:p-6 lg:p-8">
             <div class="inline-flex rounded-lg border bg-slate-50 p-1 text-sm">
                 <button type="button" @click="mode = 'existing'"
                         :class="mode === 'existing' ? 'bg-teal-700 text-white shadow' : 'text-slate-600'"
@@ -95,7 +95,7 @@
             </div>
 
             {{-- New patient --}}
-            <div x-show="mode === 'new'" x-cloak class="grid gap-5 sm:grid-cols-2">
+            <div x-show="mode === 'new'" x-cloak class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 <div>
                     <label for="first_name" class="{{ $label }}">First name</label>
                     <input id="first_name" name="first_name" type="text" value="{{ old('first_name') }}" :required="mode === 'new'" class="{{ $input }}">
@@ -125,13 +125,13 @@
                     <input id="phone" name="phone" type="tel" value="{{ old('phone') }}" class="{{ $input }}">
                     @error('phone')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
-                <div class="sm:col-span-2">
+                <div class="sm:col-span-2 xl:col-span-3">
                     <label for="email" class="{{ $label }}">Email for completed results <span class="text-red-600">*</span></label>
                     <input id="email" name="email" type="email" value="{{ old('email') }}" :required="mode === 'new'" autocomplete="email" class="{{ $input }}">
                     <p class="mt-1 text-xs text-slate-500">We’ll email the completed result and any attached report to this address.</p>
                     @error('email')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
-                <div class="sm:col-span-2">
+                <div class="sm:col-span-2 xl:col-span-3">
                     <label for="address" class="{{ $label }}">Address (optional)</label>
                     <input id="address" name="address" type="text" value="{{ old('address') }}" autocomplete="street-address" class="{{ $input }}">
                     @error('address')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
@@ -140,7 +140,7 @@
         </div>
 
         {{-- Source and note --}}
-        <div class="space-y-5 rounded-xl border bg-white p-6 shadow-sm">
+        <div class="space-y-5 rounded-xl border bg-white p-4 shadow-sm sm:p-6 lg:p-8">
             <div class="grid gap-5 sm:grid-cols-2">
                 <div>
                     <label for="referred_from" class="{{ $label }}">Referred from (hospital / clinic)</label>
@@ -161,17 +161,17 @@
         </div>
 
         {{-- Tests --}}
-        <div class="rounded-xl border bg-white p-6 shadow-sm">
+        <div class="rounded-xl border bg-white p-4 shadow-sm sm:p-6 lg:p-8">
             <h3 class="mb-4 font-semibold">Tests requested</h3>
 
             @forelse ($byCategory as $category => $group)
                 <p class="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400 first:mt-0">{{ $category }}</p>
-                <div class="grid gap-2 sm:grid-cols-2">
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     @foreach ($group as $test)
-                        <label class="flex items-center gap-2 text-sm">
+                        <label class="flex min-w-0 items-start gap-2 text-sm">
                             <input type="checkbox" name="lab_test_ids[]" value="{{ $test->id }}" x-model="selected"
                                    class="rounded border-slate-300 text-teal-700 focus:ring-teal-600">
-                            <span>{{ $test->department?->name ?? 'Unassigned' }} · {{ $test->name }}</span> <span class="text-slate-400">₦{{ number_format($test->price) }}</span>
+                            <span class="min-w-0 flex-1">{{ $test->department?->name ?? 'Unassigned' }} · {{ $test->name }}</span><span class="shrink-0 text-slate-400">₦{{ number_format($test->price) }}</span>
                         </label>
                     @endforeach
                 </div>
@@ -183,18 +183,18 @@
             @error('lab_test_ids.*')<p class="mt-3 text-sm text-red-600">{{ $message }}</p>@enderror
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-white p-5 shadow-sm">
+        <div class="flex flex-col gap-5 rounded-xl border bg-white p-4 shadow-sm sm:flex-row sm:items-end sm:justify-between sm:p-5">
             <div>
                 <p class="text-xs text-slate-500">Tests: <span x-text="money(testTotal)"></span></p>
                 <p x-show="mode === 'new'" class="text-xs text-slate-500">Registration fee: <span x-text="money(registrationFee)"></span></p>
                 <p class="mt-1 text-xs font-medium text-slate-700">Total to pay</p>
                 <p class="text-2xl font-bold text-teal-800" x-text="money(total)"></p>
             </div>
-            <div class="flex items-center gap-3">
-                <a href="{{ url()->previous() }}" class="text-sm text-slate-500 hover:underline">Cancel</a>
+            <div class="flex w-full flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-5 sm:w-auto sm:border-0 sm:pt-0">
+                <a href="{{ url()->previous() }}" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">Cancel</a>
                 <button type="submit" :disabled="submitting"
-                        class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:cursor-wait disabled:opacity-60">
-                    <span x-text="submitting ? 'Registering patient…' : 'Register patient & create request'">Register patient & create request</span>
+                        class="inline-flex min-h-11 items-center justify-center rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60">
+                    <span x-text="submitting ? 'Submitting…' : 'Submit lab request'">Submit lab request</span>
                 </button>
             </div>
         </div>

@@ -17,15 +17,15 @@
            class="rounded-md px-4 py-1.5 font-medium {{ $isLab ? 'bg-teal-700 text-white shadow' : 'text-slate-600' }}">Lab test</a>
     </div>
 
-    <div class="max-w-2xl space-y-6">
+    <div class="w-full space-y-6">
 
         {{-- Step 1 --}}
-        <form method="GET" action="{{ route('portal.appointments.create') }}" class="rounded-xl border bg-white p-6 shadow-sm">
+        <form method="GET" action="{{ route('portal.appointments.create') }}" class="rounded-xl border bg-white p-4 shadow-sm sm:p-6 lg:p-8">
             <input type="hidden" name="type" value="{{ $type }}">
 
             <h2 class="font-semibold">1. Choose {{ $isLab ? 'a date' : 'a department, doctor and date' }}</h2>
 
-            <div class="mt-4 grid gap-5 {{ $isLab ? '' : 'sm:grid-cols-3' }}">
+            <div class="mt-4 grid gap-5 {{ $isLab ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3' }}">
                 @unless ($isLab)
                     <div>
                         <label for="department_id" class="{{ $label }}">Department</label>
@@ -63,9 +63,11 @@
 
             @error('date')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
 
-            <button class="mt-5 rounded-lg border border-teal-700 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">
-                {{ $isLab ? 'Show available times' : 'Continue' }}
-            </button>
+            <div class="mt-5 flex justify-end border-t border-slate-200 pt-5">
+                <button class="inline-flex min-h-11 items-center justify-center rounded-lg border border-teal-700 px-4 py-2 text-sm font-semibold text-teal-700 transition hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2">
+                    {{ $isLab ? 'Show available times' : 'Continue' }}
+                </button>
+            </div>
         </form>
 
         @unless ($isLab)
@@ -113,7 +115,7 @@
         @endunless
 
         @if (! $isLab && $date && $doctorId && $departmentId)
-            <form method="POST" action="{{ route('portal.appointments.store') }}" class="rounded-xl border bg-white p-6 shadow-sm">
+            <form method="POST" action="{{ route('portal.appointments.store') }}" class="rounded-xl border bg-white p-4 shadow-sm sm:p-6 lg:p-8">
                 @csrf
                 <input type="hidden" name="type" value="consultation">
                 <input type="hidden" name="department_id" value="{{ $departmentId }}">
@@ -132,7 +134,9 @@
                 @error('appointment_date')<p class="mt-3 text-sm text-red-600">{{ $message }}</p>@enderror
                 @error('doctor_id')<p class="mt-3 text-sm text-red-600">{{ $message }}</p>@enderror
 
-                <button class="mt-6 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800">Book appointment</button>
+                <div class="mt-6 flex justify-end border-t border-slate-200 pt-5">
+                    <button class="inline-flex min-h-11 min-w-40 items-center justify-center rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2">Book appointment</button>
+                </div>
             </form>
         @endif
 
@@ -145,7 +149,7 @@
                       get total() { return this.tests.filter(t => this.selected.includes(t.id)).reduce((s, t) => s + t.price, 0) },
                       money(n) { return '₦' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
                   }"
-                  class="rounded-xl border bg-white p-6 shadow-sm">
+                  class="rounded-xl border bg-white p-4 shadow-sm sm:p-6 lg:p-8">
                 @csrf
                 <input type="hidden" name="type" value="{{ $type }}">
                 @unless ($isLab)<input type="hidden" name="doctor_id" value="{{ $doctorId }}">@endunless
@@ -157,7 +161,7 @@
                         There are no free times on this day. Please try another date.
                     </p>
                 @else
-                    <div class="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8">
                         @foreach ($slots as $slot)
                             <label class="cursor-pointer">
                                 <input type="radio" name="slot" value="{{ $slot->format('Y-m-d H:i') }}" required class="peer sr-only">
@@ -174,7 +178,7 @@
                 @if ($slots->isNotEmpty())
                     @if ($isLab)
                         <h3 class="mt-6 text-sm font-medium text-slate-700">Tests</h3>
-                        <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div class="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                             @foreach ($tests as $test)
                                 <label class="flex items-center gap-2 text-sm">
                                     <input type="checkbox" name="lab_test_ids[]" value="{{ $test->id }}" x-model="selected"
@@ -196,9 +200,11 @@
 
                     @error('doctor_id')<p class="mt-3 text-sm text-red-600">{{ $message }}</p>@enderror
 
-                    <button class="mt-6 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800">
-                        Book appointment
-                    </button>
+                    <div class="mt-6 flex justify-end border-t border-slate-200 pt-5">
+                        <button class="inline-flex min-h-11 min-w-40 items-center justify-center rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2">
+                            Book appointment
+                        </button>
+                    </div>
                 @endif
             </form>
         @endif

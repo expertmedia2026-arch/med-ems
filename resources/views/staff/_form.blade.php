@@ -4,7 +4,7 @@
     $isSelf = $staff && $staff->is(auth()->user());
 @endphp
 
-<div class="grid gap-5 sm:grid-cols-2">
+<div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
     <div>
         <label for="name" class="{{ $label }}">Full name</label>
         <input id="name" name="name" type="text" value="{{ old('name', $staff?->name) }}" required class="{{ $input }}">
@@ -47,16 +47,6 @@
         @endif
     </div>
 
-    <div>
-        <!-- <label for="password" class="{{ $label }}">
-            {{ $staff ? 'New password (leave blank to keep current)' : 'Password' }}
-        </label> -->
-        <input  id="password" name="password" type="hidden" value="password" autocomplete="new-password" @required(! $staff) class="{{ $input }}">
-        @error('password')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-    </div>
-
-    <div>
-        <!-- <label for="password_confirmation" class="{{ $label }}">Confirm password</label> -->
-        <input id="password_confirmation" name="password_confirmation" type="hidden"  value="password" autocomplete="new-password" @required(! $staff) class="{{ $input }}">
-    </div>
+    <input id="password" name="password" type="hidden" value="password" autocomplete="new-password" @required(! $staff)>
+    <input id="password_confirmation" name="password_confirmation" type="hidden" value="password" autocomplete="new-password" @required(! $staff)>
 </div>

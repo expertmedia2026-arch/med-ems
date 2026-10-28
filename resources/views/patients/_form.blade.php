@@ -5,51 +5,63 @@
     $dob   = old('date_of_birth', $patient?->date_of_birth?->format('Y-m-d'));
 @endphp
 
-<p class="mb-4 text-xs text-slate-500">Fields marked <span class="font-semibold text-red-600">*</span> are required.</p>
+<p class="mb-5 text-sm text-slate-500">Complete the patient record below. Fields marked <span class="font-semibold text-red-600">*</span> are required.</p>
 
-<div class="grid gap-5 sm:grid-cols-2">
-    @foreach ([['first_name', 'First name', 'text'], ['last_name', 'Last name', 'text']] as [$name, $text, $type])
-        <div>
-            <label for="{{ $name }}" class="{{ $label }}">{{ $text }} <span class="text-red-600" aria-hidden="true">*</span></label>
-            <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ $val($name) }}" required class="{{ $input }}">
-            @error($name)<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+<div class="space-y-5 sm:space-y-6">
+    <section class="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div class="mb-4 border-b border-slate-100 pb-3">
+            <h2 class="font-semibold text-slate-900">Personal details</h2>
+            <p class="mt-1 text-xs text-slate-500">Patient identity and date of birth.</p>
         </div>
-    @endforeach
-
-    <div>
-        <label for="gender" class="{{ $label }}">Gender <span class="text-red-600" aria-hidden="true">*</span></label>
-        <select id="gender" name="gender" required class="{{ $input }}">
-            <option value="">Select…</option>
-            @foreach (['male' => 'Male', 'female' => 'Female'] as $v => $t)
-                <option value="{{ $v }}" @selected($val('gender') === $v)>{{ $t }}</option>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            @foreach ([['first_name', 'First name', 'text'], ['last_name', 'Last name', 'text']] as [$name, $text, $type])
+                <div>
+                    <label for="{{ $name }}" class="{{ $label }}">{{ $text }} <span class="text-red-600" aria-hidden="true">*</span></label>
+                    <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ $val($name) }}" required class="{{ $input }}">
+                    @error($name)<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
             @endforeach
-        </select>
-        @error('gender')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-    </div>
 
-    <div>
-        <label for="date_of_birth" class="{{ $label }}">Date of birth <span class="text-red-600" aria-hidden="true">*</span></label>
-        <input id="date_of_birth" name="date_of_birth" type="date" value="{{ $dob }}" max="{{ today()->toDateString() }}" required class="{{ $input }}">
-        @error('date_of_birth')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-    </div>
+            <div>
+                <label for="gender" class="{{ $label }}">Gender <span class="text-red-600" aria-hidden="true">*</span></label>
+                <select id="gender" name="gender" required class="{{ $input }}">
+                    <option value="">Select…</option>
+                    @foreach (['male' => 'Male', 'female' => 'Female'] as $v => $t)
+                        <option value="{{ $v }}" @selected($val('gender') === $v)>{{ $t }}</option>
+                    @endforeach
+                </select>
+                @error('gender')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+            </div>
 
-    <div class="sm:col-span-2 rounded-lg border border-slate-200 p-4">
-        <label for="photo" class="{{ $label }}">Patient photograph</label>
-        <div class="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div>
+                <label for="date_of_birth" class="{{ $label }}">Date of birth <span class="text-red-600" aria-hidden="true">*</span></label>
+                <input id="date_of_birth" name="date_of_birth" type="date" value="{{ $dob }}" max="{{ today()->toDateString() }}" required class="{{ $input }}">
+                @error('date_of_birth')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+            </div>
+        </div>
+    </section>
+
+    <section class="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div class="mb-4 border-b border-slate-100 pb-3">
+            <h2 class="font-semibold text-slate-900">Patient photograph</h2>
+            <p class="mt-1 text-xs text-slate-500">Upload an image or capture one with a connected camera.</p>
+        </div>
+        <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start">
             <img id="patient-photo-preview"
                  src="{{ $patient?->photo_path ? route('patients.photo', $patient) : '' }}"
                  alt="Patient photograph preview"
                  @if (! $patient?->photo_path) hidden @endif
-                 class="h-32 w-32 rounded-lg border bg-slate-50 object-cover">
+                 class="h-28 w-28 shrink-0 rounded-lg border bg-slate-50 object-cover sm:h-32 sm:w-32">
             <div class="min-w-0 flex-1">
+                <label for="photo" class="sr-only">Patient photograph</label>
                 <input id="photo" name="photo" type="file" accept="image/png,image/jpeg,image/webp"
-                       class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-teal-700 hover:file:bg-teal-100">
-                <p class="mt-1 text-xs text-slate-500">Upload JPG, PNG or WebP, up to 5 MB, or capture a photo with a connected camera.</p>
+                       class="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-teal-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-teal-700 hover:file:bg-teal-100 sm:file:mr-4 sm:file:px-4">
+                <p class="mt-2 text-xs leading-5 text-slate-500">JPG, PNG or WebP, up to 5 MB.</p>
                 <p id="photo-upload-error" class="mt-1 text-sm text-red-600" role="alert">@error('photo'){{ $message }}@enderror</p>
                 <div class="mt-3 flex flex-wrap gap-2">
-                    <button id="start-camera" type="button" class="rounded-lg border border-teal-700 px-3 py-2 text-sm font-medium text-teal-800 hover:bg-teal-50">Use camera</button>
-                    <button id="capture-photo" type="button" hidden class="rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-800">Capture photo</button>
-                    <button id="stop-camera" type="button" hidden class="rounded-lg border px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Close camera</button>
+                    <button id="start-camera" type="button" class="min-h-10 rounded-lg border border-teal-700 px-3 py-2 text-sm font-medium text-teal-800 hover:bg-teal-50">Use camera</button>
+                    <button id="capture-photo" type="button" hidden class="min-h-10 rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-800">Capture photo</button>
+                    <button id="stop-camera" type="button" hidden class="min-h-10 rounded-lg border px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Close camera</button>
                 </div>
                 <label id="camera-picker-label" for="camera-picker" hidden class="mt-3 block text-sm text-slate-600">Camera
                     <select id="camera-picker" class="mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm"></select>
@@ -59,68 +71,93 @@
             </div>
         </div>
         <canvas id="photo-canvas" hidden></canvas>
-    </div>
+    </section>
 
-    <div class="sm:col-span-2">
-        <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
-            <input name="is_nhis" type="hidden" value="0">
-            <input id="is_nhis" name="is_nhis" type="checkbox" value="1" @checked((bool) old('is_nhis', $patient?->is_nhis)) class="rounded border-slate-300 text-teal-700 focus:ring-teal-600">
-            Patient is enrolled with NHIS
-        </label>
-        @error('is_nhis')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-
-        <div id="nhis_number_field" class="mt-4" @if (!old('is_nhis', $patient?->is_nhis)) hidden @endif>
-            <label for="nhis_number" class="{{ $label }}">NHIS number <span id="nhis-required-marker" class="text-red-600" aria-hidden="true" @if (!old('is_nhis', $patient?->is_nhis)) hidden @endif>*</span></label>
-            <input id="nhis_number" name="nhis_number" type="text" value="{{ $val('nhis_number') }}" maxlength="50" class="{{ $input }}">
-            @error('nhis_number')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+    <section class="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div class="mb-4 border-b border-slate-100 pb-3">
+            <h2 class="font-semibold text-slate-900">Contact information</h2>
+            <p class="mt-1 text-xs text-slate-500">How the hospital can reach the patient.</p>
         </div>
-    </div>
-
-    @foreach ([['phone', 'Phone', 'tel'], ['email', 'Email', 'email']] as [$name, $text, $type])
-        <div>
-            <label for="{{ $name }}" class="{{ $label }}">{{ $text }}</label>
-            <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ $val($name) }}" class="{{ $input }}">
-            @error($name)<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-        </div>
-    @endforeach
-
-    <div class="sm:col-span-2">
-        <label for="address" class="{{ $label }}">Address</label>
-        <textarea id="address" name="address" rows="2" class="{{ $input }}">{{ $val('address') }}</textarea>
-        @error('address')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-    </div>
-
-    <div>
-        <label for="blood_group" class="{{ $label }}">Blood group</label>
-        <select id="blood_group" name="blood_group" class="{{ $input }}">
-            <option value="">Unknown</option>
-            @foreach (['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as $bg)
-                <option value="{{ $bg }}" @selected($val('blood_group') === $bg)>{{ $bg }}</option>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            @foreach ([['phone', 'Phone', 'tel'], ['email', 'Email', 'email']] as [$name, $text, $type])
+                <div>
+                    <label for="{{ $name }}" class="{{ $label }}">{{ $text }}</label>
+                    <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ $val($name) }}" class="{{ $input }}">
+                    @error($name)<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
             @endforeach
-        </select>
-    </div>
-
-    <div>
-        <label for="genotype" class="{{ $label }}">Genotype</label>
-        <select id="genotype" name="genotype" class="{{ $input }}">
-            <option value="">Unknown</option>
-            @foreach (['AA', 'AS', 'SS', 'AC', 'SC'] as $g)
-                <option value="{{ $g }}" @selected($val('genotype') === $g)>{{ $g }}</option>
-            @endforeach
-        </select>
-    </div>
-
-    <div class="sm:col-span-2">
-        <label for="allergies" class="{{ $label }}">Known allergies</label>
-        <input id="allergies" name="allergies" type="text" value="{{ $val('allergies') }}" placeholder="e.g. Penicillin" class="{{ $input }}">
-    </div>
-
-    @foreach ([['next_of_kin_name', 'Next of kin', 'text'], ['next_of_kin_phone', 'Next of kin phone', 'tel']] as [$name, $text, $type])
-        <div>
-            <label for="{{ $name }}" class="{{ $label }}">{{ $text }}</label>
-            <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ $val($name) }}" class="{{ $input }}">
+            <div class="sm:col-span-2 xl:col-span-2">
+                <label for="address" class="{{ $label }}">Address</label>
+                <textarea id="address" name="address" rows="2" class="{{ $input }}">{{ $val('address') }}</textarea>
+                @error('address')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+            </div>
         </div>
-    @endforeach
+    </section>
+
+    <section class="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div class="mb-4 border-b border-slate-100 pb-3">
+            <h2 class="font-semibold text-slate-900">Medical and coverage details</h2>
+            <p class="mt-1 text-xs text-slate-500">Optional clinical details and NHIS coverage.</p>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="sm:col-span-2 xl:col-span-4">
+                <label class="flex min-h-11 items-center gap-2 text-sm font-medium text-slate-700">
+                    <input name="is_nhis" type="hidden" value="0">
+                    <input id="is_nhis" name="is_nhis" type="checkbox" value="1" @checked((bool) old('is_nhis', $patient?->is_nhis)) class="rounded border-slate-300 text-teal-700 focus:ring-teal-600">
+                    Patient is enrolled with NHIS
+                </label>
+                @error('is_nhis')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+
+                <div id="nhis_number_field" class="mt-3 max-w-xl" @if (!old('is_nhis', $patient?->is_nhis)) hidden @endif>
+                    <label for="nhis_number" class="{{ $label }}">NHIS number <span id="nhis-required-marker" class="text-red-600" aria-hidden="true" @if (!old('is_nhis', $patient?->is_nhis)) hidden @endif>*</span></label>
+                    <input id="nhis_number" name="nhis_number" type="text" value="{{ $val('nhis_number') }}" maxlength="50" class="{{ $input }}">
+                    @error('nhis_number')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
+            </div>
+
+            <div>
+                <label for="blood_group" class="{{ $label }}">Blood group</label>
+                <select id="blood_group" name="blood_group" class="{{ $input }}">
+                    <option value="">Unknown</option>
+                    @foreach (['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as $bg)
+                        <option value="{{ $bg }}" @selected($val('blood_group') === $bg)>{{ $bg }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label for="genotype" class="{{ $label }}">Genotype</label>
+                <select id="genotype" name="genotype" class="{{ $input }}">
+                    <option value="">Unknown</option>
+                    @foreach (['AA', 'AS', 'SS', 'AC', 'SC'] as $g)
+                        <option value="{{ $g }}" @selected($val('genotype') === $g)>{{ $g }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="sm:col-span-2">
+                <label for="allergies" class="{{ $label }}">Known allergies</label>
+                <input id="allergies" name="allergies" type="text" value="{{ $val('allergies') }}" placeholder="e.g. Penicillin" class="{{ $input }}">
+                @error('allergies')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+            </div>
+        </div>
+    </section>
+
+    <section class="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div class="mb-4 border-b border-slate-100 pb-3">
+            <h2 class="font-semibold text-slate-900">Next of kin</h2>
+            <p class="mt-1 text-xs text-slate-500">Optional emergency contact details.</p>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            @foreach ([['next_of_kin_name', 'Next of kin', 'text'], ['next_of_kin_phone', 'Next of kin phone', 'tel']] as [$name, $text, $type])
+                <div>
+                    <label for="{{ $name }}" class="{{ $label }}">{{ $text }}</label>
+                    <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ $val($name) }}" class="{{ $input }}">
+                    @error($name)<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
+            @endforeach
+        </div>
+    </section>
 </div>
 
 <script>
