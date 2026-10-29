@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\ClinicalController;
 use App\Http\Controllers\Api\V1\CsvTransferController;
 use App\Http\Controllers\Api\V1\DashboardApiController;
 use App\Http\Controllers\Api\V1\EmergencyController;
+use App\Http\Controllers\Api\V1\GlobalAdminApiController;
 use App\Http\Controllers\Api\V1\LabOperationsController;
 use App\Http\Controllers\Api\V1\MaternityController;
 use App\Http\Controllers\Api\V1\MortuaryController;
@@ -28,11 +29,38 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::post('auth/staff-invitations/{token}/accept', [AuthController::class, 'acceptStaffInvitation'])->name('auth.staff-invitations.accept');
     Route::post('auth/patient-invitations/{token}/accept', [AuthController::class, 'acceptPatientInvitation'])->name('auth.patient-invitations.accept');
 
-    Route::middleware(['auth:sanctum', 'active', 'hospital'])->group(function () {
-        // Shared authenticated identity endpoints; logout revokes the current Sanctum token.
+    // Identity actions do not need tenant context and must remain usable by platform admins.
+    Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('auth/me', [AuthController::class, 'show'])->name('auth.me');
         Route::delete('auth/logout', [AuthController::class, 'destroy'])->name('auth.logout');
+    });
 
+    // Platform administration deliberately skips hospital context and is isolated
+    // behind Sanctum authentication plus the global-administrator role check.
+    Route::middleware(['auth:sanctum', 'active', 'global.admin'])
+        ->prefix('platform')->name('platform.')->group(function () {
+            Route::get('dashboard', [GlobalAdminApiController::class, 'dashboard'])->name('dashboard');
+            Route::get('modules', [GlobalAdminApiController::class, 'modules'])->name('modules.index');
+            Route::get('hospitals', [GlobalAdminApiController::class, 'hospitals'])->name('hospitals.index');
+            Route::post('hospitals', [GlobalAdminApiController::class, 'createHospital'])->name('hospitals.store');
+            Route::get('hospitals/{hospital}', [GlobalAdminApiController::class, 'showHospital'])
+                ->whereNumber('hospital')->name('hospitals.show');
+            Route::put('hospitals/{hospital}/configuration', [GlobalAdminApiController::class, 'updateHospitalConfiguration'])
+                ->whereNumber('hospital')->name('hospitals.configuration.update');
+            Route::patch('hospitals/{hospital}/status', [GlobalAdminApiController::class, 'setHospitalStatus'])
+                ->whereNumber('hospital')->name('hospitals.status.update');
+
+            Route::get('admins', [GlobalAdminApiController::class, 'platformAdmins'])->name('admins.index');
+            Route::post('admins', [GlobalAdminApiController::class, 'createPlatformAdmin'])->name('admins.store');
+            Route::patch('admins/{user}/status', [GlobalAdminApiController::class, 'setPlatformAdminStatus'])
+                ->whereNumber('user')->name('admins.status.update');
+
+            Route::get('notifications', [GlobalAdminApiController::class, 'notifications'])->name('notifications.index');
+            Route::patch('notifications/read-all', [GlobalAdminApiController::class, 'markAllNotificationsRead'])->name('notifications.read-all');
+            Route::patch('notifications/{notification}/read', [GlobalAdminApiController::class, 'markNotificationRead'])->name('notifications.read');
+        });
+
+    Route::middleware(['auth:sanctum', 'active', 'hospital'])->group(function () {
         // CSV import/export for authorized hospital catalogs and records.
         Route::get('data/{dataset}/export', [CsvTransferController::class, 'export'])->name('data.export');
         Route::post('data/{dataset}/import', [CsvTransferController::class, 'import'])->name('data.import');
