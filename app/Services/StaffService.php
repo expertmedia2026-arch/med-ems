@@ -9,6 +9,8 @@ use App\Models\User;
 
 class StaffService
 {
+    public function __construct(private readonly GlobalAdminNotificationService $globalAdminNotifications) {}
+
     public function indexData(array $filters, ?User $actor = null): array
     {
         $isDepartmentViewer = $actor?->role === Role::ChiefAccountant;
@@ -46,6 +48,7 @@ class StaffService
     public function update(User $staff, array $data, User $actor): User
     {
         $this->assertStaffRecord($staff);
+        $previousEmail = $staff->email;
         $this->assignFinanceDepartment($data);
         if ($staff->is($actor)) {
             $data['role'] = $staff->role->value;
@@ -54,6 +57,10 @@ class StaffService
             unset($data['password']);
         }
         $staff->update($data);
+
+        if ($staff->wasChanged('email')) {
+            $this->globalAdminNotifications->hospitalAdminEmailChanged($staff, $previousEmail);
+        }
 
         return $staff->refresh();
     }

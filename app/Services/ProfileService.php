@@ -6,8 +6,11 @@ use App\Models\User;
 
 class ProfileService
 {
+    public function __construct(private readonly GlobalAdminNotificationService $globalAdminNotifications) {}
+
     public function update(User $user, array $attributes): User
     {
+        $previousEmail = $user->email;
         $user->fill($attributes);
 
         if ($user->isDirty('email')) {
@@ -15,6 +18,10 @@ class ProfileService
         }
 
         $user->save();
+
+        if ($user->wasChanged('email')) {
+            $this->globalAdminNotifications->hospitalAdminEmailChanged($user, $previousEmail);
+        }
 
         return $user->refresh();
     }

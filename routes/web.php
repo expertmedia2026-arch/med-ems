@@ -89,7 +89,7 @@ Route::middleware('guest')->group(function () {
 });
 
 // ---------------- Patient portal ----------------
-Route::middleware(['auth', 'auth.session', 'active', 'hospital'])->group(function () {
+Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('notifications/latest', [NotificationController::class, 'latest'])->name('notifications.latest');
     Route::get('notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');

@@ -5,10 +5,13 @@ namespace App\Services;
 use App\Models\HospitalSetting;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class HospitalSettingsService
 {
+    public function __construct(private readonly GlobalAdminNotificationService $globalAdminNotifications) {}
+
     public function current(): HospitalSetting
     {
         return HospitalSetting::current();
@@ -20,8 +23,7 @@ class HospitalSettingsService
         bool $removeLogo,
         ?UploadedFile $administratorSignature,
         bool $removeAdministratorSignature,
-    ): HospitalSetting
-    {
+    ): HospitalSetting {
         $settings = HospitalSetting::current();
         $disk = Storage::disk('public');
         $privateDisk = Storage::disk('local');
@@ -78,7 +80,21 @@ class HospitalSettingsService
             $data['administrator_signature_path'] = $administratorSignature->store('hospital-signatures', 'local');
         }
 
-        $settings->update(Arr::except($data, ['logo', 'administrator_signature']));
+        $previousName = $settings->name;
+        $hospital = null;
+
+        DB::transaction(function () use ($settings, $data, $previousName, &$hospital): void {
+            $settings->update(Arr::except($data, ['logo', 'administrator_signature']));
+
+            if ($previousName !== $settings->name) {
+                $hospital = $settings->hospital()->firstOrFail();
+                $hospital->update(['name' => $settings->name]);
+            }
+        });
+
+        if ($hospital) {
+            $this->globalAdminNotifications->hospitalNameChanged($hospital, $previousName, $settings->name);
+        }
 
         return $settings->refresh();
     }

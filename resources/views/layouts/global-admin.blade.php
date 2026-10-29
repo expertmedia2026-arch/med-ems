@@ -45,14 +45,17 @@
             </div>
             <header class="flex min-h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 lg:px-8">
                 <div class="min-w-0 truncate text-[10px] font-semibold uppercase tracking-[.14em] text-slate-500 sm:text-xs sm:tracking-[.16em]">Platform management</div>
-                <div x-data="{ userMenu: false }" class="relative">
-                    <button type="button" @click="userMenu = ! userMenu" @keydown.escape.window="userMenu = false" :aria-expanded="userMenu.toString()" aria-label="Open account menu" class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-[#e51d2a] hover:text-[#c81020] focus:outline-none focus:ring-2 focus:ring-[#e51d2a]/30">
-                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4.5 20a7.5 7.5 0 0 1 15 0" /></svg>
-                    </button>
-                    <div x-cloak x-show="userMenu" @click.outside="userMenu = false" x-transition class="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
-                        <div class="border-b border-slate-100 px-4 py-3"><p class="truncate text-sm font-bold text-slate-900">{{ auth()->user()->name }}</p><p class="mt-0.5 truncate text-xs text-slate-500">{{ auth()->user()->email }}</p></div>
-                        <a href="{{ route('global-admin.profile.edit') }}" class="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Profile</a>
-                        <form method="POST" action="{{ route('logout') }}">@csrf<button class="block w-full px-4 py-2.5 text-left text-sm font-semibold text-[#c81020] hover:bg-red-50">Sign out</button></form>
+                <div class="flex items-center gap-3">
+                    <x-notification-bell />
+                    <div x-data="{ userMenu: false }" class="relative">
+                        <button type="button" @click="userMenu = ! userMenu" @keydown.escape.window="userMenu = false" :aria-expanded="userMenu.toString()" aria-label="Open account menu" class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-[#e51d2a] hover:text-[#c81020] focus:outline-none focus:ring-2 focus:ring-[#e51d2a]/30">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4.5 20a7.5 7.5 0 0 1 15 0" /></svg>
+                        </button>
+                        <div x-cloak x-show="userMenu" @click.outside="userMenu = false" x-transition class="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
+                            <div class="border-b border-slate-100 px-4 py-3"><p class="truncate text-sm font-bold text-slate-900">{{ auth()->user()->name }}</p><p class="mt-0.5 truncate text-xs text-slate-500">{{ auth()->user()->email }}</p></div>
+                            <a href="{{ route('global-admin.profile.edit') }}" class="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Profile</a>
+                            <form method="POST" action="{{ route('logout') }}">@csrf<button class="block w-full px-4 py-2.5 text-left text-sm font-semibold text-[#c81020] hover:bg-red-50">Sign out</button></form>
+                        </div>
                     </div>
                 </div>
             </header>

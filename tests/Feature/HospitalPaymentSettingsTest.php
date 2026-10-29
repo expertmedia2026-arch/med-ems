@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\Role;
+use App\Models\Hospital;
 use App\Models\HospitalSetting;
 use App\Models\User;
 use App\Services\PaystackGateway;
@@ -14,6 +15,50 @@ use Tests\TestCase;
 class HospitalPaymentSettingsTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_hospital_name_changes_update_the_platform_hospital_and_notify_global_admins(): void
+    {
+        $hospital = Hospital::create([
+            'name' => 'Original Hospital',
+            'slug' => 'original-hospital',
+            'is_active' => true,
+        ]);
+        $hospitalAdmin = User::factory()->create(['role' => Role::Admin, 'is_active' => true]);
+        $hospitalAdmin->hospital()->associate($hospital);
+        $hospitalAdmin->save();
+        HospitalSetting::create([
+            'hospital_id' => $hospital->id,
+            'name' => 'Original Hospital',
+        ]);
+
+        $globalAdmin = User::factory()->create(['role' => Role::Admin, 'is_active' => true]);
+        $globalAdmin->is_global_admin = true;
+        $globalAdmin->save();
+
+        $this->actingAs($hospitalAdmin)
+            ->put(route('settings.update'), ['name' => 'Updated Hospital'])
+            ->assertRedirect(route('settings.edit'));
+
+        $this->assertDatabaseHas('hospitals', [
+            'id' => $hospital->id,
+            'name' => 'Updated Hospital',
+        ]);
+        $this->assertDatabaseHas('hospital_settings', [
+            'hospital_id' => $hospital->id,
+            'name' => 'Updated Hospital',
+        ]);
+
+        $notification = $globalAdmin->notifications()->firstOrFail();
+        $this->assertSame('Hospital name updated', $notification->data['title']);
+        $this->assertSame('The hospital name changed from Original Hospital to Updated Hospital.', $notification->data['message']);
+        $this->assertSame(route('global-admin.hospitals.edit', $hospital), $notification->data['url']);
+
+        $this->actingAs($globalAdmin)
+            ->get(route('global-admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Updated Hospital')
+            ->assertSee(route('notifications.latest'), false);
+    }
 
     public function test_admin_can_save_encrypted_paystack_credentials_and_gateway_uses_them(): void
     {
