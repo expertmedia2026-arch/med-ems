@@ -5,8 +5,14 @@ namespace App\Http\Controllers;
 use App\Http\Requests\AcceptPatientInvitationRequest;
 use App\Services\PatientInvitationAcceptanceService;
 
+/**
+ * Validates patient portal invitation links and delegates account activation to the acceptance service.
+ */
 class PortalInvitationAcceptController extends Controller
 {
+    /**
+     * Resolves a usable invitation token and renders the acceptance form or invalid-link page.
+     */
     public function show(string $token, PatientInvitationAcceptanceService $acceptance)
     {
         $invitation = $acceptance->findUsable($token);
@@ -21,6 +27,9 @@ class PortalInvitationAcceptController extends Controller
         ]);
     }
 
+    /**
+     * Validates a password, accepts the invitation, and redirects to sign-in with registration-payment status.
+     */
     public function store(AcceptPatientInvitationRequest $request, string $token, PatientInvitationAcceptanceService $acceptance)
     {
         $invitation = $acceptance->findUsable($token);

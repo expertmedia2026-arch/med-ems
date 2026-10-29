@@ -17,8 +17,12 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Supplies appointment views and coordinates consultation/lab booking, reassignment, and cancellation.
+ */
 class AppointmentBookingService
 {
+    /** List active doctors, optionally narrowed to one department, with their department relation. */
     public function doctorsForDepartment(?int $departmentId = null): Collection
     {
         return User::ofRole(Role::Doctor)
@@ -29,6 +33,7 @@ class AppointmentBookingService
             ->get(['id', 'name', 'department_id']);
     }
 
+    /** Load the patient, doctor, lab tests, and reassignment history needed for an appointment detail view. */
     public function appointmentDetails(Appointment $appointment): Appointment
     {
         return $appointment->load([
@@ -37,6 +42,15 @@ class AppointmentBookingService
         ]);
     }
 
+    /**
+     * Prepare the staff appointment list and its date-specific doctor/type filters.
+     *
+     * Doctor viewers are restricted to their own appointments; administrators/receptionists receive
+     * doctor and department selectors. Reassignment options contain only eligible same-department
+     * doctors available on the selected date.
+     *
+     * @return array<string, mixed> Appointments, reassignment choices, consultation types, and staff filters.
+     */
     public function indexData(Carbon $date, User $user, ?int $doctorId = null, ?string $hospitalNumber = null, ?int $departmentId = null): array
     {
         $appointments = Appointment::with([
@@ -81,6 +95,14 @@ class AppointmentBookingService
         ];
     }
 
+    /**
+     * Reassign an upcoming scheduled consultation to another available doctor in the same department.
+     *
+     * The appointment row is locked while assignment and audit history are saved in one transaction.
+     * The old doctor, new doctor, and linked patient receive notifications; lab appointments and
+     * duplicate patient/doctor/date bookings are rejected. The caller must authorize the actor;
+     * their ID is recorded in the reassignment history.
+     */
     public function reassignDoctor(Appointment $appointment, int $doctorId, User $actor, string $reason): Appointment
     {
         return DB::transaction(function () use ($appointment, $doctorId, $actor, $reason) {
@@ -156,6 +178,12 @@ class AppointmentBookingService
         });
     }
 
+    /**
+     * Build staff booking controls, including patients, active doctors, departments, and availability.
+     *
+     * @param array<string, mixed> $query Optional department and patient selector values from the URL.
+     * @return array<string, mixed> Form option collections and current selector values.
+     */
     public function formData(array $query): array
     {
         $doctors = $this->doctorsForDepartment();
@@ -176,6 +204,7 @@ class AppointmentBookingService
         ];
     }
 
+    /** Split a patient's scheduled appointments into upcoming and recent/past groups for the portal. */
     public function portalIndexData(Patient $patient): array
     {
         return [
@@ -193,6 +222,7 @@ class AppointmentBookingService
         ];
     }
 
+    /** Paginate the patient's appointments with doctor and requested-test details for the portal. */
     public function portalAppointments(Patient $patient)
     {
         return $patient->appointments()
@@ -201,6 +231,15 @@ class AppointmentBookingService
             ->paginate(10);
     }
 
+    /**
+     * Prepare patient-portal booking filters, availability, lab options, and any requested lab slots.
+     *
+     * Query selections are normalized; appointment type defaults to consultation, while available
+     * tests and the configured maximum booking date are returned for both booking types.
+     *
+     * @param array<string, mixed> $query Optional type, date, department, and doctor selector values.
+     * @return array<string, mixed> Normalized selections, scheduling options, and catalogue data.
+     */
     public function portalFormData(array $query): array
     {
         $type = ($query['type'] ?? null) === 'lab' ? 'lab' : 'consultation';
@@ -229,12 +268,17 @@ class AppointmentBookingService
         ];
     }
 
+    /** List active lab tests in name order for booking forms. */
     public function activeLabTests(): Collection
     {
         return LabTest::active()->orderBy('name')->get();
     }
 
-    /** @return array{tests: Collection, slots: Collection<int, Carbon>} */
+    /**
+     * Return lab catalogue and available time slots for a requested date.
+     *
+     * @return array{tests: Collection, slots: Collection<int, Carbon>}
+     */
     public function labBookingOptions(Carbon $date): array
     {
         return [
@@ -243,6 +287,13 @@ class AppointmentBookingService
         ];
     }
 
+    /**
+     * Create a staff-booked consultation after checking doctor availability and duplicate bookings.
+     *
+     * Sends appointment notifications after creating the record.
+     *
+     * @param array<string, mixed> $data Validated hospital number, doctor, date, and optional reason.
+     */
     public function bookForStaff(array $data, int $createdBy): Appointment
     {
         $patient = Patient::where('hospital_number', $data['hospital_number'])->firstOrFail();
@@ -271,6 +322,7 @@ class AppointmentBookingService
         return $appointment;
     }
 
+    /** Cancel a scheduled appointment and notify its doctor and linked patient. */
     public function cancel(Appointment $appointment): void
     {
         abort_unless($appointment->status === AppointmentStatus::Scheduled, 422);
@@ -278,6 +330,12 @@ class AppointmentBookingService
         $this->notifyAppointmentCancelled($appointment);
     }
 
+    /**
+     * Cancel an upcoming scheduled appointment for its owning patient.
+     *
+     * Returns false when it is already cancelled/otherwise inactive or its consultation date or lab
+     * time has passed; rejects an appointment belonging to another patient with a 404 response.
+     */
     public function cancelForPatient(Patient $patient, Appointment $appointment): bool
     {
         abort_unless($appointment->patient_id === $patient->id, 404);
@@ -296,7 +354,16 @@ class AppointmentBookingService
         return true;
     }
 
-    /** @return array{appointment: Appointment|null, type: string, when: Carbon, error: string|null, field: string} */
+    /**
+     * Book a consultation or lab appointment for a patient after checking availability and booking limits.
+     *
+     * The appointment and selected lab tests (for a lab booking) are persisted transactionally.
+     * Availability, duplicate, and upcoming-booking-limit failures are returned in the result payload
+     * rather than thrown; successful bookings trigger doctor/patient notifications.
+     *
+     * @param array<string, mixed> $data Validated booking type, doctor/date or slot, tests, and optional reason.
+     * @return array{appointment: Appointment|null, type: string, when: Carbon, error: string|null, field: string}
+     */
     public function bookForPatient(Patient $patient, array $data, int $createdBy): array
     {
         $type = $data['type'];
@@ -362,6 +429,7 @@ class AppointmentBookingService
         return compact('appointment', 'type', 'when', 'field') + ['error' => null];
     }
 
+    /** Notify the assigned doctor and the patient's portal account about a newly created appointment. */
     private function notifyNewAppointment(Appointment $appointment): void
     {
         $appointment->loadMissing(['patient.user', 'doctor']);
@@ -382,6 +450,7 @@ class AppointmentBookingService
         ));
     }
 
+    /** Notify the assigned doctor and patient's portal account that an appointment was cancelled. */
     private function notifyAppointmentCancelled(Appointment $appointment): void
     {
         $appointment->loadMissing(['patient.user', 'doctor']);
@@ -402,7 +471,14 @@ class AppointmentBookingService
         ));
     }
 
-    /** @return Collection<int, Carbon> */
+    /**
+     * Calculate bookable slots from configured hours, lead time, doctor availability, and capacity.
+     *
+     * Consultation slots require the doctor to be marked available on the date and allow one
+     * appointment per slot; lab slots use configured weekdays and per-slot lab capacity.
+     *
+     * @return Collection<int, Carbon>
+     */
     public function availableSlots(string $type, Carbon $date, ?int $doctorId): Collection
     {
         $cfg = config('hms.booking');

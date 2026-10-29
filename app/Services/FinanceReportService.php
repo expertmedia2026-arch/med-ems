@@ -10,8 +10,35 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
+/**
+ * Builds payment summaries, chart series, and department breakdowns for finance screens and exports.
+ *
+ * Payment, invoice, and department queries use the application's normal model scopes; this service
+ * applies the optional report filters but does not perform authorization itself.
+ */
 class FinanceReportService
 {
+    /**
+     * Assemble the selected period's payment totals, outstanding balance, charts, and payment rows.
+     *
+     * The input accepts period, date, department, and receiver-role filters. Export mode returns
+     * all matching payments, while screen mode returns a query-string-preserving paginator.
+     *
+     * @param  array<string, mixed>  $input  Report filters such as period, year, dates, department, and role.
+     * @return array{
+     *     filters: array<string, mixed>,
+     *     departments: \Illuminate\Database\Eloquent\Collection<int, Department>,
+     *     roles: array,
+     *     payments: LengthAwarePaginator|\Illuminate\Database\Eloquent\Collection<int, Payment>,
+     *     collected: float,
+     *     transactions: int,
+     *     average: float|int,
+     *     outstanding: float,
+     *     chart: array,
+     *     departmentBreakdown: array,
+     *     rangeLabel: string
+     * }
+     */
     public function indexData(array $input, bool $forExport = false): array
     {
         $filters = $this->normalizeFilters($input);
@@ -51,6 +78,15 @@ class FinanceReportService
         ];
     }
 
+    /**
+     * Fill omitted report filters with the current month and the current calendar date.
+     *
+     * Values are normalized to integer years/months/quarters where needed; validation and allowed
+     * filter values are handled by the calling request layer.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array{period: mixed, year: int, month: int, quarter: int, department_id: mixed, role: mixed, start_date: mixed, end_date: mixed}
+     */
     private function normalizeFilters(array $input): array
     {
         return [
@@ -65,7 +101,14 @@ class FinanceReportService
         ];
     }
 
-    /** @return array{CarbonImmutable, CarbonImmutable} */
+    /**
+     * Resolve the inclusive date-time bounds for the requested period.
+     *
+     * Custom date strings are parsed as supplied; other period types are derived from year,
+     * month, or quarter filter values.
+     *
+     * @return array{CarbonImmutable, CarbonImmutable}
+     */
     private function periodDates(array $filters): array
     {
         return match ($filters['period']) {
@@ -85,7 +128,11 @@ class FinanceReportService
         };
     }
 
-    /** @return array{CarbonImmutable, CarbonImmutable} */
+    /**
+     * Calculate the first and last instants of a three-month reporting quarter.
+     *
+     * @return array{CarbonImmutable, CarbonImmutable}
+     */
     private function quarterDates(int $year, int $quarter): array
     {
         $start = CarbonImmutable::create($year, (($quarter - 1) * 3) + 1, 1)->startOfMonth();
@@ -93,6 +140,15 @@ class FinanceReportService
         return [$start->startOfDay(), $start->addMonths(2)->endOfMonth()->endOfDay()];
     }
 
+    /**
+     * Add the optional department and payment-receiver role conditions to a payment query.
+     *
+     * The special "online" role means payments without a recorded receiver; other role values
+     * are matched against the receiver's staff role.
+     *
+     * @param  Builder<Payment>  $query
+     * @param  array<string, mixed>  $filters
+     */
     private function applyFilters(Builder $query, array $filters): void
     {
         if ($filters['department_id']) {
@@ -106,6 +162,15 @@ class FinanceReportService
         }
     }
 
+    /**
+     * Group payments into weekly, daily, or monthly chart buckets for the selected range.
+     *
+     * Monthly reports use up to five day-of-month week buckets; short custom ranges use one bucket
+     * per date, and longer ranges use calendar months. Empty buckets are included with amount zero.
+     *
+     * @param  Collection<int, Payment>  $payments
+     * @return array<int, array{key: string, label: string, amount: float}>
+     */
     private function chartBuckets(Collection $payments, CarbonImmutable $start, CarbonImmutable $end, string $period): array
     {
         $daily = $period === 'custom' && $start->diffInDays($end) < 31;
@@ -135,6 +200,12 @@ class FinanceReportService
         return array_map(fn (array $bucket) => $bucket + ['amount' => $totals->get($bucket['key'], 0)], $buckets);
     }
 
+    /**
+     * Sum payment amounts by mortuary case, visit department, or the general-registration fallback.
+     *
+     * @param  Collection<int, Payment>  $payments  Payments with invoice visit and mortuary relations loaded.
+     * @return array<int, array{department: string, amount: float}>
+     */
     private function departmentBreakdown(Collection $payments): array
     {
         return $payments

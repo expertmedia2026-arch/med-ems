@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Presents and processes the signed-in user's password re-confirmation flow.
+ */
 class ConfirmablePasswordController extends Controller
 {
     /**

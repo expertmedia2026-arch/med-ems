@@ -11,10 +11,27 @@ use App\Models\EmergencyObservation;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Builds nurse triage queues and records vitals and emergency observations.
+ *
+ * Department access is checked before viewing or editing a visit. Vitals changes
+ * are committed under a visit row lock, with doctor notifications dispatched only
+ * after the transaction commits.
+ */
 class TriageService
 {
+    /** @param BillingService $billing Creates any missing consultation invoice shown in the triage queue. */
     public function __construct(private readonly BillingService $billing) {}
 
+    /**
+     * Ensure staff may edit vitals for this visit at its current workflow stage.
+     *
+     * Requires admin or appropriate nurse department access; only waiting visits
+     * remain editable, with emergency visits also editable during consultation.
+     *
+     * @param  Visit  $visit  Visit whose vitals are to be changed.
+     * @param  User  $staff  Staff member attempting the edit.
+     */
     public function assertVitalsEditable(Visit $visit, User $staff): void
     {
         $this->assertDepartmentAccess($visit, $staff);
@@ -27,6 +44,18 @@ class TriageService
         );
     }
 
+    /**
+     * Assemble role- and department-scoped waiting and triaged visit queues.
+     *
+     * Administrators and central-vitals nurses may select a department; other nurses
+     * are limited to their assigned department. Non-emergency waiting visits without
+     * invoices have one created as part of preparing the queue.
+     *
+     * @param  User  $staff  Staff member viewing the triage queue.
+     * @param  array<string, mixed>  $filters  Optional department_id and q filters.
+     * @param  bool  $paginate  Whether to paginate waiting and ready queues.
+     * @return array<string, mixed> Queue results, counts, available departments, and selected filter state.
+     */
     public function indexData(User $staff, array $filters = [], bool $paginate = true): array
     {
         $isAdmin = $staff->hasRole(Role::Admin);
@@ -79,11 +108,28 @@ class TriageService
         ];
     }
 
+    /**
+     * Load the patient, workflow, vitals, and emergency-care data needed for triage.
+     *
+     * @param  Visit  $visit  Visit being opened for triage.
+     * @return Visit Visit with its triage and emergency relations loaded.
+     */
     public function loadVitalsData(Visit $visit): Visit
     {
         return $visit->load(['patient', 'doctor', 'department', 'vitals', 'emergencyObservations.recorder', 'emergencyProgressNotes.author', 'emergencyMedicationUses.drug', 'emergencyMedicationUses.recorder', 'emergencyMedicationUses.invoiceItem', 'emergencyItemUses.item', 'emergencyItemUses.recorder', 'emergencyItemUses.invoiceItem']);
     }
 
+    /**
+     * Record vitals and move an eligible visit from triage to the doctor queue.
+     *
+     * The visit is reloaded under a row lock, then department, role, and workflow
+     * status are checked in the transaction. Emergency visits also receive an
+     * observation record. Doctors are notified after commit.
+     *
+     * @param  Visit  $visit  Visit receiving the recorded vitals.
+     * @param  array<string, mixed>  $data  Validated vitals plus optional complaint and triage priority.
+     * @param  User  $nurse  Nurse recording the observations.
+     */
     public function recordVitals(Visit $visit, array $data, User $nurse): void
     {
         $complaint = $data['complaint'] ?? null;
@@ -125,6 +171,12 @@ class TriageService
         });
     }
 
+    /**
+     * Require admin or nurse access to the visit's assigned department or central OPD.
+     *
+     * @param  Visit  $visit  Visit whose department determines access.
+     * @param  User  $staff  Staff member requesting access.
+     */
     private function assertDepartmentAccess(Visit $visit, User $staff): void
     {
         abort_unless($staff->hasRole(Role::Admin) || ($staff->hasRole(Role::Nurse)

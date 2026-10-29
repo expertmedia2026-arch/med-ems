@@ -20,8 +20,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
+/**
+ * Coordinates inpatient views and clinical record updates with admission and care-chart services.
+ */
 class AdmissionController extends Controller
 {
+    /**
+     * Validates the optional search term and renders the user-scoped admission list.
+     */
     public function index(Request $request, AdmissionService $admissions)
     {
         $validated = $request->validate(['search' => ['nullable', 'string', 'max:100']]);
@@ -29,6 +35,9 @@ class AdmissionController extends Controller
         return view('admissions.index', $admissions->indexData($request->user(), trim($validated['search'] ?? '')));
     }
 
+    /**
+     * Loads authorized admission details and the active admission workflow for the inpatient view.
+     */
     public function show(Request $request, Admission $admission, AdmissionService $admissions)
     {
         return view('admissions.show', array_merge(
@@ -37,6 +46,9 @@ class AdmissionController extends Controller
         ));
     }
 
+    /**
+     * Sends validated discharge details to AdmissionService and redirects to the updated admission.
+     */
     public function discharge(DischargeAdmissionRequest $request, Admission $admission, AdmissionService $admissions)
     {
         $admission = $admissions->discharge($admission, $request->validated(), $request->user());
@@ -45,6 +57,9 @@ class AdmissionController extends Controller
             ->with('success', 'Discharge completed. The linked consultation is now closed and the discharge plan is recorded.');
     }
 
+    /**
+     * Records the validated inpatient death and redirects with the resulting release or mortuary route.
+     */
     public function declareDeceased(StoreAdmissionDeathRequest $request, Admission $admission, AdmissionService $admissions)
     {
         $case = $admissions->declareDeceased($admission, $request->validated(), $request->user());
@@ -55,6 +70,9 @@ class AdmissionController extends Controller
         return redirect()->route('admissions.show', $admission)->with('success', $message);
     }
 
+    /**
+     * Validates hospital certificate details, issues the certificate, and redirects to its PDF download.
+     */
     public function issueDeathCertificate(Request $request, Admission $admission, HospitalDeathCertificateService $certificates)
     {
         $data = $request->validate([
@@ -68,6 +86,9 @@ class AdmissionController extends Controller
             ->with('success', 'Hospital death certificate '.$case->death_certificate_number.' issued and recorded.');
     }
 
+    /**
+     * Applies admission access checks, then streams the issued hospital death certificate as a PDF.
+     */
     public function downloadDeathCertificate(Request $request, Admission $admission, AdmissionService $admissions)
     {
         $admissions->showData($admission, $request->user());
@@ -83,6 +104,9 @@ class AdmissionController extends Controller
         ])->setPaper('a4')->download('death-certificate-'.$case->death_certificate_number.'.pdf');
     }
 
+    /**
+     * Records a validated clinician review of a lab result and redirects to the admission detail page.
+     */
     public function reviewLabResult(ReviewAdmissionLabResultRequest $request, Admission $admission, LabRequest $labRequest, AdmissionService $admissions)
     {
         $admissions->reviewLabResult($admission, $labRequest, $request->validated(), $request->user());
@@ -90,6 +114,9 @@ class AdmissionController extends Controller
         return redirect()->route('admissions.show', $admission)->with('success', 'Laboratory result reviewed and added to the admission record.');
     }
 
+    /**
+     * Adds the validated progress note to the admission and redirects back to its detail page.
+     */
     public function addProgressNote(StoreAdmissionNoteRequest $request, Admission $admission, AdmissionService $admissions)
     {
         $admissions->addProgressNote($admission, $request->validated('note'), $request->user());
@@ -97,6 +124,9 @@ class AdmissionController extends Controller
         return redirect()->route('admissions.show', $admission)->with('success', 'Inpatient progress note added to the clinical record.');
     }
 
+    /**
+     * Records validated inpatient observations through AdmissionService and returns to the admission detail page.
+     */
     public function recordVitals(RecordAdmissionVitalsRequest $request, Admission $admission, AdmissionService $admissions)
     {
         $admissions->recordVitals($admission, $request->validated(), $request->user());
@@ -104,6 +134,9 @@ class AdmissionController extends Controller
         return redirect()->route('admissions.show', $admission)->with('success', 'Inpatient observations recorded in the admission chart.');
     }
 
+    /**
+     * Submits a validated medication order, reports service errors or stock shortage, and hands successful orders to pharmacy.
+     */
     public function prescribe(StorePrescriptionRequest $request, Admission $admission, AdmissionService $admissions)
     {
         $result = $admissions->prescribeMedication($admission, $request->validated(), $request->user());
@@ -127,6 +160,9 @@ class AdmissionController extends Controller
         return redirect()->route('admissions.show', $admission)->with('success', $message);
     }
 
+    /**
+     * Validates a blood-sugar reading and records it in the care chart, noting any configured invoice charge.
+     */
     public function sugarCheck(Request $request, Admission $admission, AdmissionCareChartService $charts)
     {
         $data = $request->validate([
@@ -144,6 +180,9 @@ class AdmissionController extends Controller
         return back()->with('success', $message);
     }
 
+    /**
+     * Validates fluid-flow details, rejects incompatible route/type combinations, and records the care-chart entry.
+     */
     public function fluidEntry(Request $request, Admission $admission, AdmissionCareChartService $charts)
     {
         $data = $request->validate([
@@ -164,6 +203,9 @@ class AdmissionController extends Controller
         return back()->with('success', 'Fluid balance entry recorded.');
     }
 
+    /**
+     * Validates oxygen administration details and records the care-chart entry with configured billing where applicable.
+     */
     public function oxygen(Request $request, Admission $admission, AdmissionCareChartService $charts)
     {
         $data = $request->validate([
@@ -176,6 +218,9 @@ class AdmissionController extends Controller
         return back()->with('success', 'Oxygen administration recorded and the per-administration charge added to billing where configured.');
     }
 
+    /**
+     * Records nebulizer use and reports whether the service created a billable machine-use block.
+     */
     public function nebulizer(Request $request, Admission $admission, AdmissionCareChartService $charts)
     {
         $use = $charts->recordNebulizerUse($admission, [], $request->user());
@@ -183,6 +228,9 @@ class AdmissionController extends Controller
         return back()->with('success', 'Nebulizer use #'.$use->usage_number.' recorded'.($use->billable_block ? '; a new three-use machine-fee block was added to billing.' : '.'));
     }
 
+    /**
+     * Starts an insulin-machine billing block and reports its payment status while reopening the chart.
+     */
     public function startInsulinMachineBlock(Request $request, Admission $admission, AdmissionCareChartService $charts)
     {
         $block = $charts->startInsulinMachineBlock($admission, $request->user());
@@ -193,6 +241,9 @@ class AdmissionController extends Controller
         return back()->with('success', $message)->with('open_insulin_machine_chart', true);
     }
 
+    /**
+     * Validates prescription and bottle details, records machine use, and returns to the open insulin chart.
+     */
     public function recordInsulinMachineUse(Request $request, Admission $admission, AdmissionCareChartService $charts)
     {
         $data = $request->validate([
@@ -205,6 +256,9 @@ class AdmissionController extends Controller
             ->with('open_insulin_machine_chart', true);
     }
 
+    /**
+     * Validates the DAMA decision and witness evidence, records discharge through the care-chart service, and redirects to print.
+     */
     public function dama(Request $request, Admission $admission, AdmissionCareChartService $charts)
     {
         $data = $request->validate([
@@ -227,6 +281,9 @@ class AdmissionController extends Controller
         return redirect()->route('admissions.dama.print', [$admission, $record])->with('success', 'DAMA discharge recorded and the inpatient admission closed.');
     }
 
+    /**
+     * Applies admission access checks through AdmissionService and renders the DAMA record for printing.
+     */
     public function printDama(Request $request, Admission $admission)
     {
         app(AdmissionService::class)->showData($admission, $request->user());
@@ -235,6 +292,9 @@ class AdmissionController extends Controller
         return view('admissions.dama-print', compact('admission', 'record'));
     }
 
+    /**
+     * Applies admission access checks and streams a locally stored witness image for the DAMA record.
+     */
     public function damaWitness(Request $request, Admission $admission, int $witness)
     {
         app(AdmissionService::class)->showData($admission, $request->user());

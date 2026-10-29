@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Presents password-reset requests and submits reset emails through Laravel's password broker.
+ */
 class PasswordResetLinkController extends Controller
 {
     /**

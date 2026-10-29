@@ -9,8 +9,14 @@ use App\Models\Visit;
 use App\Services\LabWorkflowService;
 use Illuminate\Http\Request;
 
+/**
+ * Coordinates laboratory queue, result, and report pages with LabWorkflowService.
+ */
 class LabController extends Controller
 {
+    /**
+     * Validates and trims the search term, then renders the user-scoped laboratory queue.
+     */
     public function index(LabSearchRequest $request, LabWorkflowService $lab)
     {
         $term = trim($request->validated('q') ?? '');
@@ -18,11 +24,17 @@ class LabController extends Controller
         return view('lab.index', $lab->indexData($request->user(), $term));
     }
 
+    /**
+     * Retrieves an authorized laboratory request's detail data and renders its result-entry page.
+     */
     public function show(Request $request, LabRequest $labRequest, LabWorkflowService $lab)
     {
         return view('lab.show', $lab->detailData($labRequest, $request->user()));
     }
 
+    /**
+     * Saves validated results and files, then selects the redirect message from the service's payment and notification outcome.
+     */
     public function update(SaveLabResultRequest $request, LabRequest $labRequest, LabWorkflowService $lab)
     {
         $outcome = $lab->saveResult($labRequest, $request->validated(), $request->file('files', []), $request->user());

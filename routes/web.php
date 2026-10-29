@@ -250,6 +250,7 @@ Route::middleware(['auth', 'auth.session', 'active', 'hospital', 'staff'])->grou
         Route::get('{admission}', [AdmissionController::class, 'show'])->whereNumber('admission')->name('show');
     });
     Route::middleware('module:inpatient')->group(function () {
+        // Maternity is enabled per hospital and shares the inpatient admission workflow.
         Route::middleware(['role:admin,doctor,nurse', 'module:inpatient', 'module:maternity'])->prefix('maternity')->name('maternity.')->group(function () {
             Route::get('episodes', [MaternityController::class, 'index'])->name('episodes.index');
             Route::post('admissions/{admission}/episodes', [MaternityController::class, 'start'])->whereNumber('admission')->name('episodes.start');

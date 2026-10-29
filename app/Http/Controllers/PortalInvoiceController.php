@@ -11,8 +11,14 @@ use App\Services\OnlinePaymentService;
 use App\Services\PortalInvoiceService;
 use Illuminate\Http\Request;
 
+/**
+ * Authorizes patient invoice access and delegates online payments and invoice data to portal services.
+ */
 class PortalInvoiceController extends Controller
 {
+    /**
+     * Resolves the signed-in patient and renders that patient's invoices with current online-payment availability.
+     */
     public function index(Request $request, PortalInvoiceService $invoices)
     {
         $patient = $this->patient($request);
@@ -23,6 +29,9 @@ class PortalInvoiceController extends Controller
         ]);
     }
 
+    /**
+     * Authorizes the invoice against the signed-in patient and renders its detail and payment options.
+     */
     public function show(Request $request, Invoice $invoice, PortalInvoiceService $invoices)
     {
         $invoices->authorizePatientInvoice($request->user()->patient_id, $invoice);
@@ -36,7 +45,9 @@ class PortalInvoiceController extends Controller
         ] + $data);
     }
 
-    /** Start an online payment for the ticked items and send the patient to the gateway. */
+    /**
+     * Authorizes the invoice, validates selected items, and starts an online payment or returns an actionable error.
+     */
     public function pay(PortalInvoicePaymentRequest $request, Invoice $invoice, OnlinePaymentService $payments, PortalInvoiceService $invoices)
     {
         $invoices->authorizePatientInvoice($request->user()->patient_id, $invoice);
@@ -60,7 +71,9 @@ class PortalInvoiceController extends Controller
         return redirect()->away($checkout['url']);
     }
 
-    /** Where the gateway sends the patient back to. The result is verified with the gateway, never trusted from the URL. */
+    /**
+     * Validates the gateway return, verifies payment server-side, and redirects with the confirmed payment status.
+     */
     public function callback(PaystackCallbackRequest $request, OnlinePaymentService $payments)
     {
         $data = $request->validated();
@@ -87,6 +100,9 @@ class PortalInvoiceController extends Controller
         };
     }
 
+    /**
+     * Retrieves a receipt only for the signed-in patient and renders the printable billing receipt.
+     */
     public function receipt(Request $request, Payment $payment, PortalInvoiceService $invoices)
     {
         $payment = $invoices->receiptForPatient($payment, $request->user()->patient_id);
@@ -94,6 +110,9 @@ class PortalInvoiceController extends Controller
         return view('billing.receipt', compact('payment'));
     }
 
+    /**
+     * Resolves the signed-in user's patient record or rejects users without one.
+     */
     private function patient(Request $request)
     {
         $patient = $request->user()->patient;

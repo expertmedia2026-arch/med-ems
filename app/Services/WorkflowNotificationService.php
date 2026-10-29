@@ -12,9 +12,23 @@ use App\Models\User;
 use App\Notifications\HospitalActionNotification;
 use Illuminate\Support\Collection;
 
+/**
+ * Sends workflow notifications to active staff in the relevant hospital and role.
+ *
+ * Recipient queries are constrained by hospital ID, role, activity, and workflow
+ * assignment where applicable. Notifications are delivered through Laravel's user
+ * notification channel and are not wrapped in a database transaction here.
+ */
 class WorkflowNotificationService
 {
     /** Notify hospital staff who can work on billing records. */
+    /**
+     * Notify active administrators, accountants, and receptionists about billing work.
+     *
+     * @param  int  $hospitalId  Hospital whose billing staff may receive the alert.
+     * @param  string  $title  Notification title.
+     * @param  string  $message  Notification body.
+     */
     public function billing(int $hospitalId, string $title, string $message): void
     {
         $this->notify(
@@ -27,6 +41,15 @@ class WorkflowNotificationService
     }
 
     /** Notify nurses assigned to the visit's department and central OPD triage nurses. */
+    /**
+     * Notify nurses assigned to the visit department or central OPD triage.
+     *
+     * Recipients are restricted to active nurses in the visit's hospital.
+     *
+     * @param  Visit  $visit  Visit that determines hospital and department recipients.
+     * @param  string  $title  Notification title.
+     * @param  string  $message  Notification body.
+     */
     public function nursesFor(Visit $visit, string $title, string $message): void
     {
         $nurses = $this->staff((int) $visit->hospital_id, [Role::Nurse])
@@ -38,6 +61,16 @@ class WorkflowNotificationService
     }
 
     /** Notify nurses who administer medication in the visit's care department. */
+    /**
+     * Notify nurses responsible for medication administration in the care department.
+     *
+     * For inpatient visits, the active admission's ward department takes precedence.
+     * No notification is sent when neither the visit nor admission has a department.
+     *
+     * @param  Visit  $visit  Visit whose care department determines recipients.
+     * @param  string  $title  Notification title.
+     * @param  string  $message  Notification body.
+     */
     public function medicationNursesFor(Visit $visit, string $title, string $message): void
     {
         $departmentId = $visit->department_id;
@@ -55,6 +88,14 @@ class WorkflowNotificationService
         $this->notify($nurses, $title, $message, route('nursing.administrations.show', $visit), 'pill');
     }
 
+    /**
+     * Notify medication nurses that an administration requirement was waived.
+     *
+     * Patient and drug details are loaded when needed to compose the message.
+     *
+     * @param  Visit  $visit  Visit containing the prescription.
+     * @param  Prescription  $prescription  Prescription whose administration was waived.
+     */
     public function medicationWaived(Visit $visit, Prescription $prescription): void
     {
         $visit->loadMissing('patient');
@@ -106,6 +147,13 @@ class WorkflowNotificationService
     }
 
     /** Notify the assigned doctor, or doctors who can pick up an unassigned visit in that department. */
+    /**
+     * Notify the assigned doctor, or department doctors for an unassigned visit.
+     *
+     * @param  Visit  $visit  Visit whose doctor or department determines recipients.
+     * @param  string  $title  Notification title.
+     * @param  string  $message  Notification body.
+     */
     public function doctorsFor(Visit $visit, string $title, string $message): void
     {
         $doctors = $this->staff((int) $visit->hospital_id, [Role::Doctor]);
@@ -120,6 +168,13 @@ class WorkflowNotificationService
         $this->notify($doctors, $title, $message, route('consultations.index'), 'stethoscope');
     }
 
+    /**
+     * Notify active nurses assigned to the admission's ward department.
+     *
+     * @param  Admission  $admission  Admission determining hospital and ward recipients.
+     * @param  string  $title  Notification title.
+     * @param  string  $message  Notification body.
+     */
     public function wardNursesFor(Admission $admission, string $title, string $message): void
     {
         $nurses = $this->staff((int) $admission->hospital_id, [Role::Nurse])
@@ -128,6 +183,13 @@ class WorkflowNotificationService
         $this->notify($nurses, $title, $message, route('admissions.index'), 'activity');
     }
 
+    /**
+     * Notify the admission's assigned attending doctor when active in its hospital.
+     *
+     * @param  Admission  $admission  Admission determining the attending doctor and hospital.
+     * @param  string  $title  Notification title.
+     * @param  string  $message  Notification body.
+     */
     public function attendingDoctorFor(Admission $admission, string $title, string $message): void
     {
         $doctors = $this->staff((int) $admission->hospital_id, [Role::Doctor])
@@ -136,7 +198,16 @@ class WorkflowNotificationService
         $this->notify($doctors, $title, $message, route('admissions.index'), 'stethoscope');
     }
 
-    /** Notify lab staff in the departments that own the newly requested tests. */
+    /**
+     * Notify active lab staff in the departments responsible for requested tests.
+     *
+     * Empty department IDs are removed and duplicate IDs collapsed; no message is
+     * sent if no eligible department remains.
+     *
+     * @param  int  $hospitalId  Hospital whose lab staff may receive the alert.
+     * @param  iterable<int|string|null>  $departmentIds  Departments responsible for the lab requests.
+     * @param  string  $message  Notification body.
+     */
     public function labStaff(int $hospitalId, iterable $departmentIds, string $message): void
     {
         $departmentIds = collect($departmentIds)->filter()->unique()->values();
@@ -148,7 +219,15 @@ class WorkflowNotificationService
         $this->notify($labStaff, 'New lab request', $message, route('lab.index'), 'flask');
     }
 
-    /** Notify staff who can process orders in the main pharmacy queue. */
+    /**
+     * Notify staff who can process orders in the main pharmacy queue.
+     *
+     * Includes administrators and chief pharmacists, plus pharmacists who are not
+     * assigned to the emergency department.
+     *
+     * @param  Visit  $visit  Visit whose hospital scopes pharmacy recipients.
+     * @param  string  $message  Notification body.
+     */
     public function pharmacy(Visit $visit, string $message): void
     {
         $staff = $this->staff((int) $visit->hospital_id, [Role::Admin, Role::Pharmacist, Role::ChiefPharmacist])
@@ -158,6 +237,13 @@ class WorkflowNotificationService
         $this->notify($staff, 'New pharmacy order', $message, route('pharmacy.index'), 'pill');
     }
 
+    /**
+     * Load active users for one hospital and a set of staff roles.
+     *
+     * @param  int  $hospitalId  Hospital scope for the recipient query.
+     * @param  array<int, Role>  $roles  Roles permitted to receive the notification.
+     * @return Collection<int, User> Active users with departments loaded, or an empty collection for an invalid hospital ID.
+     */
     private function staff(int $hospitalId, array $roles): Collection
     {
         if ($hospitalId <= 0) {
@@ -172,6 +258,15 @@ class WorkflowNotificationService
             ->get();
     }
 
+    /**
+     * Dispatch the same hospital action notification to each supplied user.
+     *
+     * @param  iterable<User>  $users  Notification recipients already selected by workflow rules.
+     * @param  string  $title  Notification title.
+     * @param  string  $message  Notification body.
+     * @param  string  $url  Destination URL included in the notification.
+     * @param  string  $icon  Icon identifier included in the notification.
+     */
     private function notify(iterable $users, string $title, string $message, string $url, string $icon): void
     {
         foreach ($users as $user) {

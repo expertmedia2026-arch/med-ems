@@ -13,10 +13,33 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Registers laboratory-only visits for existing or newly registered patients.
+ *
+ * Patient and test lookups use the application's tenant-aware model scopes. Creation keeps the
+ * patient, visit, test requests, and invoice synchronization in one transaction.
+ */
 class LabReferralService
 {
+    /**
+     * Inject shared billing so laboratory-only referrals use the normal invoice synchronization rules.
+     */
     public function __construct(private readonly BillingService $billing) {}
 
+    /**
+     * Prepare patient/test choices and current registration pricing for a referral form.
+     *
+     * The optional patient ID preselects an existing patient, and laboratory users see only active
+     * tests owned by their department.
+     *
+     * @return array{
+     *     patients: \Illuminate\Database\Eloquent\Collection<int, Patient>,
+     *     tests: \Illuminate\Database\Eloquent\Collection<int, LabTest>,
+     *     registrationFee: float,
+     *     selected: string|null,
+     *     selected_patient: Patient|null
+     * }
+     */
     public function createFormData(?int $selectedPatientId = null, ?User $user = null): array
     {
         $selectedPatient = $selectedPatientId ? Patient::find($selectedPatientId) : null;
@@ -33,7 +56,18 @@ class LabReferralService
         ];
     }
 
-    /** @return array{visit: Visit|null, matches: Collection<int, Patient>, is_new: bool, total: ?float} */
+    /**
+     * Create a lab-only visit for an existing patient or register a new patient and create their visit.
+     *
+     * Laboratory actors must select only tests from their own department. When a proposed new
+     * patient resembles existing records, an unconfirmed request returns those matches without
+     * creating anything; confirmation permits creation unless the email or phone is already used.
+     * Patient, visit, lab requests, and billing are written in one transaction.
+     *
+     * @param  array<string, mixed>  $data  Validated patient details, selected test IDs, referral notes, and mode.
+     * @param  bool  $confirmNew  Confirms creation when likely duplicate patients were found.
+     * @return array{visit: Visit|null, matches: Collection<int, Patient>, is_new: bool, total: ?float}
+     */
     public function create(array $data, int $requestedBy, bool $confirmNew, ?User $actor = null): array
     {
         if ($actor?->hasRole(Role::Lab)) {
@@ -104,6 +138,12 @@ class LabReferralService
         ];
     }
 
+    /**
+     * Cancel an unpaid, unfinished laboratory-only visit when the caller can manage its requests.
+     *
+     * A false result means a payment exists or at least one test has completed; such visits are
+     * preserved. On success, deleting the visit removes its dependent referral records.
+     */
     public function cancel(Visit $visit, ?User $actor = null): bool
     {
         abort_unless($visit->isLabOnly(), 404);
@@ -120,6 +160,15 @@ class LabReferralService
         return true;
     }
 
+    /**
+     * Find up to five patients whose names, phone, or email resemble proposed new-patient details.
+     *
+     * Name matching is case-insensitive; optional phone and email values are included as alternate
+     * match keys to prompt the caller to confirm a likely duplicate.
+     *
+     * @param  array<string, mixed>  $data
+     * @return Collection<int, Patient>
+     */
     private function possibleDuplicates(array $data): Collection
     {
         return Patient::query()->where(function ($query) use ($data) {
@@ -136,6 +185,12 @@ class LabReferralService
         })->limit(5)->get();
     }
 
+    /**
+     * Resolve an existing patient by exact hospital number/email or an unambiguous text search.
+     *
+     * Ambiguous and empty searches raise field-level validation errors with guidance for selecting
+     * an exact hospital number or switching to new-patient registration.
+     */
     private function findPatient(string $input): Patient
     {
         $term = trim($input);

@@ -9,8 +9,14 @@ use App\Services\PatientRegistrationService;
 use App\Services\PatientService;
 use App\Services\PortalInvitationService;
 
+/**
+ * Coordinates patient directory and profile pages with registration and patient services.
+ */
 class PatientController extends Controller
 {
+    /**
+     * Uses the validated search term to retrieve matching patient records and render the directory.
+     */
     public function index(PatientIndexRequest $request, PatientService $patients)
     {
         $records = $patients->index($request->validated('q'));
@@ -23,6 +29,9 @@ class PatientController extends Controller
         return view('patients.create');
     }
 
+    /**
+     * Registers a patient from validated details, optionally sends a portal invitation, and redirects to the patient record.
+     */
     public function store(PatientDetailsRequest $request, PatientRegistrationService $registration, PortalInvitationService $portal)
     {
         ['patient' => $patient, 'invoice' => $invoice] = $registration->register($request->validated());
@@ -50,6 +59,9 @@ class PatientController extends Controller
         return redirect()->route('patients.show', $patient)->with(['success' => $message] + $flash);
     }
 
+    /**
+     * Loads patient details through PatientService and renders the profile with enabled hospital modules.
+     */
     public function show(Patient $patient, PatientService $patients)
     {
         return view('patients.show', $patients->showData($patient) + [
@@ -61,6 +73,9 @@ class PatientController extends Controller
         ]);
     }
 
+    /**
+     * Builds the selected patient's ID-card data through the service and renders the printable card.
+     */
     public function card(Patient $patient, PatientService $patients)
     {
         return view('patients.card', $patients->cardData($patient));
@@ -71,6 +86,9 @@ class PatientController extends Controller
         return view('patients.edit', compact('patient'));
     }
 
+    /**
+     * Applies validated profile changes through PatientService and redirects to the patient's record.
+     */
     public function update(PatientDetailsRequest $request, Patient $patient, PatientService $patients)
     {
         $patients->update($patient, $request->validated());

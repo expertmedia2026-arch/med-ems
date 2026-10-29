@@ -10,9 +10,16 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Serializes drug-stock reservations and records auditable stock changes.
+ */
 class DrugInventoryService
 {
-    /** Caller must already be inside a transaction. */
+    /**
+     * Lock a drug row and expire any timed-out reservations before returning its refreshed stock.
+     *
+     * Must be called inside a transaction; the caller retains responsibility for committing it.
+     */
     public function lockDrug(int $drugId): Drug
     {
         $drug = Drug::query()->lockForUpdate()->findOrFail($drugId);
@@ -21,7 +28,12 @@ class DrugInventoryService
         return $drug->refresh();
     }
 
-    /** Caller must hold the drug row lock and be inside a transaction. */
+    /**
+     * Increase reserved stock and create a prescription reservation.
+     *
+     * The caller must hold the drug row lock inside a transaction and ensure sufficient available
+     * stock before invoking this operation.
+     */
     public function createReservation(Drug $drug, Prescription $prescription, int $quantity, ?CarbonInterface $expiresAt): PrescriptionStockReservation
     {
         $drug->reserved_quantity += $quantity;
@@ -36,7 +48,12 @@ class DrugInventoryService
         ]);
     }
 
-    /** Reserve the billable quantity again before collecting payment or dispensing a legacy order. */
+    /**
+     * Ensure a prescription has a live reservation for its billable quantity.
+     *
+     * Locks the drug and reservation records, reuses/extends a valid hold or reacquires stock when
+     * needed, and returns false when quantity is invalid or unavailable. Changes are transactional.
+     */
     public function ensurePrescriptionReserved(Prescription $prescription, ?CarbonInterface $expiresAt): bool
     {
         return DB::transaction(function () use ($prescription, $expiresAt) {
@@ -83,6 +100,11 @@ class DrugInventoryService
         });
     }
 
+    /**
+     * Release an unpaid reservation and restore its reserved quantity to the drug's available stock.
+     *
+     * Completed, expired, missing, or otherwise non-reserved holds are left unchanged.
+     */
     public function releasePrescription(Prescription $prescription, string $reason): void
     {
         DB::transaction(function () use ($prescription, $reason) {
@@ -109,7 +131,12 @@ class DrugInventoryService
         });
     }
 
-    /** Fulfill the reservation and make the physical stock deduction exactly once. */
+    /**
+     * Convert a live reservation into a physical stock deduction and movement record.
+     *
+     * Returns false if no live reservation exists or physical quantity is insufficient. Locks and
+     * transaction boundaries ensure a successful fulfillment decrements stock exactly once.
+     */
     public function fulfillPrescription(Prescription $prescription, int $userId): bool
     {
         return DB::transaction(function () use ($prescription, $userId) {
@@ -135,7 +162,12 @@ class DrugInventoryService
         });
     }
 
-    /** Reacquire expired unpaid holds before they are charged or placed in online checkout. */
+    /**
+     * Ensure every drug prescription represented by invoice items has a stock reservation.
+     *
+     * Prescriptions are processed in drug order inside a transaction; if any hold cannot be
+     * acquired, the transaction is rolled back and false is returned.
+     */
     public function ensureItemsReserved(Collection $items, ?CarbonInterface $expiresAt): bool
     {
         $prescriptions = $items
@@ -159,7 +191,12 @@ class DrugInventoryService
         }
     }
 
-    /** Release timed-out holds. The drug row is always locked before reservation rows. */
+    /**
+     * Expire all elapsed reservations and release their reserved quantities.
+     *
+     * Each drug is processed in its own transaction with the drug row locked before its
+     * reservation rows. Returns the number of reservations expired.
+     */
     public function expireReservations(): int
     {
         $drugIds = PrescriptionStockReservation::query()
@@ -185,7 +222,12 @@ class DrugInventoryService
         return $expired;
     }
 
-    /** Caller must hold the drug row lock and be inside a transaction. */
+    /**
+     * Expire elapsed reservations for a drug whose row is already locked in a transaction.
+     *
+     * Reserved quantity is restored once and each hold receives its expiration audit fields;
+     * returns the number of expired reservations.
+     */
     public function expireForLockedDrug(Drug $drug): int
     {
         $reservations = PrescriptionStockReservation::query()
@@ -215,6 +257,7 @@ class DrugInventoryService
         return $reservations->count();
     }
 
+    /** Add stock and record the restock movement atomically under a drug-row lock. */
     public function restock(Drug $drug, int $quantity, int $userId): Drug
     {
         return DB::transaction(function () use ($drug, $quantity, $userId) {
@@ -228,6 +271,7 @@ class DrugInventoryService
         });
     }
 
+    /** Record the initial stock as a movement when a new catalogue drug starts with positive quantity. */
     public function recordOpeningBalance(Drug $drug): void
     {
         if ($drug->stock_quantity > 0) {
@@ -235,6 +279,7 @@ class DrugInventoryService
         }
     }
 
+    /** Persist the stock movement audit row with before/after balances and optional prescription context. */
     private function movement(Drug $drug, string $type, int $change, int $before, int $after, ?int $userId, ?int $prescriptionId = null, ?string $notes = null): void
     {
         DrugStockMovement::create([

@@ -10,8 +10,14 @@ use App\Models\MortuaryCase;
 use App\Services\MortuaryCaseService;
 use Illuminate\Http\Request;
 
+/**
+ * Enforces mortuary access and delegates custody lifecycle operations to MortuaryCaseService.
+ */
 class MortuaryController extends Controller
 {
+    /**
+     * Checks mortuary access and renders cases filtered by the submitted search and status values.
+     */
     public function index(Request $request, MortuaryCaseService $mortuary)
     {
         abort_unless($request->user()->canAccessMortuary(), 403);
@@ -25,6 +31,9 @@ class MortuaryController extends Controller
         ]);
     }
 
+    /**
+     * Creates a walk-in case from validated details and redirects to its new case page.
+     */
     public function storeWalkIn(StoreExternalMortuaryCaseRequest $request, MortuaryCaseService $mortuary)
     {
         $case = $mortuary->createWalkIn($request->validated(), $request->user());
@@ -32,6 +41,9 @@ class MortuaryController extends Controller
         return redirect()->route('mortuary.show', $case)->with('success', 'Walk-in mortuary case opened and invoice created.');
     }
 
+    /**
+     * Checks mortuary access, loads authorized case details, and renders custody and invoice status.
+     */
     public function show(Request $request, MortuaryCase $mortuaryCase, MortuaryCaseService $mortuary)
     {
         abort_unless($request->user()->canAccessMortuary(), 403);
@@ -47,6 +59,9 @@ class MortuaryController extends Controller
         return view('mortuary.show', compact('case', 'intakeFeePaid', 'mortuaryChargesPaid'));
     }
 
+    /**
+     * Records receipt of a validated transfer, reporting when the invoice intake fee still blocks custody.
+     */
     public function receive(ReceiveMortuaryCaseRequest $request, MortuaryCase $mortuaryCase, MortuaryCaseService $mortuary)
     {
         $case = $mortuary->receive($mortuaryCase, $request->validated(), $request->user());
@@ -58,6 +73,9 @@ class MortuaryController extends Controller
         return redirect()->route('mortuary.show', $case)->with('success', 'Mortuary receipt recorded and custody started.');
     }
 
+    /**
+     * Records the validated storage move and redirects to the updated custody history.
+     */
     public function move(MoveMortuaryCaseRequest $request, MortuaryCase $mortuaryCase, MortuaryCaseService $mortuary)
     {
         $case = $mortuary->move($mortuaryCase, $request->validated(), $request->user());
@@ -65,6 +83,9 @@ class MortuaryController extends Controller
         return redirect()->route('mortuary.show', $case)->with('success', 'Storage location updated and added to the custody history.');
     }
 
+    /**
+     * Records validated release details and reports when unpaid mortuary charges still prevent release.
+     */
     public function release(ReleaseMortuaryCaseRequest $request, MortuaryCase $mortuaryCase, MortuaryCaseService $mortuary)
     {
         $case = $mortuary->release($mortuaryCase, $request->validated(), $request->user());

@@ -8,8 +8,14 @@ use App\Models\Appointment;
 use App\Services\AppointmentBookingService;
 use Illuminate\Http\Request;
 
+/**
+ * Delegates patient self-service appointment browsing and booking to AppointmentBookingService.
+ */
 class PortalAppointmentController extends Controller
 {
+    /**
+     * Resolves the signed-in patient's record and renders that patient's appointment list.
+     */
     public function index(Request $request, AppointmentBookingService $booking)
     {
         $patient = $this->patient($request);
@@ -17,6 +23,9 @@ class PortalAppointmentController extends Controller
         return view('portal.appointments.index', $booking->portalIndexData($patient));
     }
 
+    /**
+     * Requires a patient account and renders booking choices from validated filter context.
+     */
     public function create(PortalAppointmentFiltersRequest $request, AppointmentBookingService $booking)
     {
         $this->patient($request);
@@ -24,6 +33,9 @@ class PortalAppointmentController extends Controller
         return view('portal.appointments.create', $booking->portalFormData($request->validated()));
     }
 
+    /**
+     * Validates booking details, delegates appointment creation, and redirects with field errors or success.
+     */
     public function store(PortalAppointmentRequest $request, AppointmentBookingService $booking)
     {
         $patient = $this->patient($request);
@@ -56,6 +68,9 @@ class PortalAppointmentController extends Controller
             ->with('success', $success);
     }
 
+    /**
+     * Restricts cancellation to the signed-in patient's booking and returns the service result.
+     */
     public function cancel(Request $request, Appointment $appointment, AppointmentBookingService $booking)
     {
         $patient = $this->patient($request);
@@ -67,6 +82,9 @@ class PortalAppointmentController extends Controller
         return back()->with('success', 'Appointment cancelled.');
     }
 
+    /**
+     * Resolves the signed-in user's patient record or rejects users without one.
+     */
     private function patient(Request $request)
     {
         $patient = $request->user()->patient;

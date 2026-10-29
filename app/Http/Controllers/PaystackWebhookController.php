@@ -8,8 +8,14 @@ use App\Services\PaystackGateway;
 use App\Support\HospitalContext;
 use Illuminate\Http\Request;
 
+/**
+ * Verifies Paystack webhook signatures and delegates successful payment confirmations.
+ */
 class PaystackWebhookController extends Controller
 {
+    /**
+     * Resolves tenant context for the referenced payment, rejects invalid signatures, and acknowledges or retries confirmation.
+     */
     public function __invoke(Request $request, PaystackGateway $gateway, OnlinePaymentService $payments, HospitalContext $context)
     {
         $reference = $request->input('data.reference');

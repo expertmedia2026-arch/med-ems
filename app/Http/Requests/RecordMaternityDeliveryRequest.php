@@ -8,11 +8,13 @@ use Illuminate\Validation\Validator;
 
 class RecordMaternityDeliveryRequest extends FormRequest
 {
+    /** The route restricts the module and role; the service checks access to the admission. */
     public function authorize(): bool
     {
         return true;
     }
 
+    /** Normalize HTML radio values so they validate consistently with JSON booleans. */
     protected function prepareForValidation(): void
     {
         if ($this->has('hospital_supplied_delivery_pack')) {
@@ -22,6 +24,7 @@ class RecordMaternityDeliveryRequest extends FormRequest
         }
     }
 
+    /** Validate delivery details, whether a hospital pack was supplied, and each newborn entry. */
     public function rules(): array
     {
         return [
@@ -39,6 +42,7 @@ class RecordMaternityDeliveryRequest extends FormRequest
         ];
     }
 
+    /** Require identifying details only when a live-born baby's patient record will be created. */
     public function after(): array
     {
         return [
@@ -48,6 +52,8 @@ class RecordMaternityDeliveryRequest extends FormRequest
                     return;
                 }
 
+                // Stillbirth entries deliberately do not create patient records,
+                // so name and sex are required only for live births.
                 foreach ($newborns as $index => $newborn) {
                     if (! is_array($newborn)) {
                         continue;

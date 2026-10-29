@@ -20,8 +20,19 @@ use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Records inpatient observations, fluid/equipment use, and discharge-against-advice records.
+ */
 class AdmissionCareChartService
 {
+    /**
+     * Save a blood-sugar reading and add its configured care charge to the visit invoice when applicable.
+     *
+     * Administrators, ward nurses, and authorized ward doctors may use this on an active admission;
+     * the admission lock keeps the chart entry and any invoice line in the same transaction.
+     *
+     * @param array<string, mixed> $data Validated reading, units, and reading type.
+     */
     public function recordSugar(Admission $admission, array $data, User $actor): AdmissionSugarCheck
     {
         $this->authorizeWardCare($admission, $actor);
@@ -51,6 +62,14 @@ class AdmissionCareChartService
         });
     }
 
+    /**
+     * Record fluid intake/output, requiring intake to reference a paid, dispensed fluid prescription.
+     *
+     * Only authorized staff may add entries to an active admission. The chart entry is written
+     * transactionally with its admission lock; this method does not create a fluid charge.
+     *
+     * @param array<string, mixed> $data Validated flow, amount, route/output, and optional prescription ID.
+     */
     public function recordFluid(Admission $admission, array $data, User $actor): AdmissionFluidEntry
     {
         $this->authorizeWardCare($admission, $actor);
@@ -82,6 +101,14 @@ class AdmissionCareChartService
         });
     }
 
+    /**
+     * Record an oxygen administration and add its configured per-administration invoice item.
+     *
+     * The active admission row, administration, and any charge are handled in one transaction;
+     * role and ward-scope checks run before recording.
+     *
+     * @param array<string, mixed> $data Validated oxygen flow/concentration and administration details.
+     */
     public function recordOxygen(Admission $admission, array $data, User $actor): AdmissionOxygenAdministration
     {
         $this->authorizeWardCare($admission, $actor);
@@ -110,6 +137,14 @@ class AdmissionCareChartService
         });
     }
 
+    /**
+     * Record nebulizer use and charge only the first use in each three-use block.
+     *
+     * The use number and invoice line are created under the active admission's transaction lock,
+     * preventing concurrent chart entries from sharing a block number.
+     *
+     * @param array<string, mixed> $data Validated treatment details for the nebulizer session.
+     */
     public function recordNebulizerUse(Admission $admission, array $data, User $actor): AdmissionNebulizerUse
     {
         $this->authorizeWardCare($admission, $actor);
@@ -140,6 +175,13 @@ class AdmissionCareChartService
         });
     }
 
+    /**
+     * Start or reuse an insulin-machine block, requiring an insulin prescription on the visit.
+     *
+     * A block permits up to three bottle uses. Creation and its optional configured equipment
+     * invoice line are transactional; the latest block is returned while it is unpaid or has fewer
+     * than three uses.
+     */
     public function startInsulinMachineBlock(Admission $admission, User $actor): AdmissionInsulinMachineBlock
     {
         $this->authorizeWardCare($admission, $actor);
@@ -184,6 +226,14 @@ class AdmissionCareChartService
         });
     }
 
+    /**
+     * Record opening a dispensed insulin bottle against the current paid block.
+     *
+     * The prescription must belong to this admission, be paid and fulfilled by pharmacy, and the
+     * block must have capacity. The entry and block checks are protected by a transaction and locks.
+     *
+     * @param array<string, mixed> $data Validated prescription ID and optional bottle label.
+     */
     public function recordInsulinMachineUse(Admission $admission, array $data, User $actor): AdmissionInsulinMachineUse
     {
         $this->authorizeWardCare($admission, $actor);
@@ -212,7 +262,15 @@ class AdmissionCareChartService
         });
     }
 
-    /** @param array<int, array{name:string,image:UploadedFile}> $witnesses */
+    /**
+     * Complete a discharge against medical advice and save any uploaded witness records.
+     *
+     * Only an authorized clinician may complete this for an active admission. The DAMA record,
+     * witness metadata, admission discharge, and linked visit closure are committed together.
+     *
+     * @param array<string, mixed> $data Validated representative, reason, explained risks, and follow-up details.
+     * @param array<int, array{name:string,image:UploadedFile}> $witnesses Validated witness names and image uploads.
+     */
     public function dischargeDama(Admission $admission, array $data, array $witnesses, User $actor): AdmissionDamaRecord
     {
         $this->authorizeClinician($admission, $actor);
@@ -255,6 +313,7 @@ class AdmissionCareChartService
         });
     }
 
+    /** Enforce role and ward-department access for routine inpatient care-chart entries. */
     private function authorizeWardCare(Admission $admission, User $actor): void
     {
         abort_unless($actor->hasRole(Role::Admin, Role::Nurse, Role::Doctor), 403);
@@ -269,12 +328,14 @@ class AdmissionCareChartService
         }
     }
 
+    /** Restrict DAMA discharge to administrators or doctors assigned to/serving the admission's ward. */
     private function authorizeClinician(Admission $admission, User $actor): void
     {
         abort_unless($actor->hasRole(Role::Admin) || ($actor->hasRole(Role::Doctor)
             && ($admission->attending_doctor_id === $actor->id || (int) $actor->department_id === (int) $admission->department_id)), 403);
     }
 
+    /** Reject chart updates after the admission has left active status. */
     private function assertActive(Admission $admission): void
     {
         abort_unless($admission->status === AdmissionStatus::Active, 422, 'This chart can only be updated during an active admission.');

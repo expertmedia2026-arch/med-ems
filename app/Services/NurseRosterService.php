@@ -10,10 +10,26 @@ use App\Notifications\HospitalActionNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Builds weekly duty-roster views and replaces a staff member's assigned shifts for one week.
+ *
+ * Roster visibility and assignment authority depend on administrator/chief-nurse privileges and
+ * department membership. Duty reads and writes use the active tenant's normal model scopes.
+ */
 class NurseRosterService
 {
     private const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+    /**
+     * Assemble the selected week's staff, duties, coverage, coworker shifts, and filter options.
+     *
+     * Staff without roster-management access see only their own schedule and eligible same-shift
+     * coworkers. Managers receive a department- and role-limited staff list, coverage totals, and
+     * optional department/name filtering.
+     *
+     * @param  array<string, mixed>  $filters  Optional department and staff-name search values.
+     * @return array<string, mixed> View data for the roster week, including a paginated staff list.
+     */
     public function indexData(User $viewer, string $weekStart, array $filters = []): array
     {
         $week = Carbon::parse($weekStart)->startOfWeek(Carbon::MONDAY);
@@ -111,6 +127,16 @@ class NurseRosterService
         ];
     }
 
+    /**
+     * Replace all shifts for one active staff member in the selected week and notify that member.
+     *
+     * Administrators, chief nurses, and department managers may assign only the staff they oversee.
+     * Doctors may receive one 24-hour shift; other staff use non-overlapping morning/night day lists.
+     * Validation precedes a transaction that locks the staff row, deletes the old week's shifts, and
+     * creates the requested assignments; the notification is sent after the transaction succeeds.
+     *
+     * @param  array<string, mixed>  $data  Validated week start and doctor-day or morning/night day numbers.
+     */
     public function saveWeek(User $staffMember, array $data, User $assignedBy): void
     {
         abort_unless($assignedBy->canManageStaffRoster(), 403);
@@ -168,6 +194,9 @@ class NurseRosterService
         ));
     }
 
+    /**
+     * Resolve the roster manager's department restriction, or null for administrators/chief nurses.
+     */
     private function managerDepartmentId(User $manager): ?int
     {
         if ($manager->hasRole(Role::Admin, Role::ChiefNurse)) {
@@ -177,6 +206,12 @@ class NurseRosterService
         return $manager->department_id;
     }
 
+    /**
+     * Determine whether a manager may assign duties to the selected staff member.
+     *
+     * Administrators manage all staff, chief nurses manage nurses, and other managers are limited
+     * to active staff in their own department (the active-staff check is performed by the caller).
+     */
     private function canManageMember(User $manager, User $staffMember): bool
     {
         if ($manager->hasRole(Role::Admin)) {

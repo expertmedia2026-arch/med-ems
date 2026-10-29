@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
+/**
+ * Renders hospital workflow settings and publishes validated admission workflow versions.
+ */
 class HospitalWorkflowSettingsController extends Controller
 {
     private const OPTIONAL_SECTIONS = [
@@ -20,6 +23,9 @@ class HospitalWorkflowSettingsController extends Controller
         'insulin_machine' => 'Insulin machine chart',
     ];
 
+    /**
+     * Combines current hospital settings with enabled workflow sections for the settings page.
+     */
     public function edit(HospitalSettingsService $settings): View
     {
         $workflow = HospitalWorkflow::query()->where('workflow', 'admission')->where('is_active', true)->latest('version')->first();

@@ -10,8 +10,23 @@ use App\Models\User;
 use App\Models\Visit;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Issues certificates for confirmed in-hospital deaths and records their audit events.
+ *
+ * Both workflows lock the relevant admission or visit and mortuary case inside a database
+ * transaction, and rely on the model's tenant scope in addition to the explicit issuer checks.
+ */
 class HospitalDeathCertificateService
 {
+    /**
+     * Issue a certificate for a deceased inpatient admission.
+     *
+     * Only the attending doctor or a doctor assigned to the admission's ward may issue it. A
+     * successful transaction stores certificate details and an audit event; duplicate issuance
+     * and records not declared as in-hospital deaths are rejected.
+     *
+     * @param  array{registration_number: string, certified_cause: string, other_conditions?: string|null}  $data
+     */
     public function issue(Admission $admission, array $data, User $issuer): MortuaryCase
     {
         return DB::transaction(function () use ($admission, $data, $issuer) {
@@ -48,6 +63,15 @@ class HospitalDeathCertificateService
         });
     }
 
+    /**
+     * Issue a certificate for an emergency visit confirmed as a brought-in-dead arrival.
+     *
+     * The issuer must be an emergency-access doctor, and the locked visit must already be
+     * completed with deceased disposition. Certificate data and the corresponding audit event
+     * are committed together.
+     *
+     * @param  array{registration_number: string, certified_cause: string, other_conditions?: string|null}  $data
+     */
     public function issueForBroughtInDead(Visit $visit, array $data, User $issuer): MortuaryCase
     {
         abort_unless($issuer->hasRole(Role::Doctor) && $issuer->canAccessEmergency(), 403, 'Only an A&E doctor can issue a certificate for a BID arrival.');

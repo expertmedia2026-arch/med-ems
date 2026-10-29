@@ -14,6 +14,9 @@ use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Presents password reset forms and processes validated reset-token submissions.
+ */
 class NewPasswordController extends Controller
 {
     /**

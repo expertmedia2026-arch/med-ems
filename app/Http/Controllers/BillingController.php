@@ -8,8 +8,14 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\BillingOperationsService;
 
+/**
+ * Coordinates browser billing, invoice, and payment pages with BillingOperationsService.
+ */
 class BillingController extends Controller
 {
+    /**
+     * Validates invoice-list filters, retrieves billing data for those filters, and renders the invoice table.
+     */
     public function index(BillingIndexRequest $request, BillingOperationsService $billing)
     {
         $filters = $request->validated();
@@ -17,6 +23,9 @@ class BillingController extends Controller
         return view('billing.index', $billing->indexData($filters['status'] ?? null, $filters['q'] ?? null));
     }
 
+    /**
+     * Loads the invoice details permitted to the current user and renders the billing detail page.
+     */
     public function show(Invoice $invoice, BillingOperationsService $billing)
     {
         $invoice = $billing->invoiceDetails($invoice);
@@ -24,6 +33,9 @@ class BillingController extends Controller
         return view('billing.show', compact('invoice'));
     }
 
+    /**
+     * Records payment for validated invoice items and redirects to the refreshed invoice or resulting receipt.
+     */
     public function pay(PayInvoiceRequest $request, Invoice $invoice, BillingOperationsService $billing)
     {
         $payment = $billing->recordPayment($invoice, $request->validated(), $request->user()->id);
@@ -38,6 +50,9 @@ class BillingController extends Controller
             ->with('success', 'Payment of ₦'.number_format((float) $payment->amount, 2).' recorded.');
     }
 
+    /**
+     * Retrieves the authorized payment receipt details and renders the printable receipt page.
+     */
     public function receipt(Payment $payment, BillingOperationsService $billing)
     {
         $payment = $billing->receiptDetails($payment);

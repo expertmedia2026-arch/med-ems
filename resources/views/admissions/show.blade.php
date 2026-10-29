@@ -44,6 +44,7 @@
         <div class="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"><p class="font-semibold">Please review the information below.</p><ul class="mt-1 list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
     @endif
 
+    {{-- The admission is the entry point for labor and links to the shared maternity episode afterward. --}}
     @if (auth()->user()->hospital?->hasModule('maternity'))
         <section class="mb-6 rounded-xl border border-pink-200 bg-white p-5 shadow-sm">
             <div class="flex flex-wrap items-start justify-between gap-3">

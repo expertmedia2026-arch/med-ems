@@ -7,6 +7,9 @@ use App\Models\Patient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Handles authorized patient-media uploads and downloads.
+ */
 class PatientMediaController extends Controller
 {
     public function photo(Request $request, Patient $patient)

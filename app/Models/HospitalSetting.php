@@ -11,6 +11,7 @@ class HospitalSetting extends Model
 {
     protected $guarded = [];
 
+    /** Keep configured fees as decimal strings and decrypt the payment secret transparently. */
     protected function casts(): array
     {
         return [
@@ -31,6 +32,10 @@ class HospitalSetting extends Model
         ];
     }
 
+    /**
+     * Resolve settings for the active tenant, creating that tenant's settings
+     * row when first accessed; the fallback is retained for unscoped system use.
+     */
     public static function current(): self
     {
         $hospitalId = app(HospitalContext::class)->id() ?? auth()->user()?->hospital_id;
@@ -49,11 +54,13 @@ class HospitalSetting extends Model
             ]);
     }
 
+    /** The tenant whose branding and billing configuration this row stores. */
     public function hospital(): BelongsTo
     {
         return $this->belongsTo(Hospital::class);
     }
 
+    /** Convert a stored public-disk logo path into a browser-ready URL. */
     protected function logoUrl(): Attribute
     {
         return Attribute::get(fn () => $this->logo_path ? asset('storage/'.$this->logo_path) : null);

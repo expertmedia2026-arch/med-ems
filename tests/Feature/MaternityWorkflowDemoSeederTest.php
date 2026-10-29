@@ -20,6 +20,7 @@ class MaternityWorkflowDemoSeederTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** The demo seeder creates ten linked cases once and preserves antenatal visit history. */
     public function test_seeds_ten_maternity_cases_with_antenatal_history_and_is_safe_to_rerun(): void
     {
         $hospital = $this->createHospitalWithAntenatalConsultation();
@@ -50,6 +51,7 @@ class MaternityWorkflowDemoSeederTest extends TestCase
         $this->assertSame(1, $hospital->modules()->where('module', 'maternity')->where('enabled', true)->count());
     }
 
+    /** Seeding must stop before writes when required tenant modules are disabled. */
     public function test_refuses_to_seed_when_the_hospital_has_not_enabled_maternity(): void
     {
         $hospital = $this->createHospitalWithAntenatalConsultation(maternityEnabled: false);
@@ -62,6 +64,7 @@ class MaternityWorkflowDemoSeederTest extends TestCase
         $seeder->run();
     }
 
+    /** Build the enabled-module and antenatal consultation prerequisites for seeding. */
     private function createHospitalWithAntenatalConsultation(bool $maternityEnabled = true): Hospital
     {
         $hospital = Hospital::create([

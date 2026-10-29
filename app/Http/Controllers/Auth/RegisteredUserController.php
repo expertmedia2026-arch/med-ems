@@ -13,6 +13,9 @@ use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Presents registration and provisions user accounts from validated registration requests.
+ */
 class RegisteredUserController extends Controller
 {
     /**

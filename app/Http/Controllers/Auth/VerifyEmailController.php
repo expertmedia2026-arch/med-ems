@@ -7,6 +7,9 @@ use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;
 
+/**
+ * Handles signed email-verification links and redirects users after verification.
+ */
 class VerifyEmailController extends Controller
 {
     /**

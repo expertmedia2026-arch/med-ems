@@ -8,8 +8,14 @@ use App\Models\Visit;
 use App\Services\PrescriptionService;
 use Illuminate\Http\Request;
 
+/**
+ * Checks visit ownership and delegates prescribing and pharmacy-order actions to PrescriptionService.
+ */
 class PrescriptionController extends Controller
 {
+    /**
+     * Confirms the visit is open for the user, submits validated prescription details, and reports service errors or stock status.
+     */
     public function store(StorePrescriptionRequest $request, Visit $visit, PrescriptionService $prescriptions)
     {
         abort_unless($visit->isOpenFor($request->user()), 403);
@@ -29,6 +35,9 @@ class PrescriptionController extends Controller
         return back()->with('success', $message);
     }
 
+    /**
+     * Requires an open visit, places the pharmacy order, and reports an empty order or successful queue handoff.
+     */
     public function placeOrder(Request $request, Visit $visit, PrescriptionService $prescriptions)
     {
         abort_unless($visit->isOpenFor($request->user()), 403);
@@ -49,6 +58,9 @@ class PrescriptionController extends Controller
             : "{$count} prescription items sent to the pharmacy queue.");
     }
 
+    /**
+     * Restricts removal to an open visit and an unqueued, unpaid prescription before delegating deletion.
+     */
     public function destroy(Request $request, Visit $visit, Prescription $prescription, PrescriptionService $prescriptions)
     {
         abort_unless($visit->isOpenFor($request->user()), 403);

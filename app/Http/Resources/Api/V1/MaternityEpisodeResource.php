@@ -7,6 +7,10 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class MaternityEpisodeResource extends JsonResource
 {
+    /**
+     * Serialize the episode and include admission/newborn details only when
+     * the service has loaded those relationships for the requested endpoint.
+     */
     public function toArray(Request $request): array
     {
         return [

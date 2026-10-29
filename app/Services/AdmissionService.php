@@ -20,8 +20,12 @@ use App\Models\Visit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Coordinates inpatient admission, ward care, discharge, and result-review workflows.
+ */
 class AdmissionService
 {
+    /** Inject billing, medication-safety, prescription, and mortuary workflow dependencies. */
     public function __construct(
         private readonly BillingService $billing,
         private readonly MedicationAdministrationService $medicationAdministration,
@@ -29,11 +33,20 @@ class AdmissionService
         private readonly MortuaryCaseService $mortuaryCases,
     ) {}
 
+    /** Return departments configured with inpatient wards for admission and transfer forms. */
     public function wardDepartments()
     {
         return Department::query()->where('has_ward', true)->orderBy('name')->get();
     }
 
+    /**
+     * Build the paginated active/discharged admission lists visible to the current staff member.
+     *
+     * Nurse and doctor results are limited to their ward department or doctor scope; a supplied
+     * search term matches patient identifiers and names.
+     *
+     * @return array{activeAdmissions: \Illuminate\Contracts\Pagination\LengthAwarePaginator, dischargedAdmissions: \Illuminate\Contracts\Pagination\LengthAwarePaginator, activeCount: int, pendingReviewCount: int, search: string|null}
+     */
     public function indexData(User $viewer, ?string $search = null): array
     {
         $this->assertStaffDepartment($viewer);
@@ -62,6 +75,14 @@ class AdmissionService
         ];
     }
 
+    /**
+     * Load an admission and its inpatient chart for an authorized ward viewer.
+     *
+     * Also derives pending/unresolved lab results, the viewer's available actions, and
+     * prescription choices for doctors authorized to prescribe.
+     *
+     * @return array<string, mixed> Admission, lab-review collections, capability flags, and available drugs.
+     */
     public function showData(Admission $admission, User $viewer): array
     {
         $this->assertAdmissionAccess($admission, $viewer);
@@ -94,6 +115,15 @@ class AdmissionService
         return compact('admission', 'pendingResults', 'unresolvedResults', 'canManage', 'canPrescribe', 'canRecordCare', 'drugs');
     }
 
+    /**
+     * Admit a patient from an open consultation and transition its visit to inpatient status.
+     *
+     * Admission creation, duplicate-active-admission checks, visit/appointment changes, pharmacy
+     * order timestamps, and invoice synchronization are protected by a database transaction.
+     * Only the attending doctor can initiate the admission; ward nurses are notified afterward.
+     *
+     * @param array<string, mixed> $data Validated ward, reason, diagnosis, treatment plan, and optional expected discharge date.
+     */
     public function admit(Visit $visit, array $data, User $doctor): Admission
     {
         abort_unless($doctor->hasRole(Role::Doctor), 403);
@@ -149,6 +179,14 @@ class AdmissionService
         return $admission;
     }
 
+    /**
+     * Discharge an active admission after medication and pending-result requirements are satisfied.
+     *
+     * Admission and linked visit transitions are atomic. Ward nurses and billing staff receive
+     * notifications after the committed discharge.
+     *
+     * @param array<string, mixed> $data Validated discharge diagnosis, summary, medication, instructions, and optional results plan.
+     */
     public function discharge(Admission $admission, array $data, User $actor): Admission
     {
         $this->assertCanManage($admission, $actor);
@@ -206,6 +244,7 @@ class AdmissionService
         return $admission;
     }
 
+    /** Delegate an inpatient death declaration to the mortuary workflow after management authorization. */
     public function declareDeceased(Admission $admission, array $data, User $actor): MortuaryCase
     {
         $this->assertCanManage($admission, $actor);
@@ -213,6 +252,14 @@ class AdmissionService
         return $this->mortuaryCases->declareInpatientDeath($admission, $data, $actor);
     }
 
+    /**
+     * Mark a completed lab result as reviewed by an authorized doctor.
+     *
+     * The lab must belong to this admission's visit and may be reviewed only once; the locked
+     * update records the reviewer, time, and optional note.
+     *
+     * @param array<string, mixed> $data Validated optional result-review note.
+     */
     public function reviewLabResult(Admission $admission, LabRequest $labRequest, array $data, User $doctor): LabRequest
     {
         $this->assertCanManage($admission, $doctor);
@@ -232,6 +279,12 @@ class AdmissionService
         });
     }
 
+    /**
+     * Append a medical or nursing note to an active admission and notify the complementary care team.
+     *
+     * Nurses must be assigned to the admission's department; doctors must be authorized to manage
+     * the admission. The created note is returned.
+     */
     public function addProgressNote(Admission $admission, string $note, User $author): AdmissionNote
     {
         $this->assertAdmissionAccess($admission, $author);
@@ -258,6 +311,14 @@ class AdmissionService
         return $progressNote;
     }
 
+    /**
+     * Record ward observations on an active inpatient visit and notify the attending doctor.
+     *
+     * Administrators and nurses may record vitals, subject to the admission access scope; the
+     * admission row is locked while the observations are created.
+     *
+     * @param array<string, mixed> $data Validated observation fields; recorder and timestamp are assigned here.
+     */
     public function recordVitals(Admission $admission, array $data, User $nurse): AdmissionVital
     {
         abort_unless($nurse->hasRole(Role::Admin, Role::Nurse), 403);
@@ -285,7 +346,15 @@ class AdmissionService
         return $vitals;
     }
 
-    /** @return array{drug: Drug|null, error: string|null, reserved_quantity?: int, shortage?: int} */
+    /**
+     * Create an inpatient prescription through the shared prescription and stock-reservation workflow.
+     *
+     * Only an authorized doctor may prescribe during an active admission whose linked visit remains
+     * inpatient. The returned status payload may contain a drug, a validation error, and stock details.
+     *
+     * @return array{drug: Drug|null, error: string|null, reserved_quantity?: int, shortage?: int}
+     * @param array<string, mixed> $data Validated drug, dose, quantity, and administration instructions.
+     */
     public function prescribeMedication(Admission $admission, array $data, User $doctor): array
     {
         abort_unless($doctor->hasRole(Role::Doctor), 403);
@@ -302,6 +371,7 @@ class AdmissionService
         });
     }
 
+    /** Enforce role- and department-scoped access for viewing an admission. */
     private function assertAdmissionAccess(Admission $admission, User $viewer): void
     {
         if ($viewer->hasRole(Role::Admin)) {
@@ -316,6 +386,7 @@ class AdmissionService
             403, 'Only the attending doctor, a doctor in this ward department, or a nurse assigned to this ward can access the admission.');
     }
 
+    /** Restrict admission-management actions to administrators or doctors serving its ward. */
     private function assertCanManage(Admission $admission, User $actor): void
     {
         abort_unless($actor->hasRole(Role::Admin)
@@ -323,12 +394,14 @@ class AdmissionService
             403, 'Only the attending doctor, a doctor in this ward department, or an administrator can manage this admission.');
     }
 
+    /** Check whether the doctor is assigned to this admission or its ward department. */
     private function doctorCanAttend(Admission $admission, User $doctor): bool
     {
         return $admission->attending_doctor_id === $doctor->id
             || ($doctor->department_id && (int) $doctor->department_id === (int) $admission->department_id);
     }
 
+    /** Require nurses to have a department assignment before using department-scoped admission lists. */
     private function assertStaffDepartment(User $viewer): void
     {
         if ($viewer->hasRole(Role::Nurse)) {

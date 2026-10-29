@@ -23,8 +23,13 @@ use RuntimeException;
 
 class MaternityWorkflowDemoSeeder extends Seeder
 {
+    /** Set this to the hospital whose isolated test records should be created. */
     public int $hospitalId = 1;
 
+    /**
+     * Ten illustrative admission/delivery scenarios; the final case deliberately
+     * remains in labor so the in-progress screen can also be explored.
+     */
     private const CASES = [
         ['days_ago' => 90, 'mode' => 'vaginal', 'babies' => [['name' => 'Demo Baby 01', 'gender' => 'female']]],
         ['days_ago' => 80, 'mode' => 'vaginal', 'babies' => [['name' => 'Demo Baby 02', 'gender' => 'male']]],
@@ -41,6 +46,7 @@ class MaternityWorkflowDemoSeeder extends Seeder
         ['days_ago' => null, 'mode' => null, 'babies' => []],
     ];
 
+    /** Synthetic names are used so this seeder never creates real patient identities. */
     private const MOTHER_NAMES = [
         ['Amina', 'Demo'],
         ['Grace', 'Example'],
@@ -54,6 +60,10 @@ class MaternityWorkflowDemoSeeder extends Seeder
         ['Esther', 'Demo'],
     ];
 
+    /**
+     * Seed one hospital only, preserving the caller's tenant context and
+     * skipping the operation when its demo marker already exists.
+     */
     public function run(): void
     {
         $hospital = Hospital::query()->find($this->hospitalId);
@@ -69,7 +79,11 @@ class MaternityWorkflowDemoSeeder extends Seeder
             $this->assertHospitalReady($hospital);
             $marker = "[MATERNITY_DEMO_HOSPITAL_{$this->hospitalId}]";
 
+            // Seed related patients, visits, admissions, and episodes as one
+            // unit so an interrupted run does not leave a partial demo cohort.
             $seeded = DB::transaction(function () use ($marker): bool {
+                // The marker makes a repeated run a safe no-op rather than
+                // creating duplicate visits, admissions, and newborns.
                 if (Visit::query()->where('clinical_notes', 'like', '%'.$marker.'%')->exists()) {
                     return false;
                 }
@@ -92,6 +106,7 @@ class MaternityWorkflowDemoSeeder extends Seeder
         $this->command?->info('Each case includes two completed antenatal consultations; nine have delivery records and one remains in labor.');
     }
 
+    /** Fail early with an actionable message when essential hospital setup is missing. */
     private function assertHospitalReady(Hospital $hospital): void
     {
         if (! $hospital->hasModule('inpatient') || ! $hospital->hasModule('maternity')) {
@@ -123,6 +138,10 @@ class MaternityWorkflowDemoSeeder extends Seeder
         }
     }
 
+    /**
+     * Create the ten related maternal patients, antenatal visits, admissions,
+     * episodes, and any delivered newborns for the selected tenant.
+     */
     private function seedCases(string $marker): void
     {
         $antenatalType = ConsultationType::query()
@@ -137,6 +156,8 @@ class MaternityWorkflowDemoSeeder extends Seeder
             ->orderBy('id')
             ->firstOrFail();
         $wards = Department::query()->where('has_ward', true)->orderBy('id')->get();
+        // Prefer a clearly named maternity ward but support hospitals that
+        // have only a general inpatient ward configured.
         $maternityWard = $wards->first(
             fn (Department $department): bool => Str::contains(Str::lower($department->name), ['maternity', 'obstetric', 'gyn']),
         ) ?? $wards->first();
@@ -180,6 +201,8 @@ class MaternityWorkflowDemoSeeder extends Seeder
                 'updated_at' => $laborStartedAt,
             ]);
 
+            // Historical birth cases have discharged admissions; the last
+            // case stays active so the labor workflow remains interactive.
             $dischargedAt = $deliveryAt?->copy()->addDays(2);
             $admission = Admission::create([
                 'admission_number' => sprintf('MAT-DEMO-%d-ADM-%02d', $this->hospitalId, $caseNumber),
@@ -233,6 +256,10 @@ class MaternityWorkflowDemoSeeder extends Seeder
         }
     }
 
+    /**
+     * Add two completed visits using the hospital's existing Antenatal
+     * Consultation type; antenatal care remains part of the ordinary visit history.
+     */
     private function seedAntenatalVisits(
         Patient $mother,
         ConsultationType $antenatalType,
@@ -264,6 +291,8 @@ class MaternityWorkflowDemoSeeder extends Seeder
     }
 
     /**
+     * Create a patient and birth record for every synthetic live-born child.
+     *
      * @param  array<int, array{name: string, gender: string}>  $babies
      */
     private function seedNewborns(

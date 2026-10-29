@@ -10,9 +10,24 @@ use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
+/**
+ * Issues patient portal invitations and emails their acceptance links.
+ *
+ * Only a hash of the random token is persisted. Any existing unaccepted invitations
+ * for the patient are removed before a replacement is created.
+ */
 class PortalInvitationService
 {
-    /** @return array{ok: bool, message: string, link: ?string} */
+    /**
+     * Create a seven-day portal invitation for an eligible patient and email its link.
+     *
+     * Rejects patients without an email or with an existing patient account/email
+     * account. Mail transport failure is reported but leaves the valid invitation
+     * available for manual link sharing.
+     *
+     * @param  Patient  $patient  Patient to invite.
+     * @return array{ok: bool, message: string, link: ?string} Outcome, user-facing message, and acceptance URL when created.
+     */
     public function send(Patient $patient): array
     {
         if (blank($patient->email)) {
@@ -57,6 +72,12 @@ class PortalInvitationService
         return ['ok' => true, 'message' => $message, 'link' => $url];
     }
 
+    /**
+     * Return a standard unsuccessful invitation result.
+     *
+     * @param  string  $message  Reason the invitation could not be sent.
+     * @return array{ok: false, message: string, link: null} Failure result for the invitation flow.
+     */
     private function fail(string $message): array
     {
         return ['ok' => false, 'message' => $message, 'link' => null];

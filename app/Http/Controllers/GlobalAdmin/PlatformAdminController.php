@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
+/**
+ * Handles platform-level administration requests available to global administrators.
+ */
 class PlatformAdminController extends Controller
 {
     public function index(): View

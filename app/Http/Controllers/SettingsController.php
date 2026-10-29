@@ -7,8 +7,14 @@ use App\Services\HospitalSettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
+/**
+ * Renders current hospital settings and delegates validated updates to HospitalSettingsService.
+ */
 class SettingsController extends Controller
 {
+    /**
+     * Validates the requested settings section and renders it with the current hospital configuration.
+     */
     public function edit(Request $request, HospitalSettingsService $settings)
     {
         $section = $request->route('section') ?: 'basic';
@@ -18,6 +24,9 @@ class SettingsController extends Controller
         return view('settings.hospital', ['settings' => $settings->current(), 'section' => $section]);
     }
 
+    /**
+     * Applies validated settings and optional file changes, then redirects to the saved settings section.
+     */
     public function update(UpdateHospitalSettingsRequest $request, HospitalSettingsService $settings): RedirectResponse
     {
         $settings->update(

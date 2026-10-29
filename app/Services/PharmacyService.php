@@ -15,10 +15,25 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use App\Support\HospitalContext;
 
+/**
+ * Builds pharmacy queues and audit data and coordinates stock dispensing/restocking.
+ *
+ * Pharmacy summaries explicitly constrain aggregate queries to the active hospital.
+ * Dispensing runs inventory reservation and prescription updates transactionally.
+ */
 class PharmacyService
 {
+    /** @param DrugInventoryService $inventory Handles reservation expiry and stock movements. */
     public function __construct(private readonly DrugInventoryService $inventory) {}
 
+    /**
+     * Assemble the current pharmacy queue, stock alerts, and today's activity.
+     *
+     * Expired reservations are processed first. The returned queue includes only
+     * eligible pending orders and completed prescriptions dispensed today.
+     *
+     * @return array<string, mixed> Dashboard data for pharmacy queue, stock, summary, and pharmacist activity.
+     */
     public function dashboardData(): array
     {
         $this->inventory->expireReservations();
@@ -48,6 +63,15 @@ class PharmacyService
         ];
     }
 
+    /**
+     * Build a date-bounded dispensing audit and the corresponding aggregate summaries.
+     *
+     * Unsupported period names fall back to the current month. Aggregate statistics
+     * are constrained by the active hospital context; dispensing rows are paginated.
+     *
+     * @param  string  $period  One of today, week, month, or all.
+     * @return array<string, mixed> Selected period, labels, summary, pharmacist activity, and dispensing paginator.
+     */
     public function auditData(string $period = 'month'): array
     {
         $period = in_array($period, ['today', 'week', 'month', 'all'], true) ? $period : 'month';
@@ -70,6 +94,15 @@ class PharmacyService
         ];
     }
 
+    /**
+     * Build the base query for completed prescriptions dispensed within a date range.
+     *
+     * The supplied bounds are expanded to the start and end of their respective days.
+     *
+     * @param  CarbonImmutable|null  $start  Inclusive lower date bound, or null for no lower bound.
+     * @param  CarbonImmutable|null  $end  Inclusive upper date bound, or null for no upper bound.
+     * @return Builder<Prescription> Completed dispensing query.
+     */
     private function dispensedQuery(?CarbonImmutable $start, ?CarbonImmutable $end): Builder
     {
         return Prescription::query()->completed()->whereNotNull('dispensed_at')
@@ -77,6 +110,16 @@ class PharmacyService
             ->when($end, fn (Builder $query) => $query->where('dispensed_at', '<=', $end->endOfDay()));
     }
 
+    /**
+     * Count dispensed items, distinct patients, injection-form items, and pharmacists.
+     *
+     * All prescription aggregates and joined records are constrained to the active
+     * hospital, and results are limited to the requested date range.
+     *
+     * @param  CarbonImmutable|null  $start  Inclusive lower date bound, or null for all earlier records.
+     * @param  CarbonImmutable|null  $end  Inclusive upper date bound, or null for all later records.
+     * @return array{items: int, patients: int, injections: int, pharmacists: int} Range totals.
+     */
     private function summaryForRange(?CarbonImmutable $start, ?CarbonImmutable $end): array
     {
         $query = DB::table('prescriptions')
@@ -116,6 +159,16 @@ class PharmacyService
         ];
     }
 
+    /**
+     * Return pharmacy-department pharmacists with their dispensing totals for a period.
+     *
+     * Counts use completed dispensing records from the active hospital, grouped by
+     * dispenser; pharmacists without activity are included with zero totals.
+     *
+     * @param  CarbonImmutable|null  $start  Inclusive lower date bound.
+     * @param  CarbonImmutable|null  $end  Inclusive upper date bound.
+     * @return \Illuminate\Support\Collection<int, array{user: User, patients: int, items: int, injections: int}>
+     */
     private function pharmacistActivity(?CarbonImmutable $start, ?CarbonImmutable $end)
     {
         $counts = DB::table('prescriptions')
@@ -152,7 +205,12 @@ class PharmacyService
             });
     }
 
-    /** @return array{?CarbonImmutable, ?CarbonImmutable} */
+    /**
+     * Convert a named audit period into its inclusive start and end date bounds.
+     *
+     * @param  string  $period  Normalized audit period name.
+     * @return array{?CarbonImmutable, ?CarbonImmutable} Start and end dates; both null for all-time history.
+     */
     private function periodBounds(string $period): array
     {
         return match ($period) {
@@ -163,6 +221,15 @@ class PharmacyService
         };
     }
 
+    /**
+     * Load a pharmacy-eligible visit and its prescriptions, restoring valid reservations.
+     *
+     * Closed deceased visits are not accessible. Pending items that are paid or
+     * belong to an emergency visit have their stock reservations reacquired.
+     *
+     * @param  Visit  $visit  Visit requested by the pharmacy workflow.
+     * @return Visit Visit with patient, doctor, and eligible prescriptions loaded.
+     */
     public function visitDetails(Visit $visit): Visit
     {
         abort_unless($this->canOpenVisit($visit), 404);
@@ -181,6 +248,15 @@ class PharmacyService
         return $visit->load(['patient', 'doctor']);
     }
 
+    /**
+     * Search the active drug catalog and optionally restrict results to low stock.
+     *
+     * Expired reservations are processed before availability is displayed.
+     *
+     * @param  string|null  $term  Optional name or generic-name search text.
+     * @param  bool  $lowStock  Whether to include only drugs below the low-stock threshold.
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator Paginated matching drugs with query parameters retained.
+     */
     public function inventoryData(?string $term, bool $lowStock)
     {
         $this->inventory->expireReservations();
@@ -191,6 +267,19 @@ class PharmacyService
     }
 
     /** @return array{dispensed: int, skipped: array<int, string>} */
+    /**
+     * Dispense selected pharmacy orders and report orders that could not be completed.
+     *
+     * The visit must be open to the pharmacy. Each selected pending order is checked
+     * for payment (except emergency visits), stock reservation, and fulfillment inside
+     * one transaction. Nurses are notified after commit when in-facility medication
+     * administration becomes ready.
+     *
+     * @param  Visit  $visit  Visit whose pharmacy queue is being processed.
+     * @param  array<int, int>  $prescriptionIds  Prescription IDs requested for dispensing.
+     * @param  int  $userId  Staff user recording the dispensing.
+     * @return array{dispensed: int, nursing_ready: int, skipped: array<int, string>, has_pending: bool, patient_name: string} Dispensing outcome and remaining queue state.
+     */
     public function dispense(Visit $visit, array $prescriptionIds, int $userId): array
     {
         abort_unless($this->canOpenVisit($visit), 403);
@@ -250,11 +339,28 @@ class PharmacyService
         ];
     }
 
+    /**
+     * Add stock to a drug through the inventory service.
+     *
+     * @param  Drug  $drug  Drug receiving additional stock.
+     * @param  int  $quantity  Positive quantity to add.
+     * @param  int  $userId  Staff user recording the restock.
+     * @return Drug Updated drug record.
+     */
     public function restock(Drug $drug, int $quantity, int $userId): Drug
     {
         return $this->inventory->restock($drug, $quantity, $userId);
     }
 
+    /**
+     * Constrain a prescription query to pending orders visible in pharmacy.
+     *
+     * Orders must be sent to pharmacy or belong to an eligible completed, inpatient,
+     * or emergency visit, and are hidden when the visit disposition is deceased.
+     *
+     * @param  \Illuminate\Database\Eloquent\Relations\HasMany|\Illuminate\Database\Eloquent\Builder  $query  Prescription query to constrain.
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany|\Illuminate\Database\Eloquent\Builder Filtered pending-order query.
+     */
     private function pendingAtPharmacy($query)
     {
         return $query->pending()->where(fn ($visible) => $visible
@@ -267,6 +373,15 @@ class PharmacyService
                 ->orWhere('disposition', '!=', 'deceased')));
     }
 
+    /**
+     * Decide whether the given visit can be opened from the pharmacy workflow.
+     *
+     * Deceased visits are always excluded; other visits are eligible when completed,
+     * inpatient, emergency consultations, or consultations with pharmacy-pending orders.
+     *
+     * @param  Visit  $visit  Visit whose pharmacy eligibility is checked.
+     * @return bool Whether pharmacy staff may open this visit.
+     */
     private function canOpenVisit(Visit $visit): bool
     {
         if ($visit->disposition === 'deceased') {

@@ -6,11 +6,13 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StartMaternityLaborRequest extends FormRequest
 {
+    /** Authorization is applied by the maternity route middleware and service access check. */
     public function authorize(): bool
     {
         return true;
     }
 
+    /** Normalize browser radio values and API booleans to a consistent boolean input. */
     protected function prepareForValidation(): void
     {
         if ($this->has('patient_brought_delivery_materials')) {
@@ -20,6 +22,7 @@ class StartMaternityLaborRequest extends FormRequest
         }
     }
 
+    /** Validate the initial labor assessment and the required materials checklist answer. */
     public function rules(): array
     {
         return [

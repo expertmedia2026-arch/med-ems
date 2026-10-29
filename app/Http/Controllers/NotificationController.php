@@ -8,6 +8,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\View\View;
 
+/**
+ * Presents notifications for the signed-in user and handles notification acknowledgements.
+ */
 class NotificationController extends Controller
 {
     public function index(Request $request): View

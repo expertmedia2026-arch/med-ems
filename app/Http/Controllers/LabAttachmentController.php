@@ -7,8 +7,14 @@ use App\Services\LabAttachmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Delegates lab-attachment authorization and deletion to LabAttachmentService.
+ */
 class LabAttachmentController extends Controller
 {
+    /**
+     * Checks service authorization and file existence before returning a private attachment response.
+     */
     public function show(Request $request, LabAttachment $attachment, LabAttachmentService $attachments)
     {
         abort_unless($attachments->canView($request->user(), $attachment), 403);
@@ -23,6 +29,9 @@ class LabAttachmentController extends Controller
         ]);
     }
 
+    /**
+     * Deletes the selected attachment through the service and redirects back with confirmation.
+     */
     public function destroy(Request $request, LabAttachment $attachment, LabAttachmentService $attachments)
     {
         $attachments->delete($attachment, $request->user());

@@ -8,13 +8,22 @@ use App\Http\Requests\StoreLabReferralRequest;
 use App\Models\Visit;
 use App\Services\LabReferralService;
 
+/**
+ * Coordinates walk-in laboratory referral forms and lifecycle actions with LabReferralService.
+ */
 class LabReferralController extends Controller
 {
+    /**
+     * Uses validated patient context to load authorized referral form data and render the entry page.
+     */
     public function create(LabReferralFormRequest $request, LabReferralService $referrals)
     {
         return view('lab.referrals.create', $referrals->createFormData($request->validated('patient'), $request->user()));
     }
 
+    /**
+     * Creates a validated referral, returning possible patient matches or routing the user to the appropriate page.
+     */
     public function store(StoreLabReferralRequest $request, LabReferralService $referrals)
     {
         $data = $request->validated();
@@ -43,6 +52,9 @@ class LabReferralController extends Controller
             : redirect()->route('lab.index')->with('success', $message);
     }
 
+    /**
+     * Cancels an unpaid referral when permitted by the service, otherwise returns the blocking reason.
+     */
     public function destroy(\Illuminate\Http\Request $request, Visit $visit, LabReferralService $referrals)
     {
         if (! $referrals->cancel($visit, $request->user())) {

@@ -8,8 +8,23 @@ use App\Models\Invoice;
 use App\Models\Patient;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Assembles a patient's portal landing-page appointment and billing summary.
+ *
+ * Queries are constrained to the supplied patient's own invoices, appointments,
+ * and visits; authorization to access that patient remains the caller's responsibility.
+ */
 class PortalDashboardService
 {
+    /**
+     * Calculate outstanding invoices and find the patient's next appointment and last visit.
+     *
+     * Scheduled consultations from today onward and lab appointments from the current
+     * time onward are eligible for the next-appointment result.
+     *
+     * @param  Patient  $patient  Patient whose portal dashboard is being assembled.
+     * @return array{patient: Patient, outstanding: float, unpaidInvoices: int, nextAppointment: \App\Models\Appointment|null, lastVisit: \App\Models\Visit|null} Dashboard summary.
+     */
     public function data(Patient $patient): array
     {
         $unpaid = Invoice::where('patient_id', $patient->id)->whereIn('status', ['unpaid', 'partial']);

@@ -16,10 +16,28 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
+/**
+ * Coordinates clinician test requests, laboratory processing, result access, and result delivery.
+ *
+ * Queries use the current tenant's normal model scopes; the service applies requester and lab
+ * department restrictions and delegates invoice synchronization to the shared billing service.
+ */
 class LabWorkflowService
 {
+    /**
+     * Use the shared billing service when adding or removing tests changes a visit's charges.
+     */
     public function __construct(private readonly BillingService $billing) {}
 
+    /**
+     * Add previously unrequested tests to the requesting doctor's active consultation.
+     *
+     * The visit is locked and checked inside a transaction. Duplicate test IDs and tests already
+     * attached to the visit are ignored; new requests trigger lab-staff notifications and invoice
+     * synchronization. Returns the number of requests actually created.
+     *
+     * @param  array<int, int>  $testIds
+     */
     public function requestTests(Visit $visit, array $testIds, int $requestedBy): int
     {
         return DB::transaction(function () use ($visit, $testIds, $requestedBy) {
@@ -48,6 +66,14 @@ class LabWorkflowService
         });
     }
 
+    /**
+     * Return independently paginated pending and completed requests visible to this staff member.
+     *
+     * Doctors see requests they submitted, lab users see requests for their department, and the
+     * optional search term is matched against patient identity fields.
+     *
+     * @return array{pending: \Illuminate\Contracts\Pagination\LengthAwarePaginator, completed: \Illuminate\Contracts\Pagination\LengthAwarePaginator, canProcess: bool, search: string}
+     */
     public function indexData(User $user, string $term): array
     {
         $base = LabRequest::with(['visit.patient', 'test', 'requester'])
@@ -74,6 +100,14 @@ class LabWorkflowService
         ];
     }
 
+    /**
+     * Load one request's detail and derive whether it can be processed or cancelled.
+     *
+     * Doctors may inspect only requests they made; lab users are restricted by the test department.
+     * Cancellation is offered only for an uncompleted lab-only visit with no payments.
+     *
+     * @return array{labRequest: LabRequest, canProcess: bool, canCancel: bool}
+     */
     public function detailData(LabRequest $labRequest, User $user): array
     {
         abort_if($user->hasRole(Role::Doctor) && $labRequest->requested_by !== $user->id, 403, 'You can only view results for tests you requested.');
@@ -87,6 +121,14 @@ class LabWorkflowService
         return compact('labRequest', 'canProcess', 'canCancel');
     }
 
+    /**
+     * Prepare completed results for printing for a visit, scoped to the requesting doctor or lab department.
+     *
+     * Throws a not-found response when no completed result is visible, and loads the patient and
+     * attending doctor for the report.
+     *
+     * @return array{visit: Visit, requests: \Illuminate\Database\Eloquent\Collection<int, LabRequest>}
+     */
     public function reportData(Visit $visit, User $user): array
     {
         $requests = $visit->labRequests()->completed()
@@ -100,6 +142,12 @@ class LabWorkflowService
         return compact('visit', 'requests');
     }
 
+    /**
+     * Remove a pending test request from an open consultation and release its reserved charge.
+     *
+     * The visit and request are locked in one transaction. Returns false if billing cannot release
+     * the request; otherwise the pending request is deleted.
+     */
     public function removeRequest(LabRequest $request, User $doctor): bool
     {
         return DB::transaction(function () use ($request, $doctor) {
@@ -119,7 +167,17 @@ class LabWorkflowService
         });
     }
 
-    /** @param array<int, UploadedFile> $files */
+    /**
+     * Save or replace a lab result and its private attachments after department and payment checks.
+     *
+     * First-time completion notifies the requester and eligible patient-portal account. A completed
+     * lab-only visit is closed when no pending tests remain. If the patient has an email, a result
+     * email is attempted; a delivery exception is reported and returned as a status string.
+     *
+     * @param  array<string, mixed>  $data  Validated result text and other result fields.
+     * @param  array<int, UploadedFile>  $files  Uploaded result documents stored on the private local disk.
+     * @return 'locked'|'unpaid'|'notification_failed'|'notification_missing_email'|null A blocking/delivery status, or null when processing completed.
+     */
     public function saveResult(LabRequest $labRequest, array $data, array $files, User $processor): ?string
     {
         $wasCompleted = $labRequest->status === WorkStatus::Completed;
@@ -207,6 +265,9 @@ class LabWorkflowService
         return null;
     }
 
+    /**
+     * Allow administrators/doctors, or laboratory users assigned to the test's department, to proceed.
+     */
     private function authorizeDepartment(LabRequest $labRequest, User $user): void
     {
         abort_unless($user->hasRole(Role::Admin, Role::Doctor) || ($user->hasRole(Role::Lab)

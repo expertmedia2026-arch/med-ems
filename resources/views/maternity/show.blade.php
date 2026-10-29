@@ -2,6 +2,7 @@
     <x-slot name="header">Maternity episode</x-slot>
 
     @php
+        // Keep submitted newborn rows visible after validation redirects, with one live-birth row by default.
         $input = 'mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-pink-600 focus:ring-pink-600';
         $label = 'block text-sm font-medium text-slate-700';
         $newbornFormData = old('newborns');
@@ -24,6 +25,7 @@
             </div>
         @endif
 
+        {{-- The summary keeps labor, delivery, and material-supply facts together for clinical review. --}}
         <section class="rounded-xl border bg-white p-5 shadow-sm">
             <h2 class="text-xl font-semibold text-slate-900">{{ $episode->admission->patient->full_name }}</h2>
             <p class="mt-1 text-sm text-slate-500">{{ $episode->admission->patient->hospital_number }} · {{ $episode->admission->admission_number }} · {{ $episode->admission->department->name }}</p>
@@ -48,11 +50,13 @@
         </section>
 
         @if ($episode->status === 'in_labor' && $episode->admission->status->value === 'active')
+            {{-- Medication and IV care stay on the linked inpatient admission rather than duplicating charting here. --}}
             <section class="rounded-xl border border-blue-200 bg-blue-50 p-5">
                 <h2 class="font-semibold text-blue-950">Medicines, injections and IV fluids</h2>
                 <p class="mt-1 text-sm text-blue-900">Keep these on the existing inpatient record: prescribe and dispense medicines through Pharmacy, then record doses and fluid intake in nursing and admission care charts.</p>
                 <a href="{{ route('admissions.show', $episode->admission) }}" class="mt-3 inline-flex rounded-lg border border-blue-700 px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-white">Open maternal inpatient care</a>
             </section>
+            {{-- Delivery prices are informational here; the service applies configured charges on save. --}}
             <section class="rounded-xl border bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-slate-900">Record delivery</h2>
                 <p class="mt-1 text-sm text-slate-600">Enter the birth details. Each live-born baby receives a separate patient record linked to this episode and the mother.</p>
@@ -127,6 +131,7 @@
         @endif
 
         @if ($episode->status === 'postpartum' && $episode->admission->status->value === 'active')
+            {{-- Postpartum documentation is editable only while the maternal admission remains active. --}}
             <section class="rounded-xl border bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-slate-900">Maternal postpartum notes</h2>
                 <form method="POST" action="{{ route('maternity.episodes.postpartum', $episode) }}" class="mt-4 space-y-3">

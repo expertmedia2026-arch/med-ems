@@ -8,15 +8,33 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Reads and updates the current hospital's settings and optional branding assets.
+ *
+ * Settings are resolved through the shared tenant-aware current-settings model method. Updates
+ * synchronize the hospital's canonical name transactionally and notify platform administrators
+ * only after a changed name has committed.
+ */
 class HospitalSettingsService
 {
+    /** Inject notification delivery so a renamed tenant is reported after its settings save. */
     public function __construct(private readonly GlobalAdminNotificationService $globalAdminNotifications) {}
 
+    /** Resolve the active tenant's settings using the model's shared tenant context. */
     public function current(): HospitalSetting
     {
         return HospitalSetting::current();
     }
 
+    /**
+     * Save validated tenant settings and optional branding files.
+     *
+     * Hospital and settings names are synchronized inside one transaction.
+     * The global administrator is notified only after a successful name change
+     * has committed, preventing alerts for rolled-back updates.
+     *
+     * @param  array<string, mixed>  $data  Validated settings fields.
+     */
     public function update(
         array $data,
         ?UploadedFile $logo,
@@ -83,6 +101,7 @@ class HospitalSettingsService
         $previousName = $settings->name;
         $hospital = null;
 
+        // Keep the hospital's canonical name and its displayed setting in sync.
         DB::transaction(function () use ($settings, $data, $previousName, &$hospital): void {
             $settings->update(Arr::except($data, ['logo', 'administrator_signature']));
 

@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Streams supported hospital datasets to CSV and imports validated rows independently.
+ */
 class CsvTransferService
 {
     private const HEADERS = [
@@ -27,11 +30,13 @@ class CsvTransferService
         'pharmacy-catalog' => ['name', 'generic_name', 'form', 'strength', 'unit_price', 'stock_quantity', 'reorder_level', 'is_active'],
     ];
 
+    /** Inject catalogue and staff-invitation workflows used by relevant imports. */
     public function __construct(
         private readonly DrugCatalogService $drugs,
         private readonly StaffInvitationService $staffInvitations,
     ) {}
 
+    /** Return the canonical column order for a supported dataset or abort for an unknown dataset. */
     public function headers(string $dataset): array
     {
         abort_unless(isset(self::HEADERS[$dataset]), 404);
@@ -39,6 +44,12 @@ class CsvTransferService
         return self::HEADERS[$dataset];
     }
 
+    /**
+     * Stream a dataset export or header-only template as a downloadable CSV response.
+     *
+     * Record generation is lazy to avoid loading full datasets into memory; lab staff exports are
+     * limited to their assigned lab department.
+     */
     public function export(string $dataset, bool $template = false, ?User $actor = null): StreamedResponse
     {
         $headers = $this->headers($dataset);
@@ -58,7 +69,15 @@ class CsvTransferService
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    /** @return array{added:int, skipped:int, errors:array<int,string>} */
+    /**
+     * Import a CSV file, validating and committing each non-empty row independently.
+     *
+     * Required columns must match the dataset template (case and surrounding whitespace are
+     * normalized). Bad rows are reported without rolling back successful rows; exception details
+     * are logged and at most 50 concise row errors are returned.
+     *
+     * @return array{added:int, skipped:int, errors:array<int,string>}
+     */
     public function import(string $dataset, UploadedFile $file, User $actor): array
     {
         $headers = $this->headers($dataset);
@@ -114,6 +133,7 @@ class CsvTransferService
         return compact('added', 'skipped', 'errors');
     }
 
+    /** Dispatch one already-normalized row to its dataset-specific import handler. */
     private function importRow(string $dataset, array $row, User $actor): string
     {
         return match ($dataset) {
@@ -126,6 +146,12 @@ class CsvTransferService
         };
     }
 
+    /**
+     * Validate and create a patient record, skipping duplicate hospital numbers or email addresses.
+     *
+     * Missing hospital numbers are generated, NHIS fields are normalized, and imported records
+     * default to already registered so the import does not create a registration bill.
+     */
     private function importPatient(array $row): string
     {
         $data = $this->validate($row, [
@@ -167,6 +193,7 @@ class CsvTransferService
         return 'added';
     }
 
+    /** Validate and create a department unless its name already exists. */
     private function importDepartment(array $row): string
     {
         $data = $this->validate($row, ['name' => ['required', 'string', 'max:120'], 'description' => ['nullable', 'string', 'max:500']]);
@@ -178,6 +205,12 @@ class CsvTransferService
         return 'added';
     }
 
+    /**
+     * Validate a staff row and issue an invitation rather than creating a login directly.
+     *
+     * An optional department must resolve by exact name; existing users and pending invitations
+     * with the same email are skipped.
+     */
     private function importStaff(array $row, User $actor): string
     {
         $data = $this->validate($row, [
@@ -199,6 +232,7 @@ class CsvTransferService
         return 'added';
     }
 
+    /** Validate and create a consultation price for an existing department, skipping duplicate names. */
     private function importConsultationPrice(array $row): string
     {
         $data = $this->validate($row, [
@@ -223,6 +257,11 @@ class CsvTransferService
         return 'added';
     }
 
+    /**
+     * Validate and add a lab test, using a lab actor's own department when applicable.
+     *
+     * Rows without a resolvable department and records duplicating a test name/code are skipped.
+     */
     private function importLabTest(array $row, User $actor): string
     {
         $data = $this->validate($row, [
@@ -254,6 +293,7 @@ class CsvTransferService
         return 'added';
     }
 
+    /** Validate and create a pharmacy drug unless the same name/strength/form is already catalogued. */
     private function importDrug(array $row): string
     {
         $data = $this->validate($row, [
@@ -278,11 +318,17 @@ class CsvTransferService
         return 'added';
     }
 
+    /** Apply Laravel validation rules to a normalized CSV row and return its validated fields. */
     private function validate(array $row, array $rules): array
     {
         return Validator::make($row, $rules)->validate();
     }
 
+    /**
+     * Yield CSV field maps for a supported dataset, optionally scoping lab catalogue data to its actor.
+     *
+     * Cursor-backed queries allow the exporter to process large tables incrementally.
+     */
     private function records(string $dataset, ?User $actor = null): iterable
     {
         return match ($dataset) {
@@ -314,6 +360,7 @@ class CsvTransferService
         };
     }
 
+    /** Convert validation/model-not-found failures into actionable row-level import messages. */
     private function friendlyError(\Throwable $exception): string
     {
         if ($exception instanceof \Illuminate\Validation\ValidationException) {

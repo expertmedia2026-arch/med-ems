@@ -2,6 +2,7 @@
     <x-slot name="header">Maternity episodes</x-slot>
 
     <div class="space-y-5">
+        {{-- Each row is an admission-linked episode; starting labor begins from the admission page. --}}
         <div>
             <h2 class="text-xl font-semibold text-slate-900">Maternity episodes</h2>
             <p class="mt-1 text-sm text-slate-600">Labor and birth episodes linked to inpatient admissions.</p>

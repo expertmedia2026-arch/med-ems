@@ -11,8 +11,14 @@ use App\Services\AppointmentBookingService;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\RedirectResponse;
 
+/**
+ * Handles staff appointment screens and delegates booking operations to the appointment service.
+ */
 class AppointmentController extends Controller
 {
+    /**
+     * Validates schedule filters, asks the booking service for the user's appointment queue, and renders the filtered schedule.
+     */
     public function index(AppointmentIndexRequest $request, AppointmentBookingService $appointments)
     {
         $date = Carbon::parse($request->validated('date') ?? today()->toDateString());
@@ -33,6 +39,9 @@ class AppointmentController extends Controller
         ]);
     }
 
+    /**
+     * Resolves the selected appointment through the booking service and renders its detailed staff view.
+     */
     public function show(Appointment $appointment, AppointmentBookingService $appointments)
     {
         $appointment = $appointments->appointmentDetails($appointment);
@@ -40,11 +49,17 @@ class AppointmentController extends Controller
         return view('appointments.show', compact('appointment'));
     }
 
+    /**
+     * Validates optional appointment-form context and renders the booking form with service-provided choices.
+     */
     public function create(AppointmentFormRequest $request, AppointmentBookingService $appointments)
     {
         return view('appointments.create', $appointments->formData($request->validated()));
     }
 
+    /**
+     * Books an appointment from validated form data for the signed-in staff member and redirects to its schedule date.
+     */
     public function store(StoreAppointmentRequest $request, AppointmentBookingService $appointments)
     {
         $data = $request->validated();
@@ -56,6 +71,9 @@ class AppointmentController extends Controller
             ->with('success', "Appointment booked for {$appointment->patient->full_name}.");
     }
 
+    /**
+     * Validates a reassignment and reason, delegates authorization and reassignment to the service, then returns to the prior page.
+     */
     public function reassignDoctor(ReassignAppointmentRequest $request, Appointment $appointment, AppointmentBookingService $appointments): RedirectResponse
     {
         $appointment = $appointments->reassignDoctor(
@@ -68,6 +86,9 @@ class AppointmentController extends Controller
         return back()->with('success', "Appointment reassigned to {$appointment->doctor->name}.");
     }
 
+    /**
+     * Cancels the route-bound appointment through the booking service and redirects back with a status message.
+     */
     public function cancel(Appointment $appointment, AppointmentBookingService $appointments)
     {
         $appointments->cancel($appointment);

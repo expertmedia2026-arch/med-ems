@@ -6,12 +6,11 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
+    /** Add tenant-configured maternity prices and record who brought or supplied delivery materials. */
     public function up(): void
     {
         Schema::table('hospital_settings', function (Blueprint $table): void {
+            // Zero is a safe default: each hospital explicitly opts into its own charges.
             $table->decimal('maternity_vaginal_delivery_fee', 10, 2)->default(0);
             $table->decimal('maternity_assisted_delivery_fee', 10, 2)->default(0);
             $table->decimal('maternity_cesarean_delivery_fee', 10, 2)->default(0);
@@ -26,9 +25,7 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
+    /** Remove the new price fields and materials checklist fields if this migration is rolled back. */
     public function down(): void
     {
         Schema::table('maternity_episodes', function (Blueprint $table): void {

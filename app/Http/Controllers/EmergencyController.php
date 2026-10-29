@@ -16,8 +16,14 @@ use App\Models\HospitalSetting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
+/**
+ * Coordinates emergency check-in, death, mortuary, and progress-note requests with clinical services.
+ */
 class EmergencyController extends Controller
 {
+    /**
+     * Checks emergency access, prepares the patient search, and renders service-backed emergency queues.
+     */
     public function index(Request $request, EmergencyService $emergency)
     {
         abort_unless($request->user()->canAccessEmergency(), 403);
@@ -39,6 +45,9 @@ class EmergencyController extends Controller
         ]);
     }
 
+    /**
+     * Submits validated patient check-in details and redirects with the appropriate active-visit or death workflow message.
+     */
     public function store(EmergencyCheckInRequest $request, Patient $patient, EmergencyService $emergency)
     {
         $visit = $emergency->checkIn($patient, $request->validated(), $request->user());
@@ -54,6 +63,9 @@ class EmergencyController extends Controller
         return redirect()->route('emergency.index')->with('success', $message);
     }
 
+    /**
+     * Creates an unidentified-patient emergency visit from validated details and returns to the queue.
+     */
     public function storeUnidentified(UnidentifiedEmergencyCheckInRequest $request, EmergencyService $emergency)
     {
         $visit = $emergency->checkInUnidentified($request->validated(), $request->user());
@@ -61,6 +73,9 @@ class EmergencyController extends Controller
         return redirect()->route('emergency.index')->with('success', "Unidentified arrival recorded as {$visit->patient->hospital_number}. Send them for immediate triage.");
     }
 
+    /**
+     * Validates death and disposition details, delegates doctor confirmation, and returns to the emergency queue.
+     */
     public function confirmBroughtInDead(Request $request, \App\Models\Visit $visit, MortuaryCaseService $mortuary)
     {
         $data = $request->validate([
@@ -84,6 +99,9 @@ class EmergencyController extends Controller
         return redirect()->route('emergency.index')->with('success', $message);
     }
 
+    /**
+     * Validates certificate details, issues the brought-in-dead certificate, and redirects to its PDF download.
+     */
     public function issueBroughtInDeadCertificate(Request $request, \App\Models\Visit $visit, HospitalDeathCertificateService $certificates)
     {
         $data = $request->validate([
@@ -97,6 +115,9 @@ class EmergencyController extends Controller
             ->with('success', 'Hospital death certificate '.$case->death_certificate_number.' issued and recorded.');
     }
 
+    /**
+     * Authorizes emergency certificate access and streams a PDF for the issued brought-in-dead certificate.
+     */
     public function downloadBroughtInDeadCertificate(Request $request, \App\Models\Visit $visit)
     {
         abort_unless($request->user()->hasRole('admin')
@@ -113,6 +134,9 @@ class EmergencyController extends Controller
         ])->setPaper('a4')->download('death-certificate-'.$case->death_certificate_number.'.pdf');
     }
 
+    /**
+     * Records receipt of a validated mortuary handoff and reports when invoice payment still blocks custody.
+     */
     public function receiveMortuaryCase(ReceiveMortuaryCaseRequest $request, MortuaryCase $mortuaryCase, MortuaryCaseService $mortuary)
     {
         $case = $mortuary->receive($mortuaryCase, $request->validated(), $request->user());
@@ -124,6 +148,9 @@ class EmergencyController extends Controller
         return redirect()->route('emergency.index')->with('success', 'Mortuary handoff received and storage location recorded.');
     }
 
+    /**
+     * Adds the validated progress note to the emergency visit and returns to the referring page.
+     */
     public function addProgressNote(StoreEmergencyProgressNoteRequest $request, \App\Models\Visit $visit, EmergencyProgressNoteService $notes)
     {
         $notes->add($visit, $request->validated('note'), $request->user());

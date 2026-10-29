@@ -22,6 +22,7 @@ class MaternityControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** The navigation exposes maternity only through the enabled hospital module. */
     public function test_maternity_menu_is_shown_when_the_hospital_has_the_module_enabled(): void
     {
         $case = $this->createInpatientCase();
@@ -33,6 +34,7 @@ class MaternityControllerTest extends TestCase
             ->assertSee(route('maternity.episodes.index'));
     }
 
+    /** Starting labor persists an episode and exposes the hospital's delivery pricing. */
     public function test_doctor_can_start_a_maternity_episode_from_an_active_admission(): void
     {
         $case = $this->createInpatientCase();
@@ -66,6 +68,7 @@ class MaternityControllerTest extends TestCase
             ->assertSee('₦18,000.00');
     }
 
+    /** Delivery creates the newborn and invoice items, then accepts postpartum notes. */
     public function test_doctor_can_record_delivery_and_postpartum_notes_in_the_web_workflow(): void
     {
         $case = $this->createInpatientCase();
@@ -139,6 +142,7 @@ class MaternityControllerTest extends TestCase
         ]);
     }
 
+    /** The delivery-pack charge is conditional on the hospital actually supplying it. */
     public function test_delivery_pack_fee_is_not_billed_when_the_hospital_did_not_supply_a_pack(): void
     {
         $case = $this->createInpatientCase();
@@ -172,6 +176,7 @@ class MaternityControllerTest extends TestCase
         ]);
     }
 
+    /** A zero-rate schedule must not create an otherwise empty admission invoice. */
     public function test_zero_delivery_fees_do_not_create_an_empty_invoice(): void
     {
         $case = $this->createInpatientCase();
@@ -195,6 +200,9 @@ class MaternityControllerTest extends TestCase
     }
 
     /**
+     * Build a tenant, maternity ward, clinician, patient, visit, and active
+     * inpatient admission for the web workflow request tests.
+     *
      * @return array{
      *     hospital: Hospital,
      *     ward: Department,
@@ -267,6 +275,8 @@ class MaternityControllerTest extends TestCase
     }
 
     /**
+     * Create the labor-stage fixture used when a test begins at delivery.
+     *
      * @param array{
      *     hospital: Hospital,
      *     ward: Department,

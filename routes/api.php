@@ -243,6 +243,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 ->middleware('role:admin,doctor,nurse')->whereNumber('admission')->whereNumber('witness')->name('dama.witnesses.show');
         });
 
+        // Keep API access aligned with web access: permitted clinical roles, inpatient, and Maternity enabled.
         Route::middleware(['role:admin,doctor,nurse', 'module:inpatient', 'module:maternity'])
             ->prefix('maternity')->name('maternity.')->group(function () {
                 Route::get('fees', [MaternityController::class, 'fees'])->name('fees');

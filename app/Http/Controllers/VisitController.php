@@ -8,9 +8,14 @@ use App\Models\Appointment;
 use App\Models\Patient;
 use App\Services\VisitCheckInService;
 
+/**
+ * Validates walk-in and appointment check-ins and delegates visit creation to VisitCheckInService.
+ */
 class VisitController extends Controller
 {
-    /** Walk-in: check the patient in straight from their profile. */
+    /**
+     * Checks in a patient from validated walk-in details or returns an existing-active-visit warning.
+     */
     public function walkIn(WalkInCheckInRequest $request, Patient $patient, VisitCheckInService $checkIn)
     {
         $visit = $checkIn->walkIn($patient, $request->validated());
@@ -26,7 +31,9 @@ class VisitController extends Controller
             ->with('success', 'Patient checked in for '.$consultationType->name.'. Send them to the billing desk to pay ₦'.number_format((float) $consultationType->price, 2).', then to triage.');
     }
 
-    /** Appointment: check in and link the visit to the booking. */
+    /**
+     * Checks in the selected appointment through the appropriate service route, validating its date and booking context.
+     */
     public function fromAppointment(AppointmentCheckInRequest $request, Appointment $appointment, VisitCheckInService $checkIn)
     {
         if (! $appointment->scheduled_at->isToday()) {

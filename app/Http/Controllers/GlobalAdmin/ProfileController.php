@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
+/**
+ * Presents and updates the authenticated global administrator's profile.
+ */
 class ProfileController extends Controller
 {
     public function edit(Request $request): View

@@ -8,8 +8,14 @@ use App\Services\NurseRosterService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
+/**
+ * Validates nurse roster filters and delegates schedule retrieval and saving to NurseRosterService.
+ */
 class NurseRosterController extends Controller
 {
+    /**
+     * Validates week and list filters, normalizes the week start, then renders the scoped nurse roster.
+     */
     public function index(Request $request, NurseRosterService $roster)
     {
         $validated = $request->validate([
@@ -23,6 +29,9 @@ class NurseRosterController extends Controller
         return view('nursing.roster.index', $roster->indexData($request->user(), $weekStart, $request->only(['department', 'search'])));
     }
 
+    /**
+     * Saves the validated roster for the selected staff member and returns to the same filtered week.
+     */
     public function update(StoreNurseRosterRequest $request, User $staff, NurseRosterService $roster)
     {
         $validated = $request->validated();

@@ -161,6 +161,7 @@
                                 <p class="mt-1 text-xs text-slate-500">Added to the mortuary invoice alongside storage and must be paid before release. Use 0 if no State tax applies.</p>
                                 @error('state_mortuary_tax_daily_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
+                            {{-- Maternity prices belong to this hospital and are applied when a delivery is recorded. --}}
                             <div class="border-t pt-5">
                                 <h4 class="font-semibold text-slate-900">Inpatient care charges</h4>
                                 <p class="mt-1 text-sm text-slate-500">Oxygen and insulin machine use are service charges, separate from pharmacy stock items.</p>

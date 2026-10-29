@@ -10,18 +10,30 @@ use App\Models\Visit;
 use App\Services\PharmacyService;
 use Illuminate\Http\Request;
 
+/**
+ * Coordinates pharmacy queue, inventory, and dispensing pages with PharmacyService.
+ */
 class PharmacyController extends Controller
 {
+    /**
+     * Loads pharmacy dashboard data and renders the dispensing queue.
+     */
     public function index(PharmacyService $pharmacy)
     {
         return view('pharmacy.index', $pharmacy->dashboardData());
     }
 
+    /**
+     * Uses the requested audit period to retrieve and render pharmacy audit data.
+     */
     public function audit(Request $request, PharmacyService $pharmacy)
     {
         return view('pharmacy.audit', $pharmacy->auditData((string) $request->query('period', 'month')));
     }
 
+    /**
+     * Loads authorized visit prescription details and renders the pharmacy dispensing page.
+     */
     public function show(Visit $visit, PharmacyService $pharmacy)
     {
         $visit = $pharmacy->visitDetails($visit);
@@ -29,6 +41,9 @@ class PharmacyController extends Controller
         return view('pharmacy.show', compact('visit'));
     }
 
+    /**
+     * Dispenses validated prescription selections and redirects with stock and nursing handoff outcomes.
+     */
     public function dispense(DispensePrescriptionsRequest $request, Visit $visit, PharmacyService $pharmacy)
     {
         $result = $pharmacy->dispense($visit, $request->validated('prescription_ids'), $request->user()->id);
@@ -49,6 +64,9 @@ class PharmacyController extends Controller
         return $redirect->with('success', $message);
     }
 
+    /**
+     * Uses validated inventory filters to retrieve and render pharmacy stock.
+     */
     public function inventory(PharmacyInventoryRequest $request, PharmacyService $pharmacy)
     {
         $data = $request->validated();
@@ -57,6 +75,9 @@ class PharmacyController extends Controller
         return view('pharmacy.inventory', compact('drugs'));
     }
 
+    /**
+     * Restocks the selected drug with the validated quantity and returns with the updated balance.
+     */
     public function restock(RestockDrugRequest $request, Drug $drug, PharmacyService $pharmacy)
     {
         $quantity = $request->validated('quantity');

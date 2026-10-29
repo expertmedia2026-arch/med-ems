@@ -8,13 +8,22 @@ use App\Services\EmergencyPharmacyService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
+/**
+ * Coordinates emergency pharmacy stock and usage requests with EmergencyPharmacyService.
+ */
 class EmergencyPharmacyController extends Controller
 {
+    /**
+     * Retrieves pharmacy data scoped to the current user and renders the emergency stock page.
+     */
     public function index(Request $request, EmergencyPharmacyService $pharmacy)
     {
         return view('emergency.pharmacy.index', $pharmacy->indexData($request->user()));
     }
 
+    /**
+     * Validates item details and delegates emergency stock-item creation before returning to the list.
+     */
     public function storeItem(Request $request, EmergencyPharmacyService $pharmacy)
     {
         $data = $request->validate([
@@ -30,6 +39,9 @@ class EmergencyPharmacyController extends Controller
         return back()->with('success', 'A&E stock item added.');
     }
 
+    /**
+     * Validates a restock quantity and note, then records the receipt for the selected item.
+     */
     public function restock(EmergencyPharmacyItem $emergencyPharmacyItem, Request $request, EmergencyPharmacyService $pharmacy)
     {
         $data = $request->validate(['quantity' => ['required', 'integer', 'min:1', 'max:1000000'], 'notes' => ['nullable', 'string', 'max:500']]);
@@ -38,6 +50,9 @@ class EmergencyPharmacyController extends Controller
         return back()->with('success', 'A&E stock quantity updated.');
     }
 
+    /**
+     * Validates updated item details and delegates the change to the pharmacy service.
+     */
     public function update(EmergencyPharmacyItem $emergencyPharmacyItem, Request $request, EmergencyPharmacyService $pharmacy)
     {
         $data = $request->validate([
@@ -52,6 +67,9 @@ class EmergencyPharmacyController extends Controller
         return back()->with('success', 'A&E item details and price updated.');
     }
 
+    /**
+     * Validates the requested active state and delegates item activation or deactivation.
+     */
     public function toggle(EmergencyPharmacyItem $emergencyPharmacyItem, Request $request, EmergencyPharmacyService $pharmacy)
     {
         $data = $request->validate(['is_active' => ['required', 'boolean']]);
@@ -60,6 +78,9 @@ class EmergencyPharmacyController extends Controller
         return back()->with('success', $data['is_active'] ? 'A&E item activated.' : 'A&E item deactivated.');
     }
 
+    /**
+     * Validates emergency item usage for the visit and records it for inventory and patient billing.
+     */
     public function recordUse(Visit $visit, Request $request, EmergencyPharmacyService $pharmacy)
     {
         $data = $request->validate([

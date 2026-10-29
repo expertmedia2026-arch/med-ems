@@ -21,9 +21,19 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use App\Support\HospitalContext;
 
+/**
+ * Builds role-specific dashboard cards and the staff-facing visit queue.
+ */
 class DashboardService
 {
-    /** @return array{cards: array, queue: Collection} */
+    /**
+     * Select dashboard cards for the user's role and attach their permitted live visit queue.
+     *
+     * Adds personal shift and emergency indicators where applicable. Queue results are limited
+     * to operational staff roles and scoped to the viewer's department/doctor assignment.
+     *
+     * @return array{cards: array, queue: Collection}
+     */
     public function data(User $user): array
     {
         $cards = match ($user->role) {
@@ -79,6 +89,7 @@ class DashboardService
         return compact('cards', 'queue');
     }
 
+    /** Assemble operational, inpatient, pharmacy, and finance summary cards for administrators. */
     private function admin(): array
     {
         return [
@@ -102,6 +113,7 @@ class DashboardService
         ];
     }
 
+    /** Assemble registration, appointments, checkout, and collection cards for receptionists. */
     private function receptionist(): array
     {
         return [
@@ -114,6 +126,7 @@ class DashboardService
         ];
     }
 
+    /** Build department-aware nursing cards for ward care, triage, and visit follow-up. */
     private function nurse(): array
     {
         $nurse = auth()->user();
@@ -136,6 +149,7 @@ class DashboardService
         ];
     }
 
+    /** Summarize the current week's roster and today's shift coverage for the chief nurse. */
     private function chiefNurse(): array
     {
         $weekStart = now()->startOfWeek(Carbon::MONDAY);
@@ -148,6 +162,7 @@ class DashboardService
         ];
     }
 
+    /** Build consultation, inpatient, and lab-request cards for the given doctor. */
     private function doctor(int $doctorId): array
     {
         $departmentId = auth()->user()->department_id;
@@ -169,6 +184,7 @@ class DashboardService
         ];
     }
 
+    /** Summarize pending/completed lab work, catalogue coverage, and department inventory for lab staff. */
     private function lab(): array
     {
         $departmentId = auth()->user()->department_id ?? 0;
@@ -182,6 +198,7 @@ class DashboardService
         ];
     }
 
+    /** Build dispensing, patient-volume, and low-stock cards for pharmacy roles. */
     private function pharmacist(): array
     {
         return [
@@ -192,6 +209,7 @@ class DashboardService
         ];
     }
 
+    /** Summarize collections and receivables for an accountant. */
     private function accountant(): array
     {
         return [
@@ -201,6 +219,7 @@ class DashboardService
         ];
     }
 
+    /** Summarize collections and receivables with links to the finance reporting area. */
     private function chiefAccountant(): array
     {
         return [
@@ -210,26 +229,35 @@ class DashboardService
         ];
     }
 
+    /**
+     * Format a dashboard card and optionally resolve its named route with query parameters.
+     *
+     * @return array{label: string, value: int|string, color: string, url: string|null}
+     */
     private function card(string $label, int|string $value, string $color, ?string $route = null, array $params = []): array
     {
         return ['label' => $label, 'value' => $value, 'color' => $color, 'url' => $route ? route($route, $params) : null];
     }
 
+    /** Count distinct patients with a visit recorded today. */
     private function patientsToday(): int
     {
         return Visit::today()->distinct('patient_id')->count('patient_id');
     }
 
+    /** Count visits currently waiting for triage/doctor care or in consultation. */
     private function inQueue(): int
     {
         return Visit::withStatus(VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor, VisitStatus::InConsultation)->count();
     }
 
+    /** Count prescriptions still awaiting dispensing from completed and inpatient visits. */
     private function awaitingDispensing(): int
     {
         return Visit::withStatus(VisitStatus::Completed, VisitStatus::Inpatient)->whereHas('prescriptions', fn ($q) => $q->pending())->count();
     }
 
+    /** Count distinct patients with completed prescriptions dispensed today in the current hospital. */
     private function pharmacyPatientsToday(): int
     {
         return (int) DB::table('prescriptions')
@@ -242,16 +270,19 @@ class DashboardService
             ->count('visits.patient_id');
     }
 
+    /** Sum payment receipts recorded today. */
     private function revenueToday(): float
     {
         return (float) Payment::whereDate('created_at', today())->sum('amount');
     }
 
+    /** Sum the unpaid balance on invoices that are currently unpaid or partially paid. */
     private function outstanding(): float
     {
         return (float) Invoice::whereIn('status', ['unpaid', 'partial'])->sum(DB::raw('total - amount_paid'));
     }
 
+    /** Render a monetary amount in the application's naira display format. */
     private function money(float $amount): string
     {
         return '₦'.number_format($amount, 2);

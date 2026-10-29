@@ -9,8 +9,27 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\PersonalAccessToken;
 
+/**
+ * Authenticates API users and manages their Sanctum bearer tokens.
+ *
+ * Successful patient logins may include a registration-fee notice based on the
+ * current hospital settings. Logout revokes only the token used for the request.
+ */
 class ApiAuthenticationService
 {
+    /**
+     * Validate credentials and issue a new personal access token.
+     *
+     * Inactive accounts are denied. Patients with an unpaid registration fee receive
+     * a notice in the response; the fee is not collected by this method.
+     *
+     * @param  string  $email  User account email.
+     * @param  string  $password  Plain password to verify against the stored hash.
+     * @param  string  $deviceName  Label attached to the issued personal access token.
+     * @return array{user: User, token: string, registration_fee_notice: array{required: bool, amount: float, currency: string, message: string}|null} Authenticated user, bearer token, and optional payment notice.
+     *
+     * @throws AuthenticationException When the email or password is incorrect.
+     */
     public function login(string $email, string $password, string $deviceName): array
     {
         $user = User::where('email', $email)->first();
@@ -41,6 +60,14 @@ class ApiAuthenticationService
         ];
     }
 
+    /**
+     * Revoke the current request's Sanctum personal access token.
+     *
+     * Requests without a personal access token are rejected; other tokens belonging
+     * to the user remain valid.
+     *
+     * @param  User  $user  Authenticated account whose current token is being revoked.
+     */
     public function logout(User $user): void
     {
         $token = $user->currentAccessToken();

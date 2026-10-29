@@ -10,6 +10,7 @@ class MaternityEpisode extends Model
 {
     protected $guarded = [];
 
+    /** Cast timestamps and optional historical supply answers for safe rendering and comparisons. */
     protected function casts(): array
     {
         return [
@@ -20,16 +21,19 @@ class MaternityEpisode extends Model
         ];
     }
 
+    /** The inpatient admission that owns this labor and delivery episode. */
     public function admission(): BelongsTo
     {
         return $this->belongsTo(Admission::class);
     }
 
+    /** The staff member who opened the labor episode. */
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** Babies are returned in clinical birth order rather than database order. */
     public function newborns(): HasMany
     {
         return $this->hasMany(MaternityNewborn::class)->orderBy('birth_order');

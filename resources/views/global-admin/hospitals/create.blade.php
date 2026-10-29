@@ -20,6 +20,7 @@
             <label class="block text-sm font-semibold">First admin name<input name="admin_name" value="{{ old('admin_name') }}" required maxlength="255" class="mt-2 block w-full rounded-md border-slate-300 font-normal"></label>
             <label class="block text-sm font-semibold">First admin email<input type="email" name="admin_email" value="{{ old('admin_email') }}" required maxlength="255" class="mt-2 block w-full rounded-md border-slate-300 font-normal"></label>
         </div>
+        {{-- Maternity is enabled per hospital and depends on the Inpatient module. --}}
         <fieldset>
             <legend class="text-sm font-bold">Features for this hospital</legend>
             <p class="mt-1 text-sm text-slate-600">You can adjust these later. External Lab and Lab Inventory require Laboratory; A&amp;E Pharmacy requires A&amp;E and Pharmacy; Maternity requires Inpatient; Online Payments requires Patient Portal.</p>

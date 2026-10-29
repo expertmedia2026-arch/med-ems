@@ -10,11 +10,28 @@ use App\Models\Patient;
 use App\Models\Visit;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Converts walk-ins and scheduled appointments into workflow visits.
+ *
+ * Check-in operations lock the patient and, for appointments, the scheduled
+ * appointment inside a transaction to prevent duplicate concurrent visits. Billing
+ * records and workflow notifications are created as part of or after check-in.
+ */
 class VisitCheckInService
 {
+    /** @param BillingService $billing Creates or synchronizes invoices for checked-in visits. */
     public function __construct(private readonly BillingService $billing) {}
 
-    /** Return null if the patient already has an active consultation visit. */
+    /**
+     * Create a walk-in consultation visit unless the patient is admitted or already active.
+     *
+     * The patient row is locked during creation and invoice generation. Nurses are
+     * notified after the transaction when a visit was created.
+     *
+     * @param  Patient  $patient  Patient checking in without an appointment.
+     * @param  array<string, mixed>  $attributes  Validated visit fields such as department, doctor, or complaint.
+     * @return Visit|null New visit, or null when an admission or active visit already exists.
+     */
     public function walkIn(Patient $patient, array $attributes): ?Visit
     {
         $visit = DB::transaction(function () use ($patient, $attributes) {
@@ -46,7 +63,18 @@ class VisitCheckInService
         return $visit;
     }
 
-    /** Return null when no active tests remain on the lab appointment. */
+    /**
+     * Create a lab-only visit for the active tests on a scheduled lab appointment.
+     *
+     * The scheduled appointment and patient are locked during the transaction.
+     * Returns null when no tests remain active or the patient is admitted; otherwise
+     * creates lab requests, marks the appointment checked in, and synchronizes billing.
+     * Lab staff are notified after commit.
+     *
+     * @param  Appointment  $appointment  Scheduled lab appointment being checked in.
+     * @param  int  $requestedBy  User ID recorded as requester for each lab test.
+     * @return Visit|null Created lab-only visit, or null when the appointment cannot create one.
+     */
     public function fromLabAppointment(Appointment $appointment, int $requestedBy): ?Visit
     {
         $visit = DB::transaction(function () use ($appointment, $requestedBy) {
@@ -95,6 +123,17 @@ class VisitCheckInService
         return $visit;
     }
 
+    /**
+     * Create a consultation visit from a scheduled doctor appointment.
+     *
+     * The appointment and patient are locked and revalidated inside the transaction.
+     * The doctor's department must match an active consultation type; an existing
+     * admission or visit returns null. Billing and nurse notification follow creation.
+     *
+     * @param  Appointment  $appointment  Scheduled doctor appointment being checked in.
+     * @param  int  $consultationTypeId  Active consultation type selected for the visit.
+     * @return Visit|null Created visit, or null when the patient already has an admission or active visit.
+     */
     public function fromDoctorAppointment(
         Appointment $appointment,
         int $consultationTypeId
@@ -141,6 +180,12 @@ class VisitCheckInService
         return $visit;
     }
 
+    /**
+     * Return the department assigned to an appointment's doctor, if available.
+     *
+     * @param  Appointment  $appointment  Appointment whose doctor determines the department.
+     * @return int|null Doctor's department ID, or null when no doctor/department is assigned.
+     */
     public function doctorDepartmentId(Appointment $appointment): ?int
     {
         $appointment->loadMissing('doctor');
@@ -148,6 +193,14 @@ class VisitCheckInService
         return $appointment->doctor?->department_id;
     }
 
+    /**
+     * Lock and validate an appointment before converting it into a visit.
+     *
+     * Only scheduled appointments may be checked in, and only on their scheduled date.
+     *
+     * @param  Appointment  $appointment  Appointment candidate for check-in.
+     * @return Appointment Fresh locked appointment record.
+     */
     private function lockScheduledAppointment(Appointment $appointment): Appointment
     {
         $appointment = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);

@@ -10,10 +10,15 @@ use App\Models\User;
 use App\Models\Visit;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Coordinates emergency visit intake, queue data, and emergency-linked mortuary handoffs.
+ */
 class EmergencyService
 {
+    /** Inject billing integration used to add the configured A&E attendance charge. */
     public function __construct(private readonly BillingService $billing) {}
 
+    /** Return the active emergency queue with triage, care, and nursing-order details. */
     public function queue()
     {
         return Visit::query()
@@ -35,6 +40,7 @@ class EmergencyService
             ->withQueryString();
     }
 
+    /** List emergency deaths awaiting an approved transfer to the mortuary. */
     public function mortuaryHandoffs()
     {
         return MortuaryCase::query()
@@ -47,6 +53,7 @@ class EmergencyService
             ->get();
     }
 
+    /** Return recent brought-in-dead emergency cases for the confirmation workflow. */
     public function broughtInDeadCases()
     {
         return MortuaryCase::query()
@@ -59,6 +66,14 @@ class EmergencyService
             ->get();
     }
 
+    /**
+     * Register an identified patient for emergency care unless they already have an active visit/admission.
+     *
+     * Visit creation and the optional configured attendance invoice are transactional. Returns null when
+     * the patient already has an active admission or current visit.
+     *
+     * @param array<string, mixed> $data Validated emergency complaint, arrival mode, and optional BID flag.
+     */
     public function checkIn(Patient $patient, array $data, User $staff): ?Visit
     {
         abort_unless($patient->identity_status !== 'external_mortuary', 422, 'Walk-in mortuary records cannot be checked in for emergency care.');
@@ -77,6 +92,14 @@ class EmergencyService
         });
     }
 
+    /**
+     * Create an unidentified emergency patient and open their emergency visit atomically.
+     *
+     * The request cannot mark an unidentified arrival as brought-in-dead; any configured attendance
+     * fee is added within the same transaction.
+     *
+     * @param array<string, mixed> $data Validated emergency intake details and optional estimated age/next of kin.
+     */
     public function checkInUnidentified(array $data, User $staff): Visit
     {
         unset($data['brought_in_dead']);
@@ -101,6 +124,11 @@ class EmergencyService
         });
     }
 
+    /**
+     * Create the emergency visit and ensure its A&E department exists.
+     *
+     * @param array<string, mixed> $data Validated complaint, arrival mode, and optional BID flag.
+     */
     private function createVisit(Patient $patient, array $data, User $staff): Visit
     {
         $broughtInDead = (bool) ($data['brought_in_dead'] ?? false);

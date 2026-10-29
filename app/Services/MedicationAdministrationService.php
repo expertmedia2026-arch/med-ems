@@ -14,8 +14,23 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Builds the nursing medication queue and records administrations, waivers, and discharge readiness.
+ *
+ * Staff access is scoped to the care department (with explicit emergency access where applicable).
+ * Dose, waiver, and discharge updates lock the visit and related prescription inside transactions.
+ */
 class MedicationAdministrationService
 {
+    /**
+     * Return open, undisclosed visits with prescriptions requiring in-facility administration.
+     *
+     * Administrators see all departments; other staff are scoped to their department, while
+     * emergency visits are included only for users with emergency access. Related patient,
+     * admission, prescription, stock, and administration data are eager loaded for the queue.
+     *
+     * @return Collection<int, Visit>
+     */
     public function queue(User $staff): Collection
     {
         $departmentId = $this->departmentScope($staff);
@@ -40,6 +55,11 @@ class MedicationAdministrationService
             ->orderByRaw('COALESCE(closed_at, checked_in_at) asc')->get();
     }
 
+    /**
+     * Load the nursing-care detail for an accessible visit that has in-facility prescriptions.
+     *
+     * Closed visits and visits without qualifying prescriptions are hidden as not found.
+     */
     public function visitDetails(Visit $visit, User $staff): Visit
     {
         $this->assertDepartmentAccess($visit, $staff);
@@ -53,6 +73,15 @@ class MedicationAdministrationService
         ]);
     }
 
+    /**
+     * Record a dose, omission, or other administration outcome for a dispensed prescription.
+     *
+     * The visit and prescription are locked while access, payment, pharmacy fulfillment, waiver,
+     * required-dose count, and (for inpatient insulin) paid machine-bottle conditions are checked.
+     * A workflow notification is sent only after the record transaction commits.
+     *
+     * @param  array<string, mixed>  $data  Validated outcome plus dose, route, site, notes, or reason.
+     */
     public function record(Visit $visit, Prescription $prescription, array $data, User $nurse): MedicationAdministration
     {
         $record = DB::transaction(function () use ($visit, $prescription, $data, $nurse) {
@@ -106,6 +135,12 @@ class MedicationAdministrationService
         return $record;
     }
 
+    /**
+     * Let the attending doctor or an administrator waive remaining required nursing administrations.
+     *
+     * Waivers are limited to pharmacy-fulfilled in-facility prescriptions with doses still outstanding.
+     * The update is transactional and the workflow notification is dispatched after commit.
+     */
     public function waive(Visit $visit, Prescription $prescription, string $reason, User $actor): Prescription
     {
         abort_unless($actor->hasRole(Role::Admin, Role::Doctor), 403);
@@ -135,6 +170,13 @@ class MedicationAdministrationService
         return $prescription;
     }
 
+    /**
+     * Mark an eligible outpatient visit discharged after all required medication care is resolved.
+     *
+     * Inpatient discharge must be completed from its admission workflow. The visit is locked, checked
+     * for department access and outstanding required administrations, and then stamped with the actor
+     * and current discharge time.
+     */
     public function discharge(Visit $visit, User $actor): Visit
     {
         return DB::transaction(function () use ($visit, $actor) {
@@ -151,6 +193,11 @@ class MedicationAdministrationService
         });
     }
 
+    /**
+     * Return the department filter for care staff, using null to represent an administrator's full scope.
+     *
+     * Non-admin staff without an assigned department are rejected.
+     */
     private function departmentScope(User $staff): ?int
     {
         if ($staff->hasRole(Role::Admin)) {
@@ -162,6 +209,12 @@ class MedicationAdministrationService
         return (int) $staff->department_id;
     }
 
+    /**
+     * Ensure the actor may access the visit's care department or has explicit emergency access.
+     *
+     * Attending doctors may access their own visits; other non-admin staff must match the active
+     * admission ward for inpatients or the visit department for other care.
+     */
     private function assertDepartmentAccess(Visit $visit, User $staff): void
     {
         if ($visit->is_emergency && $staff->canAccessEmergency()) {
@@ -180,6 +233,9 @@ class MedicationAdministrationService
             'This visit belongs to another department. Only nurses assigned to the visit department can provide care.');
     }
 
+    /**
+     * Check that a visit has not been discharged and remains in a nursing-care eligible status.
+     */
     private function isOpenForNursing(Visit $visit): bool
     {
         return ! $visit->discharged_at && (
@@ -188,6 +244,14 @@ class MedicationAdministrationService
     }
 
 
+    /**
+     * Reject discharge while any required prescription is unfilled or has too few administered doses.
+     *
+     * Doctor-approved waivers satisfy the administration requirement; prescriptions still awaiting
+     * pharmacy dispensing remain blocking even if no nursing administration has been recorded.
+     *
+     * @throws ValidationException When unresolved in-facility medication care remains.
+     */
     public function assertReadyForDischarge(Visit $visit): void
     {
         $pending = $visit->prescriptions()

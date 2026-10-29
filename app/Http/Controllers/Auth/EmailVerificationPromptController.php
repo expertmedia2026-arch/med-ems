@@ -7,6 +7,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * Routes users to the verification prompt until their email address is confirmed.
+ */
 class EmailVerificationPromptController extends Controller
 {
     /**

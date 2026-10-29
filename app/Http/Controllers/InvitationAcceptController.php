@@ -6,8 +6,14 @@ use App\Http\Requests\AcceptStaffInvitationRequest;
 use App\Services\StaffInvitationService;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * Uses StaffInvitationService to validate staff invitations and provision invited accounts.
+ */
 class InvitationAcceptController extends Controller
 {
+    /**
+     * Resolves a usable invitation token and renders either the acceptance form or invalid-link view.
+     */
     public function show(string $token, StaffInvitationService $invitations)
     {
         $invitation = $invitations->findUsable($token);
@@ -19,6 +25,9 @@ class InvitationAcceptController extends Controller
         return view('invitations.accept', compact('invitation', 'token'));
     }
 
+    /**
+     * Validates registration details, accepts the usable invitation, signs in the new user, and redirects to the dashboard.
+     */
     public function store(AcceptStaffInvitationRequest $request, string $token, StaffInvitationService $invitations)
     {
         $invitation = $invitations->findUsable($token);

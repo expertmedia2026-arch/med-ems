@@ -7,13 +7,25 @@ use App\Models\Patient;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Creates a patient record, optional photo, and registration invoice.
+ *
+ * Patient creation and invoice generation run in a database transaction. A billing
+ * workflow notification is sent after that transaction succeeds.
+ */
 class PatientRegistrationService
 {
+    /** @param BillingService $billing Creates any configured registration charge. */
     public function __construct(private readonly BillingService $billing) {}
 
     /**
-     * Register a patient and create the registration invoice as one operation.
+     * Register a patient, store an optional photo, and create its registration invoice.
      *
+     * A configured charge can produce an invoice; when no amount is due the invoice
+     * is null. A billing notification describing the outcome is sent after database
+     * work completes.
+     *
+     * @param  array<string, mixed>  $attributes  Validated patient fields and optional UploadedFile under "photo".
      * @return array{patient: Patient, invoice: ?Invoice}
      */
     public function register(array $attributes): array

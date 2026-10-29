@@ -11,13 +11,31 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
+/**
+ * Coordinates Paystack payment attempts with invoice items and reserved drug stock.
+ *
+ * Gateway verification happens before local settlement; successful settlement is
+ * serialized in a database transaction so callbacks and webhooks cannot apply an
+ * invoice item twice.
+ */
 class OnlinePaymentService
 {
+    /**
+     * @param  PaystackGateway  $gateway  Gateway client used to initialize and verify payments.
+     * @param  DrugInventoryService  $inventory  Inventory operations used to preserve dispensed stock.
+     */
     public function __construct(
         private PaystackGateway $gateway,
         private DrugInventoryService $inventory,
     ) {}
 
+    /**
+     * Find a payment attempt only when it belongs to the requesting patient.
+     *
+     * @param  string  $reference  Gateway/payment reference supplied by the caller.
+     * @param  int  $patientId  Patient identity used to constrain the lookup.
+     * @return OnlinePayment|null The matching attempt, or null when it is absent or belongs to someone else.
+     */
     public function findForPatient(string $reference, int $patientId): ?OnlinePayment
     {
         return OnlinePayment::where('reference', $reference)
@@ -25,7 +43,18 @@ class OnlinePaymentService
             ->first();
     }
 
-    /** Record the attempt, ask the gateway for a checkout page, and return its URL. */
+    /**
+     * Record a pending attempt and ask the gateway for a hosted checkout URL.
+     *
+     * The attempt is stored with its invoice, patient, amount, and item IDs before
+     * contacting the gateway. If initialization fails, the attempt is marked failed
+     * and the exception is rethrown for the caller to handle.
+     *
+     * @param  Invoice  $invoice  Invoice whose selected items are being paid.
+     * @param  Collection<int, InvoiceItem>  $items  Unpaid invoice items included in this attempt.
+     * @param  User  $user  Account whose email is sent to the payment gateway.
+     * @return string The Paystack hosted checkout URL.
+     */
     public function start(Invoice $invoice, Collection $items, User $user): string
     {
         $amount = round((float) $items->sum('total'), 2);
@@ -54,8 +83,16 @@ class OnlinePaymentService
     }
 
     /**
-     * Check a payment with the gateway and, if it succeeded, record it against the bill.
-     * Safe to call any number of times (callback, webhook, retries).
+     * Verify a gateway reference and apply a confirmed payment to its invoice items.
+     *
+     * Repeated callback, webhook, or retry calls are safe: terminal attempts are
+     * returned without re-settlement, while row locks and a transaction protect
+     * payment and invoice-item updates. A successful gateway payment with a currency,
+     * amount, item, or stock discrepancy is marked for manual review and billing staff
+     * are notified instead of being applied automatically.
+     *
+     * @param  string  $reference  Payment reference to verify with the gateway.
+     * @return OnlinePayment|null The updated attempt, or null when no local attempt exists.
      */
     public function confirm(string $reference): ?OnlinePayment
     {
@@ -180,7 +217,14 @@ class OnlinePaymentService
         });
     }
 
-    /** Recent pending attempts on an invoice: the patient may have paid and closed the page. */
+    /**
+     * Recheck recent pending invoice attempts in case the patient left checkout early.
+     *
+     * Gateway errors are reported and do not stop the remaining attempts from being
+     * refreshed. Only pending attempts created within the previous day are checked.
+     *
+     * @param  Invoice  $invoice  Invoice whose recent attempts should be refreshed.
+     */
     public function refreshPending(Invoice $invoice): void
     {
         OnlinePayment::where('invoice_id', $invoice->id)
@@ -196,6 +240,14 @@ class OnlinePaymentService
             });
     }
 
+    /**
+     * Alert hospital billing staff when a verified payment needs manual reconciliation.
+     *
+     * The hospital is taken from the attempt's patient; no notification is sent when
+     * that relationship cannot provide a valid hospital ID.
+     *
+     * @param  OnlinePayment  $attempt  Gateway payment requiring review.
+     */
     private function notifyPaymentReview(OnlinePayment $attempt): void
     {
         $attempt->loadMissing('patient');
@@ -211,7 +263,15 @@ class OnlinePaymentService
         );
     }
 
-    /** Is a fresh payment already open for any of these items? Prevents charging twice. */
+    /**
+     * Determine whether a recent pending attempt already covers any selected item.
+     *
+     * This guards checkout against overlapping attempts for the same invoice items.
+     *
+     * @param  Invoice  $invoice  Invoice containing the items.
+     * @param  Collection<int, InvoiceItem>  $items  Items proposed for a new attempt.
+     * @return bool True when an attempt created in the last 15 minutes overlaps.
+     */
     public function hasPendingOverlap(Invoice $invoice, Collection $items): bool
     {
         $ids = $items->pluck('id')->map(fn ($id) => (int) $id)->all();

@@ -9,13 +9,22 @@ use App\Services\BillingService;
 use App\Services\TriageService;
 use App\Services\EmergencyPharmacyService;
 
+/**
+ * Enforces triage and billing requirements while delegating vital-sign workflows to TriageService.
+ */
 class TriageController extends Controller
 {
+    /**
+     * Uses validated queue filters and the current user to render the triage queue.
+     */
     public function index(TriageQueueRequest $request, TriageService $triage)
     {
         return view('triage.index', $triage->indexData($request->user(), $request->validated()));
     }
 
+    /**
+     * Authorizes vital editing, verifies payment, and renders the loaded visit with emergency stock choices.
+     */
     public function show(Visit $visit, BillingService $billing, TriageService $triage, EmergencyPharmacyService $emergencyPharmacy)
     {
         $triage->assertVitalsEditable($visit, request()->user());
@@ -32,6 +41,9 @@ class TriageController extends Controller
         ]);
     }
 
+    /**
+     * Validates vital readings, checks triage authorization and payment, then records them and returns to the queue.
+     */
     public function store(RecordVitalsRequest $request, Visit $visit, BillingService $billing, TriageService $triage)
     {
         $triage->assertVitalsEditable($visit, $request->user());
@@ -47,6 +59,9 @@ class TriageController extends Controller
             ->with('success', "Vitals saved. {$visit->patient->full_name} is now waiting for a doctor.");
     }
 
+    /**
+     * Redirects unpaid visits to the triage queue with the required billing guidance.
+     */
     private function unpaid()
     {
         return redirect()

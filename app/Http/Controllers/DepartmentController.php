@@ -9,8 +9,14 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use App\Enums\Role;
 
+/**
+ * Handles department administration and delegates creation, updates, and deletion to DepartmentService.
+ */
 class DepartmentController extends Controller
 {
+    /**
+     * Loads department records through the service and renders the management list.
+     */
     public function index(DepartmentService $departments): View
     {
         $records = $departments->index();
@@ -23,6 +29,9 @@ class DepartmentController extends Controller
         return view('departments.create');
     }
 
+    /**
+     * Creates a department from authorized and validated form input, then redirects to the list.
+     */
     public function store(SaveDepartmentRequest $request, DepartmentService $departments): RedirectResponse
     {
         $departments->create($request->validated());
@@ -37,6 +46,9 @@ class DepartmentController extends Controller
         return view('departments.edit', compact('department', 'hodOptions'));
     }
 
+    /**
+     * Applies validated department changes through the service and redirects to the list.
+     */
     public function update(SaveDepartmentRequest $request, Department $department, DepartmentService $departments): RedirectResponse
     {
         $departments->update($department, $request->validated());
@@ -44,6 +56,9 @@ class DepartmentController extends Controller
         return redirect()->route('departments.index')->with('success', 'Department updated.');
     }
 
+    /**
+     * Checks service deletion rules before deleting the department or returning an explanatory error.
+     */
     public function destroy(Department $department, DepartmentService $departments): RedirectResponse
     {
         if (! $departments->canDelete($department)) {

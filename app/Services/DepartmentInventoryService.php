@@ -8,8 +8,17 @@ use App\Models\DepartmentInventoryItem;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Maintains department-owned consumables and an auditable movement history.
+ */
 class DepartmentInventoryService
 {
+    /**
+     * Build the inventory listing for an administrator or department-bound laboratory staff member.
+     * Laboratory staff are restricted to their assigned department; administrators may filter by one.
+     *
+     * @return array{items: \Illuminate\Contracts\Pagination\LengthAwarePaginator, departments: \Illuminate\Database\Eloquent\Collection, selectedDepartmentId: int|null}
+     */
     public function indexData(User $user, ?int $departmentId = null): array
     {
         abort_if($user->hasRole(Role::Lab) && ! $user->department_id, 403, 'Assign this staff member to a department first.');
@@ -29,6 +38,11 @@ class DepartmentInventoryService
         ];
     }
 
+    /**
+     * Create an inventory item and, when nonzero, its opening-balance movement atomically.
+     *
+     * @param array<string, mixed> $data Validated department, item, unit, threshold, and optional opening quantity.
+     */
     public function create(array $data, User $user): DepartmentInventoryItem
     {
         $this->authorizeDepartment((int) $data['department_id'], $user);
@@ -58,6 +72,14 @@ class DepartmentInventoryService
         });
     }
 
+    /**
+     * Apply a restock or usage movement under a row lock and reject a balance below zero.
+     *
+     * The item balance and audit movement are committed together; admins may act for any
+     * department, while laboratory staff may only act in their assigned department.
+     *
+     * @param array<string, mixed> $data Validated quantity and optional reference/note.
+     */
     public function recordMovement(DepartmentInventoryItem $item, array $data, User $user, bool $restock): DepartmentInventoryItem
     {
         $this->authorizeDepartment((int) $item->department_id, $user);
@@ -82,6 +104,7 @@ class DepartmentInventoryService
         });
     }
 
+    /** Restrict inventory mutations to administrators or laboratory staff in the item department. */
     private function authorizeDepartment(int $departmentId, User $user): void
     {
         abort_unless($user->hasRole(Role::Admin) || ($user->hasRole(Role::Lab) && (int) $user->department_id === $departmentId), 403);

@@ -7,11 +7,13 @@ use Illuminate\Validation\Rule;
 
 class UpdateHospitalSettingsRequest extends FormRequest
 {
+    /** The settings routes provide role authorization; validation is shared by web and API. */
     public function authorize(): bool
     {
         return true;
     }
 
+    /** Convert HTML/API checkbox inputs to consistent booleans before rule evaluation. */
     protected function prepareForValidation(): void
     {
         $normalized = [
@@ -28,6 +30,10 @@ class UpdateHospitalSettingsRequest extends FormRequest
         $this->merge($normalized);
     }
 
+    /**
+     * Validate the submitted settings section, including the hospital's five
+     * maternity delivery and supply-pack prices.
+     */
     public function rules(): array
     {
         $section = $this->route('section');

@@ -26,23 +26,38 @@ use App\Services\StaffInvitationService;
 use App\Services\StaffService;
 use Illuminate\Http\Request;
 
+/**
+ * Exposes administrative API operations for departments, consultation types, staff, and hospital settings.
+ */
 class AdminController extends Controller
 {
+    /**
+     * Delegate department listing to DepartmentService and return a DepartmentResource collection.
+     */
     public function departments(DepartmentService $service)
     {
         return DepartmentResource::collection($service->index());
     }
 
+    /**
+     * Pass validated department fields to DepartmentService and return the created DepartmentResource.
+     */
     public function createDepartment(SaveDepartmentRequest $request, DepartmentService $service): DepartmentResource
     {
         return new DepartmentResource($service->create($request->validated()));
     }
 
+    /**
+     * Pass validated department fields and the bound department to DepartmentService; return its updated resource.
+     */
     public function updateDepartment(SaveDepartmentRequest $request, Department $department, DepartmentService $service): DepartmentResource
     {
         return new DepartmentResource($service->update($department, $request->validated()));
     }
 
+    /**
+     * Check deletion eligibility and delegate removal to DepartmentService; return an empty 204 response.
+     */
     public function deleteDepartment(Department $department, DepartmentService $service)
     {
         abort_unless($service->canDelete($department), 409, 'Remove staff assignments, pending invitations, and consultation types before deleting this department.');
@@ -51,21 +66,33 @@ class AdminController extends Controller
         return response()->noContent();
     }
 
+    /**
+     * Delegate consultation-type listing to ConsultationTypeService and return a resource collection.
+     */
     public function consultationTypes(ConsultationTypeService $service)
     {
         return ConsultationTypeResource::collection($service->index());
     }
 
+    /**
+     * Pass validated consultation-type fields to ConsultationTypeService and return the created resource.
+     */
     public function createConsultationType(SaveConsultationTypeRequest $request, ConsultationTypeService $service): ConsultationTypeResource
     {
         return new ConsultationTypeResource($service->create($request->validated()));
     }
 
+    /**
+     * Update the bound consultation type with validated fields through ConsultationTypeService and return its resource.
+     */
     public function updateConsultationType(SaveConsultationTypeRequest $request, ConsultationType $consultationType, ConsultationTypeService $service): ConsultationTypeResource
     {
         return new ConsultationTypeResource($service->update($consultationType, $request->validated()));
     }
 
+    /**
+     * Pass validated staff filters and the authenticated user to StaffService; return staff resources with department and invitation metadata.
+     */
     public function staff(StaffIndexRequest $request, StaffService $service)
     {
         $data = $service->indexData($request->validated(), $request->user());
@@ -82,21 +109,33 @@ class AdminController extends Controller
         ]);
     }
 
+    /**
+     * Create staff from validated fields through StaffService and return the new user resource with its department.
+     */
     public function createStaff(StoreStaffRequest $request, StaffService $service): UserResource
     {
         return new UserResource($service->create($request->validated())->load('department'));
     }
 
+    /**
+     * Update the bound staff member from validated fields through StaffService and return the refreshed user resource.
+     */
     public function updateStaff(UpdateStaffRequest $request, User $staff, StaffService $service): UserResource
     {
         return new UserResource($service->update($staff, $request->validated(), $request->user())->load('department'));
     }
 
+    /**
+     * Delegate the authenticated administrator's staff-status toggle to StaffService and return the updated user resource.
+     */
     public function toggleStaff(Request $request, User $staff, StaffService $service): UserResource
     {
         return new UserResource($service->toggle($staff, $request->user())->load('department'));
     }
 
+    /**
+     * Issue an invitation using validated email, role, and optional department fields; return invitation id, delivery status, and message.
+     */
     public function inviteStaff(StoreStaffInvitationRequest $request, StaffInvitationService $invitations): array
     {
         $data = $request->validated();
@@ -111,6 +150,9 @@ class AdminController extends Controller
         ];
     }
 
+    /**
+     * Ask StaffInvitationService to resend the bound invitation and return its delivery status and message.
+     */
     public function resendStaffInvitation(Request $request, StaffInvitation $invitation, StaffInvitationService $invitations): array
     {
         $result = $invitations->resend($invitation, $request->user());
@@ -118,6 +160,9 @@ class AdminController extends Controller
         return ['sent' => $result['sent'], 'message' => $result['message']];
     }
 
+    /**
+     * Revoke the bound invitation through StaffInvitationService and return an empty 204 response.
+     */
     public function revokeStaffInvitation(StaffInvitation $invitation, StaffInvitationService $invitations)
     {
         $invitations->revoke($invitation);
@@ -125,6 +170,7 @@ class AdminController extends Controller
         return response()->noContent();
     }
 
+    /** Return the authenticated hospital's settings, including its delivery fee schedule. */
     public function hospitalSettings(HospitalSettingsService $service): array
     {
         $setting = $service->current();
@@ -132,6 +178,7 @@ class AdminController extends Controller
         return $this->settingsPayload($setting);
     }
 
+    /** Validate and save the hospital settings submitted by an authorized API admin. */
     public function updateHospitalSettings(UpdateHospitalSettingsRequest $request, HospitalSettingsService $service): array
     {
         $setting = $service->update(
@@ -145,6 +192,7 @@ class AdminController extends Controller
         return $this->settingsPayload($setting);
     }
 
+    /** Keep the API settings response shape consistent for reads and updates. */
     private function settingsPayload(HospitalSetting $setting): array
     {
         return [

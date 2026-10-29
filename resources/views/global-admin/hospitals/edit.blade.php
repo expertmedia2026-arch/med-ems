@@ -17,6 +17,7 @@
     <form method="POST" action="{{ route('global-admin.hospitals.update', $hospital) }}" class="space-y-7 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
         @csrf
         @method('PUT')
+        {{-- Keep module availability tied to each hospital; Maternity requires Inpatient. --}}
         <fieldset>
             <legend class="text-sm font-semibold">Enabled modules</legend>
             <p class="mt-1 text-sm text-slate-600">Disabled modules are hidden from this hospital’s users. External Lab and Lab Inventory require Laboratory; A&amp;E Pharmacy requires A&amp;E and Pharmacy; Maternity requires Inpatient; Online Payments requires Patient Portal.</p>

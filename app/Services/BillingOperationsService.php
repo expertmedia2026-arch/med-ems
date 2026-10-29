@@ -10,10 +10,21 @@ use App\Notifications\HospitalActionNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Builds billing screens and records payments against selected invoice items.
+ */
 class BillingOperationsService
 {
+    /** Inject inventory checks used to secure drug stock before payment is collected. */
     public function __construct(private readonly DrugInventoryService $inventory) {}
 
+    /**
+     * Return filtered invoices, collection totals, outstanding balance, and online payments for review.
+     *
+     * @param string|null $status Optional supported invoice status filter.
+     * @param string|null $term Optional patient search term.
+     * @return array<string, mixed> Paginated invoices, applied filter, totals, and online-payment review queue.
+     */
     public function indexData(?string $status, ?string $term): array
     {
         return [
@@ -29,16 +40,27 @@ class BillingOperationsService
         ];
     }
 
+    /** Load the patient, visit, mortuary case, line-item payment state, and receipts for an invoice. */
     public function invoiceDetails(Invoice $invoice): Invoice
     {
         return $invoice->load(['patient', 'visit.doctor', 'mortuaryCase', 'items.payment', 'payments.receiver']);
     }
 
+    /** Load invoice and receiver relations required to render a payment receipt. */
     public function receiptDetails(Payment $payment): Payment
     {
         return $payment->load(['invoice.patient', 'invoice.visit.doctor', 'invoice.mortuaryCase', 'items', 'receiver']);
     }
 
+    /**
+     * Collect payment for the selected unpaid invoice items and link them to the new receipt.
+     *
+     * The invoice and item rows are locked during the transaction, and drug reservations must be
+     * available before payment is accepted. Returns null when the submitted item set is stale or
+     * incomplete; patient-portal and triage notifications are sent after a payment is created.
+     *
+     * @param array<string, mixed> $data Validated item IDs, payment method, and optional reference.
+     */
     public function recordPayment(Invoice $invoice, array $data, int $receiverId): ?Payment
     {
         $payment = null;

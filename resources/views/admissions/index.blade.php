@@ -11,6 +11,7 @@
             <p class="mt-1 text-3xl font-bold text-amber-700">{{ $pendingReviewCount }}</p>
         </a>
     </div>
+    {{-- This list shortcut is shown only when the tenant has enabled Maternity. --}}
     @if (auth()->user()->hospital?->hasModule('maternity'))
         <div class="mb-6 flex justify-end">
             <a href="{{ route('maternity.episodes.index') }}" class="rounded-lg border border-teal-700 px-4 py-2.5 text-sm font-semibold text-teal-800 hover:bg-teal-50">Maternity episodes</a>

@@ -10,9 +10,17 @@ use App\Models\Visit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Creates and synchronizes invoices with consultation, registration, laboratory, and drug charges.
+ */
 class BillingService
 {
-    /** Create the visit's invoice with its selected consultation type, safely and only once. */
+    /**
+     * Return the visit invoice, creating it and its consultation line when needed.
+     *
+     * Lab-only visits are not charged a consultation fee. Repeated calls reuse the same invoice
+     * and do not duplicate the consultation item.
+     */
     public function invoiceFor(Visit $visit): Invoice
     {
         $invoice = Invoice::firstOrCreate(
@@ -35,7 +43,12 @@ class BillingService
         return $invoice;
     }
 
-    /** Add the configured A&E attendance charge once when a new emergency visit is registered. */
+    /**
+     * Add the configured emergency attendance fee once for an emergency visit.
+     *
+     * Returns null for non-emergency visits or when the configured fee is zero; otherwise returns
+     * the refreshed invoice after creating the missing A&E charge.
+     */
     public function addEmergencyAttendanceFee(Visit $visit): ?Invoice
     {
         if (! $visit->is_emergency) {
@@ -60,7 +73,13 @@ class BillingService
         return $invoice->fresh();
     }
 
-    /** Add any lab tests and drugs not yet on the invoice (safe to call repeatedly). */
+    /**
+     * Synchronize registration, laboratory, and prescription charges to the visit invoice.
+     *
+     * Creation of the invoice lines is transactional and idempotent by billable record. When
+     * requested, a configured registration fee is included; a zero registration fee marks the
+     * patient as registered without adding an invoice line.
+     */
     public function syncFor(Visit $visit, bool $includeRegistrationFee = false): Invoice
     {
         return DB::transaction(function () use ($visit, $includeRegistrationFee) {
@@ -118,7 +137,12 @@ class BillingService
         });
     }
 
-    /** Drop the unpaid invoice line for a removed test/prescription. Returns false if it was already paid. */
+    /**
+     * Remove the invoice item associated with a deleted billable record when it remains unpaid.
+     *
+     * Returns true when no line exists or deletion succeeds, and false when the item has already
+     * been paid and therefore must remain on the financial record.
+     */
     public function release(Model $billable): bool
     {
         $item = InvoiceItem::where('billable_type', $billable->getMorphClass())
@@ -138,7 +162,12 @@ class BillingService
         return true;
     }
 
-    /** Authoritative check used by the triage gate. */
+    /**
+     * Determine whether a standard consultation's consultation fee has been fully paid.
+     *
+     * Lab-only and emergency visits bypass this fee gate. For other visits, ensures the invoice
+     * exists and requires at least one consultation line with every such line paid.
+     */
     public function consultationPaid(Visit $visit): bool
     {
         if ($visit->isLabOnly() || $visit->is_emergency) {
@@ -151,7 +180,12 @@ class BillingService
         return $items->isNotEmpty() && $items->every(fn ($item) => $item->is_paid);
     }
 
-    /** Bill the one-time registration fee. Returns null when the fee is 0 (patient is marked registered). */
+    /**
+     * Find or create the patient's one-time, visit-independent registration invoice.
+     *
+     * Returns an existing registration invoice when present. If the configured fee is zero, marks
+     * the patient registered and returns null; otherwise creates and returns a fresh invoice.
+     */
     public function registrationInvoiceFor(Patient $patient): ?Invoice
     {
         $existing = Invoice::where('patient_id', $patient->id)

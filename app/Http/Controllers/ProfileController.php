@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 
+/**
+ * Validates profile and account-deletion requests and delegates account changes to ProfileService.
+ */
 class ProfileController extends Controller
 {
     /**
@@ -24,7 +27,7 @@ class ProfileController extends Controller
     }
 
     /**
-     * Update the user's profile information.
+     * Updates the authenticated user's profile from validated input and redirects to the edit form.
      */
     public function update(ProfileUpdateRequest $request, ProfileService $profile): RedirectResponse
     {
@@ -34,7 +37,7 @@ class ProfileController extends Controller
     }
 
     /**
-     * Delete the user's account.
+     * Confirms account-deletion authorization, logs out, deletes the user through the service, and clears the session.
      */
     public function destroy(DeleteProfileRequest $request, ProfileService $profile): RedirectResponse
     {

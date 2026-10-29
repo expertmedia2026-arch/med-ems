@@ -18,6 +18,9 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Coordinates global-administrator hospital onboarding pages and operations.
+ */
 class HospitalOnboardingController
 {
     public function __construct(private readonly HospitalContext $context) {}

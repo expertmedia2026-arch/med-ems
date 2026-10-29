@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
+/**
+ * Validates and applies password changes for authenticated users.
+ */
 class PasswordController extends Controller
 {
     /**

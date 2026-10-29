@@ -23,11 +23,13 @@ class MaternityControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** The API must require an authenticated caller before exposing maternity data. */
     public function test_returns_401_when_maternity_api_is_requested_without_authentication(): void
     {
         $this->getJson('/api/v1/maternity/episodes')->assertUnauthorized();
     }
 
+    /** The API persists labor, live and stillbirth outcomes, fees, and postpartum notes. */
     public function test_doctor_can_start_delivery_and_postpartum_workflow_for_an_active_admission(): void
     {
         $case = $this->createInpatientCase();
@@ -109,6 +111,7 @@ class MaternityControllerTest extends TestCase
         ]);
     }
 
+    /** Fee lookup must resolve prices from the authenticated hospital's settings. */
     public function test_delivery_fees_endpoint_returns_the_current_hospitals_configured_rates(): void
     {
         $case = $this->createInpatientCase();
@@ -133,6 +136,7 @@ class MaternityControllerTest extends TestCase
             ->assertJsonPath('data.delivery_fees.delivery_pack', 2300);
     }
 
+    /** The required materials checklist prevents an incomplete labor record. */
     public function test_labor_cannot_start_without_recording_whether_the_patient_brought_materials(): void
     {
         $case = $this->createInpatientCase();
@@ -147,6 +151,7 @@ class MaternityControllerTest extends TestCase
         $this->assertDatabaseCount('maternity_episodes', 0);
     }
 
+    /** Delivery cannot be submitted until staff confirms whether a hospital pack was supplied. */
     public function test_delivery_cannot_be_recorded_without_confirming_whether_the_hospital_supplied_a_pack(): void
     {
         $case = $this->createInpatientCase();
@@ -172,6 +177,7 @@ class MaternityControllerTest extends TestCase
         ]);
     }
 
+    /** Malformed newborn rows return validation errors without partially creating birth records. */
     public function test_returns_validation_errors_for_a_malformed_newborn_entry_without_creating_records(): void
     {
         $case = $this->createInpatientCase();
@@ -192,6 +198,7 @@ class MaternityControllerTest extends TestCase
         ]);
     }
 
+    /** A live birth needs a name and gender before its linked patient can be created. */
     public function test_returns_validation_errors_when_a_live_birth_is_missing_required_patient_details(): void
     {
         $case = $this->createInpatientCase();
@@ -220,6 +227,7 @@ class MaternityControllerTest extends TestCase
         ]);
     }
 
+    /** Admission uniqueness prevents duplicate labor episodes even through repeated API calls. */
     public function test_rejects_a_second_maternity_episode_for_the_same_admission(): void
     {
         $case = $this->createInpatientCase();
@@ -235,6 +243,7 @@ class MaternityControllerTest extends TestCase
         $this->assertDatabaseCount('maternity_episodes', 1);
     }
 
+    /** Hospital isolation hides an episode that belongs to a different tenant. */
     public function test_returns_404_when_a_doctor_requests_an_episode_from_another_hospital(): void
     {
         $case = $this->createInpatientCase();
@@ -245,6 +254,7 @@ class MaternityControllerTest extends TestCase
         $this->getJson("/api/v1/maternity/episodes/{$otherEpisode->id}")->assertNotFound();
     }
 
+    /** Only the clinical roles allowed by the maternity route may read the workflow. */
     public function test_returns_403_when_a_receptionist_requests_maternity_episodes(): void
     {
         $case = $this->createInpatientCase();
@@ -259,6 +269,7 @@ class MaternityControllerTest extends TestCase
         $this->getJson('/api/v1/maternity/episodes')->assertForbidden();
     }
 
+    /** The module middleware makes API endpoints unavailable when a tenant disables maternity. */
     public function test_returns_404_when_maternity_module_is_disabled(): void
     {
         $case = $this->createInpatientCase(maternityEnabled: false);
@@ -268,6 +279,8 @@ class MaternityControllerTest extends TestCase
     }
 
     /**
+     * Create the tenant-scoped active admission and clinician used by API tests.
+     *
      * @return array{
      *     hospital: Hospital,
      *     ward: Department,
@@ -342,6 +355,8 @@ class MaternityControllerTest extends TestCase
     }
 
     /**
+     * Create a labor-stage episode for endpoint tests that begin with delivery or access checks.
+     *
      * @param array{
      *     hospital: Hospital,
      *     ward: Department,

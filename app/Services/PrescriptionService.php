@@ -9,14 +9,36 @@ use App\Models\Prescription;
 use App\Models\Visit;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Creates, removes, and forwards prescriptions to the pharmacy workflow.
+ *
+ * Drug stock and prescription rows are locked or reserved within transactions to
+ * avoid concurrent over-allocation. Billing changes are synchronized alongside
+ * prescription creation or removal.
+ */
 class PrescriptionService
 {
+    /**
+     * @param  BillingService  $billing  Synchronizes invoice items and releases related billing state.
+     * @param  DrugInventoryService  $inventory  Locks drugs and manages stock reservations.
+     */
     public function __construct(
         private readonly BillingService $billing,
         private readonly DrugInventoryService $inventory,
     ) {}
 
-    /** @return array{drug: Drug|null, error: string|null, reserved_quantity?: int, shortage?: int} */
+    /**
+     * Validate allergies and stock, create a prescription, reserve quantity, and sync billing.
+     *
+     * The drug row is locked during the transaction. An allergy match or empty stock
+     * returns an error without creating a prescription. For successful in-facility
+     * administration orders, nurses are notified after commit.
+     *
+     * @param  Visit  $visit  Visit receiving the prescription.
+     * @param  array<string, mixed>  $data  Validated prescription fields, including drug ID and requested quantity.
+     * @param  int  $doctorId  Prescribing doctor's user ID.
+     * @return array{drug: Drug|null, error: string|null, reserved_quantity?: int, shortage?: int} Prescription outcome and reservation details when created.
+     */
     public function prescribe(Visit $visit, array $data, int $doctorId): array
     {
         $result = DB::transaction(function () use ($visit, $data, $doctorId) {
@@ -67,6 +89,17 @@ class PrescriptionService
         return $result;
     }
 
+    /**
+     * Remove a pending prescription and release its associated invoice and stock reservation.
+     *
+     * The drug and prescription are locked using the shared inventory lock order.
+     * Prescriptions already processed, ordered by pharmacy, or attached to another
+     * visit are rejected; false indicates billing could not be released.
+     *
+     * @param  Visit  $visit  Visit that must own the prescription.
+     * @param  Prescription  $prescription  Pending prescription to remove.
+     * @return bool Whether removal and reservation release completed.
+     */
     public function remove(Visit $visit, Prescription $prescription): bool
     {
         return DB::transaction(function () use ($visit, $prescription) {
@@ -89,6 +122,16 @@ class PrescriptionService
         });
     }
 
+    /**
+     * Mark all pending, not-yet-ordered prescriptions for the doctor's consultation as ordered.
+     *
+     * The visit is row-locked and must still be in consultation and assigned to the
+     * supplied doctor.
+     *
+     * @param  Visit  $visit  Consultation whose prescriptions should be sent to pharmacy.
+     * @param  int  $doctorId  Doctor ID that must own the active consultation.
+     * @return int Number of prescription rows marked as ordered.
+     */
     public function placeOrder(Visit $visit, int $doctorId): int
     {
         return DB::transaction(function () use ($visit, $doctorId) {

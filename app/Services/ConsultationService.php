@@ -14,8 +14,12 @@ use App\Models\Visit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Owns doctor-facing consultation queues, clinical updates, and completion workflow.
+ */
 class ConsultationService
 {
+    /** Inject billing, inventory, mortality, medication, and emergency-stock workflows. */
     public function __construct(
         private readonly BillingService $billing,
         private readonly DrugInventoryService $inventory,
@@ -24,6 +28,7 @@ class ConsultationService
         private readonly EmergencyPharmacyService $emergencyPharmacy,
     ) {}
 
+    /** Return unclaimed or doctor-assigned visits waiting for care in this doctor's department. */
     public function queueFor(User $doctor)
     {
         abort_unless($doctor->department_id, 403, 'Your doctor account must be assigned to a department.');
@@ -38,6 +43,7 @@ class ConsultationService
             ->oldest('checked_in_at')->get();
     }
 
+    /** Paginate completed consultations assigned to the doctor, optionally filtered by patient details. */
     public function historyFor(User $doctor, ?string $search = null)
     {
         abort_unless($doctor->department_id, 403, 'Your doctor account must be assigned to a department.');
@@ -55,6 +61,14 @@ class ConsultationService
             ->withQueryString();
     }
 
+    /**
+     * Load the consultation screen's clinical relations and selectable drugs, tests, and wards.
+     *
+     * Expires stale inventory reservations before loading and rejects visits outside the doctor's
+     * department/assignment or visits that belong to triage/BID workflows.
+     *
+     * @return array<string, mixed> Visit, editability, recent history, catalogue options, and ward options.
+     */
     public function showData(Visit $visit, User $doctor): array
     {
         $this->inventory->expireReservations();
@@ -80,6 +94,7 @@ class ConsultationService
         ];
     }
 
+    /** Load a completed consultation's history for its assigned doctor or an administrator. */
     public function historyData(Visit $visit, User $user): Visit
     {
         abort_unless(
@@ -95,6 +110,7 @@ class ConsultationService
         ]);
     }
 
+    /** Claim a waiting visit and atomically move it into consultation for its assigned doctor. */
     public function start(Visit $visit, User $doctor): void
     {
         DB::transaction(function () use ($visit, $doctor) {
@@ -111,12 +127,21 @@ class ConsultationService
         });
     }
 
+    /** Save validated clinical notes while the visit is still open to the assigned doctor. */
     public function saveNotes(Visit $visit, array $notes, User $doctor): void
     {
         abort_unless($visit->isOpenFor($doctor), 403, 'This consultation is not open for editing.');
         $visit->update($notes);
     }
 
+    /**
+     * Close an open consultation after validating outstanding tests and discharge readiness.
+     *
+     * The visit, pending pharmacy orders, appointment completion, billing synchronization, and
+     * emergency death handoff are coordinated inside a transaction.
+     *
+     * @param array<string, mixed> $notes Validated clinical completion fields, including disposition when applicable.
+     */
     public function complete(Visit $visit, array $notes, User $doctor): void
     {
         abort_unless($visit->isOpenFor($doctor), 403, 'This consultation is not open for editing.');
@@ -160,6 +185,7 @@ class ConsultationService
         });
     }
 
+    /** Enforce department membership and prevent access to a visit assigned to another doctor. */
     public function assertAssignedToDoctor(Visit $visit, User $doctor): void
     {
         abort_unless($doctor->department_id && (int) $visit->department_id === (int) $doctor->department_id, 403,
