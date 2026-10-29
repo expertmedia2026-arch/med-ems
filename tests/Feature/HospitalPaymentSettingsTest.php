@@ -10,6 +10,7 @@ use App\Services\PaystackGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class HospitalPaymentSettingsTest extends TestCase
@@ -96,5 +97,63 @@ class HospitalPaymentSettingsTest extends TestCase
 
         $this->assertSame('https://checkout.paystack.com/test', $checkoutUrl);
         Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer '.$secretKey));
+    }
+
+    public function test_hospital_admin_can_configure_maternity_fees_in_web_and_api_settings(): void
+    {
+        $hospital = Hospital::create([
+            'name' => 'Maternity Fees Hospital',
+            'slug' => 'maternity-fees-hospital',
+            'is_active' => true,
+        ]);
+        $admin = User::factory()->create([
+            'role' => Role::Admin,
+            'is_active' => true,
+            'hospital_id' => $hospital->id,
+        ]);
+        HospitalSetting::create([
+            'hospital_id' => $hospital->id,
+            'name' => $hospital->name,
+        ]);
+        $fees = [
+            'maternity_vaginal_delivery_fee' => 14500,
+            'maternity_assisted_delivery_fee' => 17500,
+            'maternity_cesarean_delivery_fee' => 35000,
+            'maternity_other_delivery_fee' => 20000,
+            'maternity_delivery_pack_fee' => 2800,
+        ];
+
+        $this->actingAs($admin)
+            ->put(route('settings.update.section', ['section' => 'payments']), [
+                'payment_gateway' => 'manual',
+                'registration_fee' => 0,
+                'emergency_fee' => 0,
+                'mortuary_intake_fee' => 0,
+                'mortuary_daily_storage_fee' => 0,
+                'state_mortuary_tax_daily_fee' => 0,
+                'oxygen_per_administration_fee' => 0,
+                'nebulizer_fee_per_three_uses' => 0,
+                'sugar_check_fee' => 0,
+                ...$fees,
+            ])
+            ->assertRedirect(route('settings.section', ['section' => 'payments']));
+
+        $this->assertDatabaseHas('hospital_settings', [
+            'hospital_id' => $hospital->id,
+            ...$fees,
+        ]);
+        $this->get(route('settings.section', ['section' => 'payments']))
+            ->assertOk()
+            ->assertSee('Maternity delivery charges')
+            ->assertSee('14500');
+
+        Sanctum::actingAs($admin);
+        $this->getJson('/api/v1/admin/hospital-settings')
+            ->assertOk()
+            ->assertJsonPath('data.maternity_vaginal_delivery_fee', 14500)
+            ->assertJsonPath('data.maternity_assisted_delivery_fee', 17500)
+            ->assertJsonPath('data.maternity_cesarean_delivery_fee', 35000)
+            ->assertJsonPath('data.maternity_other_delivery_fee', 20000)
+            ->assertJsonPath('data.maternity_delivery_pack_fee', 2800);
     }
 }

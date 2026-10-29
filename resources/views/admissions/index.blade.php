@@ -11,6 +11,11 @@
             <p class="mt-1 text-3xl font-bold text-amber-700">{{ $pendingReviewCount }}</p>
         </a>
     </div>
+    @if (auth()->user()->hospital?->hasModule('maternity'))
+        <div class="mb-6 flex justify-end">
+            <a href="{{ route('maternity.episodes.index') }}" class="rounded-lg border border-teal-700 px-4 py-2.5 text-sm font-semibold text-teal-800 hover:bg-teal-50">Maternity episodes</a>
+        </div>
+    @endif
 
     <form method="GET" action="{{ route('admissions.index') }}" class="mb-6 flex flex-wrap items-end gap-3 rounded-xl border bg-white p-4 shadow-sm">
         <label class="min-w-64 flex-1 text-sm font-medium text-slate-700">Find patient or hospital number

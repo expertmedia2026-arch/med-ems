@@ -15,6 +15,7 @@ return [
     ['label' => 'Medication administration', 'route' => 'nursing.administrations.index', 'active' => 'nursing.administrations.*', 'roles' => ['admin', 'nurse'], 'module' => 'medication_administration'],
     ['label' => 'Staff Duty Roster', 'route' => 'nursing.roster.index', 'active' => 'nursing.roster.*', 'roles' => ['admin', 'receptionist', 'nurse', 'chief_nurse', 'doctor', 'lab', 'pharmacist', 'chief_pharmacist', 'accountant', 'chief_accountant', 'mortuary_attendant'], 'module' => 'staff_roster'],
     ['label' => 'Admissions', 'route' => 'admissions.index', 'active' => 'admissions.*', 'roles' => ['admin', 'doctor', 'nurse'], 'module' => 'inpatient'],
+    ['label' => 'Maternity', 'route' => 'maternity.episodes.index', 'active' => 'maternity.*', 'roles' => ['admin', 'doctor', 'nurse'], 'modules' => ['inpatient', 'maternity']],
     ['label' => 'Consultation', 'route' => 'consultations.index', 'active' => ['consultations.index', 'consultations.show', 'consultations.start', 'consultations.update', 'consultations.complete', 'consultations.prescriptions.*', 'consultations.lab-requests.*'], 'roles' => ['doctor']],
     ['label' => 'My consultation history', 'route' => 'consultations.history.index', 'active' => ['consultations.history.index', 'consultations.history'], 'roles' => ['doctor']],
     // ['label' => 'Laboratory', 'route' => 'lab.index',      'active' => 'lab.*',      'roles' => ['admin', 'lab', 'doctor']],

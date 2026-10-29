@@ -91,6 +91,11 @@ class Patient extends Model
         return $this->hasMany(Admission::class);
     }
 
+    public function maternityNewbornRecord(): HasOne
+    {
+        return $this->hasOne(MaternityNewborn::class);
+    }
+
     public function activeAdmission(): HasOne
     {
         return $this->hasOne(Admission::class)->where('status', 'active');

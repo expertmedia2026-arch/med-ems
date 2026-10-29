@@ -6,6 +6,7 @@ use App\Enums\AdmissionStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Admission extends Model
 {
@@ -61,12 +62,43 @@ class Admission extends Model
         return $this->hasMany(AdmissionVital::class)->latest('recorded_at');
     }
 
-    public function sugarChecks(): HasMany { return $this->hasMany(AdmissionSugarCheck::class)->latest('checked_at'); }
-    public function fluidEntries(): HasMany { return $this->hasMany(AdmissionFluidEntry::class)->latest('recorded_at'); }
-    public function oxygenAdministrations(): HasMany { return $this->hasMany(AdmissionOxygenAdministration::class)->latest('administered_at'); }
-    public function nebulizerUses(): HasMany { return $this->hasMany(AdmissionNebulizerUse::class)->latest('used_at'); }
-    public function insulinMachineBlocks(): HasMany { return $this->hasMany(AdmissionInsulinMachineBlock::class)->latest('block_number'); }
-    public function insulinMachineUses(): HasMany { return $this->hasMany(AdmissionInsulinMachineUse::class)->latest('opened_at'); }
-    public function damaRecord(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(AdmissionDamaRecord::class); }
+    public function sugarChecks(): HasMany
+    {
+        return $this->hasMany(AdmissionSugarCheck::class)->latest('checked_at');
+    }
 
+    public function fluidEntries(): HasMany
+    {
+        return $this->hasMany(AdmissionFluidEntry::class)->latest('recorded_at');
+    }
+
+    public function oxygenAdministrations(): HasMany
+    {
+        return $this->hasMany(AdmissionOxygenAdministration::class)->latest('administered_at');
+    }
+
+    public function nebulizerUses(): HasMany
+    {
+        return $this->hasMany(AdmissionNebulizerUse::class)->latest('used_at');
+    }
+
+    public function insulinMachineBlocks(): HasMany
+    {
+        return $this->hasMany(AdmissionInsulinMachineBlock::class)->latest('block_number');
+    }
+
+    public function insulinMachineUses(): HasMany
+    {
+        return $this->hasMany(AdmissionInsulinMachineUse::class)->latest('opened_at');
+    }
+
+    public function damaRecord(): HasOne
+    {
+        return $this->hasOne(AdmissionDamaRecord::class);
+    }
+
+    public function maternityEpisode(): HasOne
+    {
+        return $this->hasOne(MaternityEpisode::class);
+    }
 }

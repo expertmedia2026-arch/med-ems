@@ -44,6 +44,39 @@
         <div class="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"><p class="font-semibold">Please review the information below.</p><ul class="mt-1 list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
     @endif
 
+    @if (auth()->user()->hospital?->hasModule('maternity'))
+        <section class="mb-6 rounded-xl border border-pink-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h2 class="font-semibold text-slate-900">Maternity care</h2>
+                    <p class="mt-1 text-sm text-slate-600">Record labor, delivery and postpartum information for this admission.</p>
+                </div>
+                @if ($admission->maternityEpisode)
+                    <a href="{{ route('maternity.episodes.show', $admission->maternityEpisode) }}" class="rounded-lg border border-pink-700 px-3 py-2 text-sm font-semibold text-pink-800 hover:bg-pink-50">Open maternity episode</a>
+                @elseif ($isActive)
+                    <form method="POST" action="{{ route('maternity.episodes.start', $admission) }}" class="w-full space-y-3 md:max-w-2xl">
+                        @csrf
+                        <label for="labor_started_at" class="{{ $label }}">Labor began</label>
+                        <input id="labor_started_at" type="datetime-local" name="labor_started_at" value="{{ old('labor_started_at', now()->format('Y-m-d\TH:i')) }}" class="{{ $input }}">
+                        @error('labor_started_at')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+                        <fieldset>
+                            <legend class="{{ $label }}">Did the patient bring delivery materials?</legend>
+                            <div class="mt-2 flex flex-wrap gap-4 text-sm text-slate-700">
+                                <label class="inline-flex items-center gap-2"><input type="radio" name="patient_brought_delivery_materials" value="1" required @checked(old('patient_brought_delivery_materials') === '1') class="border-slate-300 text-pink-700">Yes</label>
+                                <label class="inline-flex items-center gap-2"><input type="radio" name="patient_brought_delivery_materials" value="0" required @checked(old('patient_brought_delivery_materials') === '0') class="border-slate-300 text-pink-700">No</label>
+                            </div>
+                            @error('patient_brought_delivery_materials')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                        </fieldset>
+                        <label for="labor_assessment" class="{{ $label }}">Initial labor assessment <span class="font-normal text-slate-500">(optional)</span></label>
+                        <textarea id="labor_assessment" name="labor_assessment" rows="3" maxlength="5000" class="{{ $input }}">{{ old('labor_assessment') }}</textarea>
+                        @error('labor_assessment')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+                        <button class="rounded-lg bg-pink-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-800">Start maternity episode</button>
+                    </form>
+                @endif
+            </div>
+        </section>
+    @endif
+
     <section class="mb-6 rounded-xl border bg-white p-5 shadow-sm">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>

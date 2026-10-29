@@ -115,7 +115,7 @@ class AdminController extends Controller
     {
         $result = $invitations->resend($invitation, $request->user());
 
-        return ['sent' => $result['sent'], 'message' => $result['message'], ];
+        return ['sent' => $result['sent'], 'message' => $result['message']];
     }
 
     public function revokeStaffInvitation(StaffInvitation $invitation, StaffInvitationService $invitations)
@@ -161,6 +161,11 @@ class AdminController extends Controller
             'mortuary_intake_fee' => (float) $setting->mortuary_intake_fee,
             'mortuary_daily_storage_fee' => (float) $setting->mortuary_daily_storage_fee,
             'state_mortuary_tax_daily_fee' => (float) $setting->state_mortuary_tax_daily_fee,
+            'maternity_vaginal_delivery_fee' => (float) $setting->maternity_vaginal_delivery_fee,
+            'maternity_assisted_delivery_fee' => (float) $setting->maternity_assisted_delivery_fee,
+            'maternity_cesarean_delivery_fee' => (float) $setting->maternity_cesarean_delivery_fee,
+            'maternity_other_delivery_fee' => (float) $setting->maternity_other_delivery_fee,
+            'maternity_delivery_pack_fee' => (float) $setting->maternity_delivery_pack_fee,
             'payment_gateway' => $setting->payment_gateway ?: 'paystack',
             'paystack_public_key' => $setting->paystack_public_key,
             'has_paystack_secret_key' => filled($setting->getRawOriginal('paystack_secret_key')),

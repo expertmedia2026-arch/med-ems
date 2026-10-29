@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\GlobalAdmin;
 
-use App\Http\Controllers\Controller;
 use App\Models\Hospital;
+use App\Models\HospitalModule;
 use App\Models\HospitalSetting;
 use App\Models\HospitalWorkflow;
 use App\Models\Patient;
@@ -36,6 +36,7 @@ class HospitalOnboardingController
         'central_vitals' => 'Central Vitals',
         'medication_administration' => 'Medication Administration',
         'emergency_pharmacy' => 'A&E Pharmacy',
+        'maternity' => 'Maternity',
         'lab_inventory' => 'Laboratory Inventory',
         'online_payments' => 'Online Payments',
         'finance_reports' => 'Finance Reports',
@@ -89,7 +90,7 @@ class HospitalOnboardingController
             ->orderBy('name')
             ->get();
 
-        $moduleSelections = \App\Models\HospitalModule::withoutGlobalScope('hospital')
+        $moduleSelections = HospitalModule::withoutGlobalScope('hospital')
             ->where('enabled', true)->get()->groupBy('hospital_id')
             ->map(fn ($modules) => $modules->pluck('module')->all());
         $adminEmails = User::withoutGlobalScope('hospital')
@@ -110,9 +111,9 @@ class HospitalOnboardingController
 
     public function edit(Hospital $hospital): View
     {
-        $enabledModules = \App\Models\HospitalModule::withoutGlobalScope('hospital')
+        $enabledModules = HospitalModule::withoutGlobalScope('hospital')
             ->where('hospital_id', $hospital->id)->where('enabled', true)->pluck('module')->all();
-        $workflow = \App\Models\HospitalWorkflow::withoutGlobalScope('hospital')
+        $workflow = HospitalWorkflow::withoutGlobalScope('hospital')
             ->where('hospital_id', $hospital->id)->where('workflow', 'admission')->where('is_active', true)
             ->orderByDesc('version')->first();
 
@@ -233,7 +234,7 @@ class HospitalOnboardingController
             DB::transaction(function () use ($data): void {
                 $enabled = $data['modules'] ?? [];
                 foreach (self::MODULES as $key => $label) {
-                    $hospitalModule = \App\Models\HospitalModule::query()->firstOrNew(['module' => $key]);
+                    $hospitalModule = HospitalModule::query()->firstOrNew(['module' => $key]);
                     $hospitalModule->enabled = in_array($key, $enabled, true);
                     $hospitalModule->save();
                 }
@@ -248,8 +249,8 @@ class HospitalOnboardingController
                     ['key' => 'nebulizer', 'enabled' => $data['admission_template'] === 'current', 'required' => false],
                     ['key' => 'insulin_machine', 'enabled' => $data['admission_template'] === 'current', 'required' => false],
                 ];
-                $version = (int) \App\Models\HospitalWorkflow::query()->where('workflow', 'admission')->max('version') + 1;
-                \App\Models\HospitalWorkflow::query()->where('workflow', 'admission')->where('is_active', true)->update(['is_active' => false]);
+                $version = (int) HospitalWorkflow::query()->where('workflow', 'admission')->max('version') + 1;
+                HospitalWorkflow::query()->where('workflow', 'admission')->where('is_active', true)->update(['is_active' => false]);
                 HospitalWorkflow::create([
                     'workflow' => 'admission',
                     'version' => $version,
@@ -282,6 +283,7 @@ class HospitalOnboardingController
             'external_lab' => ['laboratory'],
             'lab_inventory' => ['laboratory'],
             'emergency_pharmacy' => ['emergency', 'pharmacy'],
+            'maternity' => ['inpatient'],
             'online_payments' => ['patient_portal'],
         ];
 

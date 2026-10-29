@@ -22,7 +22,7 @@
         </div>
         <fieldset>
             <legend class="text-sm font-bold">Features for this hospital</legend>
-            <p class="mt-1 text-sm text-slate-600">You can adjust these later. External Lab and Lab Inventory require Laboratory; A&amp;E Pharmacy requires A&amp;E and Pharmacy; Online Payments requires Patient Portal.</p>
+            <p class="mt-1 text-sm text-slate-600">You can adjust these later. External Lab and Lab Inventory require Laboratory; A&amp;E Pharmacy requires A&amp;E and Pharmacy; Maternity requires Inpatient; Online Payments requires Patient Portal.</p>
             <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
                 @foreach ($modules as $key => $label)
                     <label class="flex items-center gap-2 rounded-lg border border-slate-200 p-3 text-sm">

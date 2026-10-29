@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\CsvTransferController;
 use App\Http\Controllers\Api\V1\DashboardApiController;
 use App\Http\Controllers\Api\V1\EmergencyController;
 use App\Http\Controllers\Api\V1\LabOperationsController;
+use App\Http\Controllers\Api\V1\MaternityController;
 use App\Http\Controllers\Api\V1\MortuaryController;
 use App\Http\Controllers\Api\V1\NursingAdministrationController;
 use App\Http\Controllers\Api\V1\PatientController;
@@ -241,6 +242,20 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('{admission}/dama/witnesses/{witness}', [AdmissionController::class, 'damaWitness'])
                 ->middleware('role:admin,doctor,nurse')->whereNumber('admission')->whereNumber('witness')->name('dama.witnesses.show');
         });
+
+        Route::middleware(['role:admin,doctor,nurse', 'module:inpatient', 'module:maternity'])
+            ->prefix('maternity')->name('maternity.')->group(function () {
+                Route::get('fees', [MaternityController::class, 'fees'])->name('fees');
+                Route::get('episodes', [MaternityController::class, 'index'])->name('episodes.index');
+                Route::post('admissions/{admission}/episodes', [MaternityController::class, 'start'])
+                    ->whereNumber('admission')->name('episodes.start');
+                Route::get('episodes/{maternityEpisode}', [MaternityController::class, 'show'])
+                    ->whereNumber('maternityEpisode')->name('episodes.show');
+                Route::post('episodes/{maternityEpisode}/delivery', [MaternityController::class, 'deliver'])
+                    ->whereNumber('maternityEpisode')->name('episodes.delivery');
+                Route::put('episodes/{maternityEpisode}/postpartum', [MaternityController::class, 'postpartum'])
+                    ->whereNumber('maternityEpisode')->name('episodes.postpartum');
+            });
 
         // Lab reads and result reporting; doctors may read only results they are allowed to see.
         Route::middleware(['role:admin,lab,doctor', 'module:laboratory'])->prefix('lab')->name('lab.')->group(function () {

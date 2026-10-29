@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
+use App\Support\HospitalContext;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Support\HospitalContext;
 
 class HospitalSetting extends Model
 {
@@ -22,6 +22,11 @@ class HospitalSetting extends Model
             'oxygen_per_administration_fee' => 'decimal:2',
             'nebulizer_fee_per_three_uses' => 'decimal:2',
             'sugar_check_fee' => 'decimal:2',
+            'maternity_vaginal_delivery_fee' => 'decimal:2',
+            'maternity_assisted_delivery_fee' => 'decimal:2',
+            'maternity_cesarean_delivery_fee' => 'decimal:2',
+            'maternity_other_delivery_fee' => 'decimal:2',
+            'maternity_delivery_pack_fee' => 'decimal:2',
             'paystack_secret_key' => 'encrypted',
         ];
     }

@@ -31,7 +31,7 @@ class SaaSDemoSeeder extends Seeder
             throw new RuntimeException('Run the hospital tenant migrations before this seeder.');
         }
 
-        DB::transaction(function () use ($context, $legacyHospital): void {
+        DB::transaction(function () use ($context): void {
             $globalAdminEmail = env('SAAS_DEMO_GLOBAL_ADMIN_EMAIL', 'global-admin@hms.test');
             $globalAdminPassword = env('SAAS_DEMO_GLOBAL_ADMIN_PASSWORD', 'password');
 
@@ -76,6 +76,7 @@ class SaaSDemoSeeder extends Seeder
                 'central_vitals' => true,
                 'medication_administration' => true,
                 'emergency_pharmacy' => false,
+                'maternity' => false,
                 'lab_inventory' => true,
                 'online_payments' => true,
                 'finance_reports' => true,

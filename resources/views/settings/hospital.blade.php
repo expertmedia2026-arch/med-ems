@@ -8,7 +8,7 @@
         $sections = [
             'basic' => ['title' => 'Basic details', 'description' => 'Hospital name and contact details'],
             'admission-workflow' => ['title' => 'Admission workflow', 'description' => 'Choose the inpatient charts your hospital uses'],
-            'payments' => ['title' => 'Payments', 'description' => 'Registration, A&E, and mortuary charges'.($onlinePaymentsEnabled ? ', plus patient online checkout' : '')],
+            'payments' => ['title' => 'Payments', 'description' => 'Registration, maternity, A&E, and mortuary charges'.($onlinePaymentsEnabled ? ', plus patient online checkout' : '')],
             'branding' => ['title' => 'Branding', 'description' => 'Colors, logo, and patient card signature'],
         ];
         $settingsRoute = fn ($target) => match ($target) {
@@ -183,6 +183,23 @@
                                 <p class="mt-1 text-xs text-slate-500">Added to the inpatient invoice for each sugar check recorded by nursing staff. Use 0 for no charge.</p>
                                 @error('sugar_check_fee')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
+                            <div class="border-t pt-5">
+                                <h4 class="font-semibold text-slate-900">Maternity delivery charges</h4>
+                                <p class="mt-1 text-sm text-slate-500">These fees are added to the maternal admission invoice when delivery is recorded. Enter 0 if your hospital does not charge for an item.</p>
+                            </div>
+                            @foreach ([
+                                ['maternity_vaginal_delivery_fee', 'Vaginal delivery fee'],
+                                ['maternity_assisted_delivery_fee', 'Assisted vaginal delivery fee'],
+                                ['maternity_cesarean_delivery_fee', 'Cesarean delivery fee'],
+                                ['maternity_other_delivery_fee', 'Other delivery fee'],
+                                ['maternity_delivery_pack_fee', 'Hospital-supplied delivery pack fee'],
+                            ] as [$field, $title])
+                                <div>
+                                    <label for="{{ $field }}" class="{{ $label }}">{{ $title }} (₦) <span class="text-red-600">*</span></label>
+                                    <input id="{{ $field }}" name="{{ $field }}" type="number" step="0.01" min="0" max="99999999" required value="{{ old($field, $settings->{$field} ?? 0) }}" class="{{ $input }}">
+                                    @error($field)<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                            @endforeach
                             @if ($onlinePaymentsEnabled)
                             <div class="border-t pt-5">
                                 <div class="mb-4">

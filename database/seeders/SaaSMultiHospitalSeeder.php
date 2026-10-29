@@ -22,7 +22,7 @@ class SaaSMultiHospitalSeeder extends Seeder
     private const MODULES = [
         'pharmacy', 'mortuary', 'emergency', 'inpatient', 'laboratory', 'external_lab',
         'staff_roster', 'appointments', 'patient_id_card', 'patient_portal', 'central_vitals',
-        'medication_administration', 'emergency_pharmacy', 'lab_inventory',
+        'medication_administration', 'emergency_pharmacy', 'maternity', 'lab_inventory',
         'online_payments', 'finance_reports',
     ];
 
@@ -110,7 +110,7 @@ class SaaSMultiHospitalSeeder extends Seeder
                 'name' => 'St Mary’s Maternity Hospital', 'slug' => 'st-marys-maternity', 'address' => 'Ibadan, Oyo',
                 'modules' => $this->enabledModules([
                     'pharmacy', 'inpatient', 'laboratory', 'staff_roster', 'appointments', 'patient_id_card',
-                    'patient_portal', 'medication_administration', 'online_payments', 'finance_reports',
+                    'patient_portal', 'medication_administration', 'maternity', 'online_payments', 'finance_reports',
                 ]),
             ],
         ];
