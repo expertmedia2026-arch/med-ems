@@ -8,6 +8,7 @@ use App\Http\Requests\Api\V1\CreatePlatformHospitalRequest;
 use App\Http\Requests\Api\V1\SetPlatformAdminStatusRequest;
 use App\Http\Requests\Api\V1\SetPlatformHospitalStatusRequest;
 use App\Http\Requests\Api\V1\StorePlatformAdminRequest;
+use App\Http\Requests\Api\V1\StorePlatformHospitalAdminRequest;
 use App\Http\Requests\Api\V1\UpdatePlatformHospitalConfigurationRequest;
 use App\Http\Resources\Api\V1\PlatformHospitalResource;
 use App\Http\Resources\Api\V1\UserResource;
@@ -37,15 +38,18 @@ class GlobalAdminApiController extends Controller
     }
 
     /** List all hospitals with their enabled modules and aggregate counts. */
-    public function hospitals(GlobalAdminHospitalService $service)
+    public function hospitals(Request $request, GlobalAdminHospitalService $service)
     {
-        return PlatformHospitalResource::collection($service->hospitals());
+        return PlatformHospitalResource::collection($service->hospitals($request->user()));
     }
 
     /** Return one hospital's platform configuration. */
-    public function showHospital(Hospital $hospital, GlobalAdminHospitalService $service): PlatformHospitalResource
-    {
-        return new PlatformHospitalResource($service->findHospital($hospital));
+    public function showHospital(
+        Request $request,
+        Hospital $hospital,
+        GlobalAdminHospitalService $service,
+    ): PlatformHospitalResource {
+        return new PlatformHospitalResource($service->findHospital($hospital, $request->user()));
     }
 
     /**
@@ -55,17 +59,42 @@ class GlobalAdminApiController extends Controller
         CreatePlatformHospitalRequest $request,
         GlobalAdminHospitalService $service,
     ): JsonResponse {
-        $result = $service->createHospital($request->validated());
-        $status = Password::sendResetLink(['email' => $result['admin_email']]);
-        $setupLinkSent = $status === Password::RESET_LINK_SENT;
+        $result = $service->createHospital($request->validated(), $request->user());
+        $adminEmail = $result['admin_email'];
+        $setupLinkSent = $adminEmail !== null
+            && Password::sendResetLink(['email' => $adminEmail]) === Password::RESET_LINK_SENT;
 
         return response()->json([
             'message' => $setupLinkSent
                 ? 'Hospital created; the administrator password setup link was sent.'
-                : 'Hospital created, but the password setup email could not be sent.',
+                : ($adminEmail === null
+                    ? 'Hospital created; a super-admin must add its first administrator.'
+                    : 'Hospital created, but the password setup email could not be sent.'),
             'data' => [
                 'hospital' => (new PlatformHospitalResource($result['hospital']))->resolve($request),
-                'admin_email' => $result['admin_email'],
+                'admin_email' => $adminEmail,
+                'setup_link_sent' => $setupLinkSent,
+            ],
+        ], 201);
+    }
+
+    /** Add a hospital administrator and send them a password setup link. */
+    public function createHospitalAdmin(
+        StorePlatformHospitalAdminRequest $request,
+        Hospital $hospital,
+        GlobalAdminHospitalService $service,
+    ): JsonResponse {
+        $admin = $service->createHospitalAdmin($hospital, $request->validated(), $request->user());
+        $setupLinkSent = Password::sendResetLink(['email' => $admin->email]) === Password::RESET_LINK_SENT;
+
+        return response()->json([
+            'message' => $setupLinkSent
+                ? 'Hospital administrator created; the password setup link was sent.'
+                : 'Hospital administrator created, but the password setup email could not be sent.',
+            'data' => [
+                'id' => $admin->id,
+                'name' => $admin->name,
+                'email' => $admin->email,
                 'setup_link_sent' => $setupLinkSent,
             ],
         ], 201);
@@ -77,7 +106,9 @@ class GlobalAdminApiController extends Controller
         Hospital $hospital,
         GlobalAdminHospitalService $service,
     ): PlatformHospitalResource {
-        return new PlatformHospitalResource($service->updateConfiguration($hospital, $request->validated()));
+        return new PlatformHospitalResource(
+            $service->updateConfiguration($hospital, $request->validated(), $request->user()),
+        );
     }
 
     /** Set the hospital's active state to the explicit value in the request body. */
@@ -87,7 +118,7 @@ class GlobalAdminApiController extends Controller
         GlobalAdminHospitalService $service,
     ): PlatformHospitalResource {
         return new PlatformHospitalResource(
-            $service->setHospitalActive($hospital, $request->boolean('is_active')),
+            $service->setHospitalActive($hospital, $request->boolean('is_active'), $request->user()),
         );
     }
 
@@ -100,7 +131,13 @@ class GlobalAdminApiController extends Controller
             ->orderBy('name')
             ->get();
 
-        return UserResource::collection($admins);
+        return $admins->map(fn (User $admin) => [
+            'id' => $admin->id,
+            'name' => $admin->name,
+            'email' => $admin->email,
+            'is_active' => (bool) $admin->is_active,
+            'account_type' => $admin->isPlatformSuperAdmin() ? 'global_admin' : 'sub_admin',
+        ]);
     }
 
     /** Create an additional platform administrator with a supplied password. */
@@ -114,13 +151,16 @@ class GlobalAdminApiController extends Controller
         $admin->hospital_id = null;
         $admin->department_id = null;
         $admin->is_global_admin = true;
+        $admin->is_platform_super_admin = false;
         $admin->is_active = true;
         $admin->email_verified_at = now();
         $admin->save();
 
         return response()->json([
             'message' => 'Platform administrator created.',
-            'data' => (new UserResource($admin))->resolve($request),
+            'data' => array_merge((new UserResource($admin))->resolve($request), [
+                'account_type' => 'sub_admin',
+            ]),
         ], 201);
     }
 

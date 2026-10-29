@@ -68,6 +68,102 @@ class GlobalAdminApiControllerTest extends TestCase
         $this->getJson('/api/v1/platform/hospitals')->assertForbidden();
     }
 
+    /** Sub-admins retain hospital operations but cannot list or create platform administrators. */
+    public function test_sub_admin_can_manage_hospitals_but_cannot_access_platform_admins(): void
+    {
+        $hospital = Hospital::create([
+            'name' => 'Visible Hospital',
+            'slug' => 'visible-hospital',
+            'is_active' => true,
+        ]);
+        User::factory()->create([
+            'hospital_id' => $hospital->id,
+            'role' => Role::Admin,
+            'email' => 'tenant-admin@visible.test',
+        ]);
+        $subAdmin = User::factory()->create([
+            'role' => Role::Admin,
+            'hospital_id' => null,
+            'is_global_admin' => true,
+            'is_platform_super_admin' => false,
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($subAdmin);
+
+        $this->getJson('/api/v1/platform/hospitals')
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'Visible Hospital'])
+            ->assertJsonMissing(['email' => 'tenant-admin@visible.test']);
+
+        $this->getJson('/api/v1/platform/admins')->assertForbidden();
+        $this->postJson('/api/v1/platform/admins', [
+            'name' => 'Unauthorized Admin',
+            'email' => 'unauthorized-admin@test.local',
+            'password' => 'secure-pass-123',
+            'password_confirmation' => 'secure-pass-123',
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('users', ['email' => 'unauthorized-admin@test.local']);
+    }
+
+    /** Sub-admin onboarding omits admin details; only a super-admin can later add one. */
+    public function test_sub_admin_can_onboard_without_an_admin_and_super_admin_can_add_one_later(): void
+    {
+        Notification::fake();
+        $subAdmin = User::factory()->create([
+            'role' => Role::Admin,
+            'hospital_id' => null,
+            'is_global_admin' => true,
+            'is_platform_super_admin' => false,
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($subAdmin);
+
+        $response = $this->postJson('/api/v1/platform/hospitals', [
+            'name' => 'Adminless API Hospital',
+            'modules' => ['inpatient'],
+            'admission_template' => 'basic',
+        ])->assertCreated()
+            ->assertJsonPath('data.hospital.name', 'Adminless API Hospital')
+            ->assertJsonPath('data.admin_email', null)
+            ->assertJsonPath('data.setup_link_sent', false);
+
+        $hospital = Hospital::query()->where('slug', 'adminless-api-hospital')->sole();
+        $this->assertDatabaseMissing('users', [
+            'hospital_id' => $hospital->id,
+            'role' => Role::Admin->value,
+        ]);
+
+        $this->postJson("/api/v1/platform/hospitals/{$hospital->id}/admins", [
+            'name' => 'Unauthorized Hospital Admin',
+            'email' => 'unauthorized-hospital-admin@test.local',
+        ])->assertForbidden();
+
+        $this->postJson('/api/v1/platform/hospitals', [
+            'name' => 'Invalid Admin Attempt',
+            'admin_name' => 'Unauthorized Hospital Admin',
+            'admin_email' => 'unauthorized-hospital-admin@test.local',
+            'modules' => ['inpatient'],
+            'admission_template' => 'basic',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['admin_name', 'admin_email']);
+
+        $superAdmin = $this->createGlobalAdmin();
+        Sanctum::actingAs($superAdmin);
+
+        $this->postJson("/api/v1/platform/hospitals/{$hospital->id}/admins", [
+            'name' => 'Hospital Administrator',
+            'email' => 'hospital-admin@test.local',
+        ])->assertCreated()
+            ->assertJsonPath('data.email', 'hospital-admin@test.local')
+            ->assertJsonPath('data.setup_link_sent', true);
+
+        $hospitalAdmin = User::query()->where('email', 'hospital-admin@test.local')->sole();
+        $this->assertSame($hospital->id, $hospitalAdmin->hospital_id);
+        Notification::assertSentTo($hospitalAdmin, ResetPassword::class);
+        $this->assertDatabaseMissing('hospitals', ['slug' => 'invalid-admin-attempt']);
+    }
+
     /** Hospital onboarding creates the tenant, first admin, settings, modules, and workflow atomically. */
     public function test_global_admin_can_create_a_hospital_and_its_initial_configuration(): void
     {
@@ -182,7 +278,8 @@ class GlobalAdminApiControllerTest extends TestCase
             'password_confirmation' => 'secure-pass-123',
         ])->assertCreated()
             ->assertJsonPath('data.email', 'second-global-admin@test.local')
-            ->assertJsonPath('data.role', 'admin');
+            ->assertJsonPath('data.role', 'admin')
+            ->assertJsonPath('data.account_type', 'sub_admin');
 
         $userId = $created->json('data.id');
 
@@ -195,6 +292,7 @@ class GlobalAdminApiControllerTest extends TestCase
             'id' => $userId,
             'hospital_id' => null,
             'is_global_admin' => true,
+            'is_platform_super_admin' => false,
             'is_active' => false,
         ]);
     }
@@ -239,6 +337,7 @@ class GlobalAdminApiControllerTest extends TestCase
             'hospital_id' => null,
             'department_id' => null,
             'is_global_admin' => true,
+            'is_platform_super_admin' => true,
             'is_active' => true,
         ]);
     }

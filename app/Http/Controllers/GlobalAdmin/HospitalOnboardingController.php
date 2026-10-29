@@ -17,9 +17,9 @@ class HospitalOnboardingController
 {
     private const MODULES = GlobalAdminHospitalService::MODULES;
 
-    public function dashboard(GlobalAdminHospitalService $service): View
+    public function dashboard(Request $request, GlobalAdminHospitalService $service): View
     {
-        $hospitals = $service->hospitals();
+        $hospitals = $service->hospitals($request->user());
 
         return view('global-admin.dashboard', [
             'hospitalCount' => $hospitals->count(),
@@ -30,10 +30,10 @@ class HospitalOnboardingController
         ]);
     }
 
-    public function index(GlobalAdminHospitalService $service): View
+    public function index(Request $request, GlobalAdminHospitalService $service): View
     {
         return view('global-admin.hospitals.index', [
-            'hospitals' => $service->hospitals(),
+            'hospitals' => $service->hospitals($request->user()),
             'modules' => self::MODULES,
         ]);
     }
@@ -50,9 +50,12 @@ class HospitalOnboardingController
         return view('global-admin.configuration', ['modules' => self::MODULES]);
     }
 
-    public function edit(Hospital $hospital, GlobalAdminHospitalService $service): View
-    {
-        $hospital = $service->findHospital($hospital);
+    public function edit(
+        Request $request,
+        Hospital $hospital,
+        GlobalAdminHospitalService $service,
+    ): View {
+        $hospital = $service->findHospital($hospital, $request->user());
 
         return view('global-admin.hospitals.edit', [
             'hospital' => $hospital,
@@ -64,28 +67,59 @@ class HospitalOnboardingController
 
     public function store(Request $request, GlobalAdminHospitalService $service): RedirectResponse
     {
+        $canCreateInitialAdmin = $request->user()->isPlatformSuperAdmin();
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:80', 'alpha_dash', 'unique:hospitals,slug'],
-            'admin_name' => ['required', 'string', 'max:255'],
-            'admin_email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'admin_name' => $canCreateInitialAdmin
+                ? ['required', 'string', 'max:255']
+                : ['prohibited'],
+            'admin_email' => $canCreateInitialAdmin
+                ? ['required', 'email', 'max:255', 'unique:users,email']
+                : ['prohibited'],
             'modules' => ['nullable', 'array'],
             'modules.*' => ['string', Rule::in(array_keys(self::MODULES))],
             'admission_template' => ['required', Rule::in(['current', 'basic'])],
         ]);
 
-        $result = $service->createHospital($data);
+        $result = $service->createHospital($data, $request->user());
         $hospital = $result['hospital'];
 
-        $status = Password::sendResetLink(['email' => $data['admin_email']]);
+        if ($result['admin_email'] === null) {
+            return redirect()->route('global-admin.hospitals.index')
+                ->with('success', "{$hospital->name} was created. A global super-admin must add its first hospital administrator.");
+        }
+
+        $status = Password::sendResetLink(['email' => $result['admin_email']]);
 
         if ($status === Password::RESET_LINK_SENT) {
             return redirect()->route('global-admin.hospitals.index')
-                ->with('success', "{$hospital->name} was created. A password setup link was sent to {$data['admin_email']}.");
+                ->with('success', "{$hospital->name} was created. A password setup link was sent to {$result['admin_email']}.");
         }
 
         return redirect()->route('global-admin.hospitals.index')
             ->with('warning', "{$hospital->name} was created, but the password setup email could not be sent. Check mail configuration and resend the password reset link.");
+    }
+
+    public function storeHospitalAdmin(
+        Request $request,
+        Hospital $hospital,
+        GlobalAdminHospitalService $service,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+        ]);
+        $admin = $service->createHospitalAdmin($hospital, $data, $request->user());
+        $status = Password::sendResetLink(['email' => $admin->email]);
+
+        if ($status === Password::RESET_LINK_SENT) {
+            return redirect()->route('global-admin.hospitals.edit', $hospital)
+                ->with('success', "Hospital administrator {$admin->email} was added and sent a password setup link.");
+        }
+
+        return redirect()->route('global-admin.hospitals.edit', $hospital)
+            ->with('warning', "Hospital administrator {$admin->email} was added, but the password setup email could not be sent. Check mail configuration and resend the password reset link.");
     }
 
     public function update(
@@ -99,14 +133,17 @@ class HospitalOnboardingController
             'admission_template' => ['required', Rule::in(['current', 'basic'])],
         ]);
 
-        $service->updateConfiguration($hospital, $data);
+        $service->updateConfiguration($hospital, $data, $request->user());
 
         return redirect()->route('global-admin.hospitals.index')->with('success', "Configuration for {$hospital->name} was updated.");
     }
 
-    public function toggle(Hospital $hospital, GlobalAdminHospitalService $service): RedirectResponse
-    {
-        $hospital = $service->setHospitalActive($hospital, ! $hospital->is_active);
+    public function toggle(
+        Request $request,
+        Hospital $hospital,
+        GlobalAdminHospitalService $service,
+    ): RedirectResponse {
+        $hospital = $service->setHospitalActive($hospital, ! $hospital->is_active, $request->user());
 
         $status = $hospital->is_active ? 'activated' : 'deactivated';
 

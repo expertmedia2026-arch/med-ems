@@ -13,7 +13,7 @@
         <aside id="global-admin-navigation" :class="mobileNavOpen ? 'translate-x-0' : '-translate-x-full'" class="fixed inset-y-0 left-0 z-50 flex h-screen w-72 max-w-[calc(100vw-3rem)] min-w-0 flex-col bg-[#171719] text-white shadow-2xl transition-transform duration-200 ease-out xl:sticky xl:top-0 xl:z-auto xl:h-screen xl:w-64 xl:max-w-none xl:shrink-0 xl:translate-x-0 xl:shadow-none">
             <a href="{{ route('global-admin.dashboard') }}" class="flex items-center gap-3 border-b border-white/10 px-4 py-4 sm:px-6 xl:py-5">
                 <span class="grid h-10 w-10 place-items-center rounded-lg bg-[#e51d2a] text-xl font-black">M</span>
-                <span class="text-xl font-extrabold tracking-tight">Med<span class="text-[#ff4651]">EMS</span><span class="mt-1 block text-[10px] font-semibold uppercase tracking-[.18em] text-white/50">Platform admin</span></span>
+                <span class="text-xl font-extrabold tracking-tight">Med<span class="text-[#ff4651]">EMS</span><span class="mt-1 block text-[10px] font-semibold uppercase tracking-[.18em] text-white/50">{{ auth()->user()->isPlatformSuperAdmin() ? 'Global admin' : 'Sub-admin' }}</span></span>
             </a>
             <button type="button" @click="mobileNavOpen = false" class="absolute right-3 top-4 grid h-10 w-10 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/70 xl:hidden" aria-label="Close navigation menu">
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 6 12 12M18 6 6 18" /></svg>
@@ -24,12 +24,14 @@
                     ['route' => 'global-admin.hospitals.index', 'label' => 'Hospitals', 'match' => 'global-admin.hospitals.*'],
                     ['route' => 'global-admin.hospitals.create', 'label' => 'Add new hospital', 'match' => 'global-admin.hospitals.create'],
                     ['route' => 'global-admin.configuration', 'label' => 'Configuration', 'match' => 'global-admin.configuration'],
-                    ['route' => 'global-admin.admins.index', 'label' => 'Platform Admins', 'match' => 'global-admin.admins.*'],
                 ])
                 @foreach ($navItems as $item)
                     @php($isActive = request()->routeIs($item['match']) && !($item['route'] === 'global-admin.hospitals.index' && request()->routeIs('global-admin.hospitals.create')))
                     <a href="{{ route($item['route']) }}" @click="mobileNavOpen = false" class="whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-white/70 {{ $isActive ? 'bg-[#e51d2a] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white' }}">{{ $item['label'] }}</a>
                 @endforeach
+                @if (auth()->user()->isPlatformSuperAdmin())
+                    <a href="{{ route('global-admin.admins.index') }}" @click="mobileNavOpen = false" class="whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-white/70 {{ request()->routeIs('global-admin.admins.*') ? 'bg-[#e51d2a] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white' }}">Platform Admins</a>
+                @endif
             </nav>
             <div class="border-t border-white/10 px-6 py-4 text-xs text-white/50">Platform workspace</div>
         </aside>

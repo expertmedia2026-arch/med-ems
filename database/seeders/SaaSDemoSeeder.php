@@ -48,6 +48,7 @@ class SaaSDemoSeeder extends Seeder
             $globalAdmin->password = $globalAdminPassword;
             $globalAdmin->is_active = true;
             $globalAdmin->is_global_admin = true;
+            $globalAdmin->is_platform_super_admin = true;
             $globalAdmin->email_verified_at = now();
             $globalAdmin->save();
 

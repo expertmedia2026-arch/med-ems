@@ -43,6 +43,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('modules', [GlobalAdminApiController::class, 'modules'])->name('modules.index');
             Route::get('hospitals', [GlobalAdminApiController::class, 'hospitals'])->name('hospitals.index');
             Route::post('hospitals', [GlobalAdminApiController::class, 'createHospital'])->name('hospitals.store');
+            Route::post('hospitals/{hospital}/admins', [GlobalAdminApiController::class, 'createHospitalAdmin'])
+                ->whereNumber('hospital')->middleware('global.super-admin')->name('hospitals.admins.store');
             Route::get('hospitals/{hospital}', [GlobalAdminApiController::class, 'showHospital'])
                 ->whereNumber('hospital')->name('hospitals.show');
             Route::put('hospitals/{hospital}/configuration', [GlobalAdminApiController::class, 'updateHospitalConfiguration'])
@@ -50,10 +52,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::patch('hospitals/{hospital}/status', [GlobalAdminApiController::class, 'setHospitalStatus'])
                 ->whereNumber('hospital')->name('hospitals.status.update');
 
-            Route::get('admins', [GlobalAdminApiController::class, 'platformAdmins'])->name('admins.index');
-            Route::post('admins', [GlobalAdminApiController::class, 'createPlatformAdmin'])->name('admins.store');
-            Route::patch('admins/{user}/status', [GlobalAdminApiController::class, 'setPlatformAdminStatus'])
-                ->whereNumber('user')->name('admins.status.update');
+            Route::middleware('global.super-admin')->prefix('admins')->name('admins.')->group(function () {
+                Route::get('/', [GlobalAdminApiController::class, 'platformAdmins'])->name('index');
+                Route::post('/', [GlobalAdminApiController::class, 'createPlatformAdmin'])->name('store');
+                Route::patch('{user}/status', [GlobalAdminApiController::class, 'setPlatformAdminStatus'])
+                    ->whereNumber('user')->name('status.update');
+            });
 
             Route::get('notifications', [GlobalAdminApiController::class, 'notifications'])->name('notifications.index');
             Route::patch('notifications/read-all', [GlobalAdminApiController::class, 'markAllNotificationsRead'])->name('notifications.read-all');

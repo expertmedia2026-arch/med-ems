@@ -9,6 +9,7 @@ use App\Models\HospitalWorkflow;
 use App\Models\Patient;
 use App\Models\User;
 use App\Support\HospitalContext;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -75,7 +76,7 @@ class GlobalAdminHospitalService
      *
      * @return Collection<int, Hospital>
      */
-    public function hospitals(): Collection
+    public function hospitals(?Authenticatable $viewer = null): Collection
     {
         $hospitals = Hospital::query()
             ->select('hospitals.*')
@@ -97,15 +98,17 @@ class GlobalAdminHospitalService
             ->get()
             ->groupBy('hospital_id')
             ->map(fn ($modules) => $modules->pluck('module')->values()->all());
-        $adminEmails = User::query()
-            ->whereIn('hospital_id', $hospitalIds)
-            ->where('role', 'admin')
-            ->where('is_global_admin', false)
-            ->where('is_active', true)
-            ->orderBy('id')
-            ->get(['hospital_id', 'email'])
-            ->groupBy('hospital_id')
-            ->map(fn ($admins) => $admins->pluck('email')->unique()->values()->all());
+        $adminEmails = $viewer instanceof User && $viewer->isPlatformSuperAdmin()
+            ? User::query()
+                ->whereIn('hospital_id', $hospitalIds)
+                ->where('role', 'admin')
+                ->where('is_global_admin', false)
+                ->where('is_active', true)
+                ->orderBy('id')
+                ->get(['hospital_id', 'email'])
+                ->groupBy('hospital_id')
+                ->map(fn ($admins) => $admins->pluck('email')->unique()->values()->all())
+            : collect();
         $workflows = HospitalWorkflow::query()
             ->whereIn('hospital_id', $hospitalIds)
             ->where('workflow', 'admission')
@@ -128,29 +131,31 @@ class GlobalAdminHospitalService
     /**
      * Return the requested hospital with the same summary fields as the list endpoint.
      */
-    public function findHospital(Hospital $hospital): Hospital
+    public function findHospital(Hospital $hospital, ?Authenticatable $viewer = null): Hospital
     {
-        return $this->hospitals()->firstWhere('id', $hospital->id)
+        return $this->hospitals($viewer)->firstWhere('id', $hospital->id)
             ?? abort(404);
     }
 
     /**
-     * Provision a hospital, its initial administrator, settings, modules, and admission workflow.
+     * Provision a hospital, its initial administrator when requested by a super-admin,
+     * settings, modules, and admission workflow.
      *
      * The administrator receives a random temporary password and must use the
      * password-reset link returned by the API to set their own credential.
      *
-     * @param  array{name: string, slug?: string|null, admin_name: string, admin_email: string, modules?: array<int, string>, admission_template: string}  $data
-     * @return array{hospital: Hospital, admin_email: string}
+     * @param  array{name: string, slug?: string|null, admin_name?: string, admin_email?: string, modules?: array<int, string>, admission_template: string}  $data
+     * @return array{hospital: Hospital, admin_email: string|null}
      */
-    public function createHospital(array $data): array
+    public function createHospital(array $data, ?Authenticatable $viewer = null): array
     {
         $this->validateModuleDependencies($data['modules'] ?? []);
+        $createInitialAdmin = $viewer instanceof User && $viewer->isPlatformSuperAdmin();
 
         $previousHospitalId = $this->context->id();
 
         try {
-            $hospital = DB::transaction(function () use ($data): Hospital {
+            $hospital = DB::transaction(function () use ($data, $createInitialAdmin): Hospital {
                 $slug = ($data['slug'] ?? null) ?: Str::slug($data['name']);
                 $slug = $slug ?: 'hospital';
                 $baseSlug = $slug;
@@ -167,14 +172,9 @@ class GlobalAdminHospitalService
                 ]);
                 $this->context->set((int) $hospital->id);
 
-                $admin = new User;
-                $admin->name = $data['admin_name'];
-                $admin->email = $data['admin_email'];
-                $admin->role = 'admin';
-                $admin->password = Str::random(48);
-                $admin->hospital_id = $hospital->id;
-                $admin->is_active = true;
-                $admin->save();
+                if ($createInitialAdmin) {
+                    $this->createHospitalAdministrator($hospital, $data);
+                }
 
                 HospitalSetting::create([
                     'hospital_id' => $hospital->id,
@@ -205,9 +205,46 @@ class GlobalAdminHospitalService
         }
 
         return [
-            'hospital' => $this->findHospital($hospital),
-            'admin_email' => $data['admin_email'],
+            'hospital' => $this->findHospital($hospital, $viewer),
+            'admin_email' => $createInitialAdmin ? $data['admin_email'] : null,
         ];
+    }
+
+    /**
+     * Create an administrator for a hospital after onboarding.
+     *
+     * @param  array{name: string, email: string}  $data
+     */
+    public function createHospitalAdmin(
+        Hospital $hospital,
+        array $data,
+        ?Authenticatable $viewer = null,
+    ): User {
+        abort_unless($viewer instanceof User && $viewer->isPlatformSuperAdmin(), 403);
+
+        return $this->createHospitalAdministrator($hospital, [
+            'admin_name' => $data['name'],
+            'admin_email' => $data['email'],
+        ]);
+    }
+
+    /**
+     * Create a hospital administrator with a random password.
+     *
+     * @param  array{admin_name: string, admin_email: string}  $data
+     */
+    private function createHospitalAdministrator(Hospital $hospital, array $data): User
+    {
+        $admin = new User;
+        $admin->name = $data['admin_name'];
+        $admin->email = $data['admin_email'];
+        $admin->role = 'admin';
+        $admin->password = Str::random(48);
+        $admin->hospital_id = $hospital->id;
+        $admin->is_active = true;
+        $admin->save();
+
+        return $admin;
     }
 
     /**
@@ -215,8 +252,11 @@ class GlobalAdminHospitalService
      *
      * @param  array{modules?: array<int, string>, admission_template: string}  $data
      */
-    public function updateConfiguration(Hospital $hospital, array $data): Hospital
-    {
+    public function updateConfiguration(
+        Hospital $hospital,
+        array $data,
+        ?Authenticatable $viewer = null,
+    ): Hospital {
         $this->validateModuleDependencies($data['modules'] ?? []);
         $previousHospitalId = $this->context->id();
 
@@ -250,15 +290,18 @@ class GlobalAdminHospitalService
             $this->context->set($previousHospitalId);
         }
 
-        return $this->findHospital($hospital);
+        return $this->findHospital($hospital, $viewer);
     }
 
     /** Set the hospital's active state to an explicit value so repeated requests are idempotent. */
-    public function setHospitalActive(Hospital $hospital, bool $isActive): Hospital
-    {
+    public function setHospitalActive(
+        Hospital $hospital,
+        bool $isActive,
+        ?Authenticatable $viewer = null,
+    ): Hospital {
         $hospital->update(['is_active' => $isActive]);
 
-        return $this->findHospital($hospital);
+        return $this->findHospital($hospital, $viewer);
     }
 
     /**

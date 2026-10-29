@@ -17,9 +17,14 @@
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <label class="block text-sm font-semibold">Hospital name<input name="name" value="{{ old('name') }}" required maxlength="255" class="mt-2 block w-full rounded-md border-slate-300 font-normal"></label>
             <label class="block text-sm font-semibold">Hospital URL name (optional)<input name="slug" value="{{ old('slug') }}" maxlength="80" class="mt-2 block w-full rounded-md border-slate-300 font-normal" placeholder="generated-from-hospital-name"></label>
-            <label class="block text-sm font-semibold">First admin name<input name="admin_name" value="{{ old('admin_name') }}" required maxlength="255" class="mt-2 block w-full rounded-md border-slate-300 font-normal"></label>
-            <label class="block text-sm font-semibold">First admin email<input type="email" name="admin_email" value="{{ old('admin_email') }}" required maxlength="255" class="mt-2 block w-full rounded-md border-slate-300 font-normal"></label>
+            @if (auth()->user()->isPlatformSuperAdmin())
+                <label class="block text-sm font-semibold">First admin name<input name="admin_name" value="{{ old('admin_name') }}" required maxlength="255" class="mt-2 block w-full rounded-md border-slate-300 font-normal"></label>
+                <label class="block text-sm font-semibold">First admin email<input type="email" name="admin_email" value="{{ old('admin_email') }}" required maxlength="255" class="mt-2 block w-full rounded-md border-slate-300 font-normal"></label>
+            @endif
         </div>
+        @unless (auth()->user()->isPlatformSuperAdmin())
+            <p class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">The hospital will be created without an administrator account. A global super-admin must add its first administrator before the hospital team can sign in.</p>
+        @endunless
         {{-- Maternity is enabled per hospital and depends on the Inpatient module. --}}
         <fieldset>
             <legend class="text-sm font-bold">Features for this hospital</legend>

@@ -33,6 +33,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => Role::class,
             'is_active' => 'boolean',
+            'is_global_admin' => 'boolean',
+            'is_platform_super_admin' => 'boolean',
 
         ];
     }
@@ -58,6 +60,11 @@ class User extends Authenticatable
     public function isGlobalAdmin(): bool
     {
         return (bool) $this->is_global_admin;
+    }
+
+    public function isPlatformSuperAdmin(): bool
+    {
+        return $this->isGlobalAdmin() && (bool) $this->is_platform_super_admin;
     }
 
     public function isCentralVitalsNurse(): bool

@@ -22,6 +22,7 @@ class PlatformAdminController extends Controller
             'admins' => User::withoutGlobalScope('hospital')
                 ->where('is_global_admin', true)
                 ->whereNull('hospital_id')
+                ->orderByDesc('is_platform_super_admin')
                 ->orderBy('name')
                 ->get(),
         ]);
@@ -42,6 +43,7 @@ class PlatformAdminController extends Controller
         $admin->hospital_id = null;
         $admin->department_id = null;
         $admin->is_global_admin = true;
+        $admin->is_platform_super_admin = false;
         $admin->is_active = true;
         $admin->email_verified_at = now();
         $admin->password = $data['password'];
@@ -56,12 +58,13 @@ class PlatformAdminController extends Controller
         abort_unless($user->is_global_admin && $user->hospital_id === null, 404);
         abort_if((int) $request->user()->id === (int) $user->id, 422, 'You cannot deactivate your own platform admin account.');
 
+        $wasActive = (bool) $user->is_active;
         DB::table('users')->where('id', $user->id)->update([
-            'is_active' => ! $user->is_active,
+            'is_active' => ! $wasActive,
             'updated_at' => now(),
         ]);
 
-        $status = $user->is_active ? 'deactivated' : 'activated';
+        $status = $wasActive ? 'deactivated' : 'activated';
 
         return redirect()->route('global-admin.admins.index')->with('success', "Platform admin {$user->name} was {$status}.");
     }

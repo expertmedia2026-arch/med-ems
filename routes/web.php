@@ -62,15 +62,23 @@ Route::middleware(['auth', 'auth.session', 'active', 'global.admin'])
         Route::get('hospitals/create', [HospitalOnboardingController::class, 'create'])->name('hospitals.create');
         Route::post('hospitals', [HospitalOnboardingController::class, 'store'])->name('hospitals.store');
         Route::get('configuration', [HospitalOnboardingController::class, 'configuration'])->name('configuration');
-        Route::get('admins', [PlatformAdminController::class, 'index'])->name('admins.index');
-        Route::post('admins', [PlatformAdminController::class, 'store'])->name('admins.store');
-        Route::patch('admins/{user}/toggle', [PlatformAdminController::class, 'toggle'])->whereNumber('user')->name('admins.toggle');
         Route::get('profile', [GlobalAdminProfileController::class, 'edit'])->name('profile.edit');
         Route::put('profile', [GlobalAdminProfileController::class, 'update'])->name('profile.update');
         Route::put('profile/password', [GlobalAdminProfileController::class, 'updatePassword'])->name('profile.password');
         Route::get('hospitals/{hospital}/edit', [HospitalOnboardingController::class, 'edit'])->whereNumber('hospital')->name('hospitals.edit');
         Route::put('hospitals/{hospital}', [HospitalOnboardingController::class, 'update'])->whereNumber('hospital')->name('hospitals.update');
         Route::patch('hospitals/{hospital}/toggle', [HospitalOnboardingController::class, 'toggle'])->whereNumber('hospital')->name('hospitals.toggle');
+    });
+
+Route::middleware(['auth', 'auth.session', 'active', 'global.admin', 'global.super-admin'])
+    ->prefix('global-admin')->name('global-admin.')
+    ->group(function () {
+        Route::post('hospitals/{hospital}/admins', [HospitalOnboardingController::class, 'storeHospitalAdmin'])
+            ->whereNumber('hospital')->name('hospitals.admins.store');
+        Route::get('admins', [PlatformAdminController::class, 'index'])->name('admins.index');
+        Route::post('admins', [PlatformAdminController::class, 'store'])->name('admins.store');
+        Route::patch('admins/{user}/toggle', [PlatformAdminController::class, 'toggle'])
+            ->whereNumber('user')->name('admins.toggle');
     });
 
 // Payment gateway notifications (no login, no CSRF; protected by the gateway's signature)

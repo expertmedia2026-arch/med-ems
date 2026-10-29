@@ -21,7 +21,12 @@ class PromoteGlobalAdmin extends Command
             return self::FAILURE;
         }
 
-        $user->forceFill(['is_global_admin' => true, 'hospital_id' => null, 'department_id' => null])->save();
+        $user->forceFill([
+            'is_global_admin' => true,
+            'is_platform_super_admin' => true,
+            'hospital_id' => null,
+            'department_id' => null,
+        ])->save();
         $this->info("{$user->email} is now a platform-only global admin and can access /global-admin/hospitals.");
 
         return self::SUCCESS;

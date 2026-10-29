@@ -1,14 +1,15 @@
 <?php
 
 use App\Http\Middleware\ApiResponseEnvelope;
-use App\Http\Middleware\EnsureNotPatient;
-use App\Http\Middleware\EnsureMainPharmacyAccess;
-use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\EnsureGlobalAdmin;
 use App\Http\Middleware\EnsureHospitalModule;
-use App\Http\Middleware\SetHospitalContext;
+use App\Http\Middleware\EnsureMainPharmacyAccess;
+use App\Http\Middleware\EnsureNotPatient;
+use App\Http\Middleware\EnsurePlatformSuperAdmin;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\EnsureWorkflowSection;
 use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\SetHospitalContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -16,6 +17,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
@@ -35,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'staff' => EnsureNotPatient::class,
             'main.pharmacy' => EnsureMainPharmacyAccess::class,
             'global.admin' => EnsureGlobalAdmin::class,
+            'global.super-admin' => EnsurePlatformSuperAdmin::class,
             'hospital' => SetHospitalContext::class,
             'module' => EnsureHospitalModule::class,
             'workflow.section' => EnsureWorkflowSection::class,
@@ -43,7 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->api(append: [ApiResponseEnvelope::class]);
         $middleware->prependToPriorityList(
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            SubstituteBindings::class,
             SetHospitalContext::class,
         );
         // The payment gateway calls this URL itself, so it cannot carry a CSRF token
