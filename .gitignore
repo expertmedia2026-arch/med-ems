@@ -27,3 +27,10 @@ Homestead.yaml
 Thumbs.db
 .claude
 /docs
+!/docs/
+/docs/*
+!/docs/project-handbook.md
+!/docs/postman/
+/docs/postman/*
+!/docs/postman/README.md
+!/docs/postman/HMS-API-v1.postman_collection.json

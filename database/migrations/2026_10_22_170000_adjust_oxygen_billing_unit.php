@@ -13,6 +13,10 @@ return new class extends Migration
         });
 
         Schema::table('admission_oxygen_administrations', function (Blueprint $table) {
+            $table->dropIndex(['admission_id', 'billing_date']);
+        });
+
+        Schema::table('admission_oxygen_administrations', function (Blueprint $table) {
             $table->dropColumn('billing_date');
         });
     }

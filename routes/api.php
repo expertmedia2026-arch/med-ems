@@ -2,17 +2,21 @@
 
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AdminController;
+use App\Http\Controllers\Api\V1\AdmissionController;
 use App\Http\Controllers\Api\V1\AppointmentController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BillingOperationsController;
 use App\Http\Controllers\Api\V1\ClinicalController;
 use App\Http\Controllers\Api\V1\CsvTransferController;
 use App\Http\Controllers\Api\V1\DashboardApiController;
+use App\Http\Controllers\Api\V1\EmergencyController;
 use App\Http\Controllers\Api\V1\LabOperationsController;
+use App\Http\Controllers\Api\V1\MortuaryController;
 use App\Http\Controllers\Api\V1\NursingAdministrationController;
 use App\Http\Controllers\Api\V1\PatientController;
 use App\Http\Controllers\Api\V1\PharmacyOperationsController;
 use App\Http\Controllers\Api\V1\ReferenceDataController;
+use App\Http\Controllers\Api\V1\StaffRosterController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function () {
@@ -128,6 +132,46 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::put('{visit}/vitals', [ClinicalController::class, 'triageStore'])->whereNumber('visit')->name('vitals.update');
         });
 
+        // A&E arrivals, emergency queue, brought-in-dead decisions, and progress notes.
+        Route::middleware(['role:admin,receptionist,nurse,doctor', 'module:emergency'])
+            ->prefix('emergency')->name('emergency.')->group(function () {
+                Route::get('/', [EmergencyController::class, 'index'])->name('index');
+                Route::post('patients/{patient}', [EmergencyController::class, 'store'])
+                    ->middleware('role:admin,receptionist,nurse')->whereNumber('patient')->name('store');
+                Route::post('unidentified', [EmergencyController::class, 'storeUnidentified'])
+                    ->middleware('role:admin,receptionist,nurse')->name('unidentified.store');
+                Route::post('visits/{visit}/brought-in-dead/confirm', [EmergencyController::class, 'confirmBroughtInDead'])
+                    ->middleware('role:doctor')->whereNumber('visit')->name('brought-in-dead.confirm');
+                Route::post('visits/{visit}/brought-in-dead/death-certificate', [EmergencyController::class, 'issueBroughtInDeadCertificate'])
+                    ->middleware('role:doctor')->whereNumber('visit')->name('brought-in-dead.certificate.issue');
+                Route::get('visits/{visit}/brought-in-dead/death-certificate', [EmergencyController::class, 'downloadBroughtInDeadCertificate'])
+                    ->middleware('role:admin,doctor')->whereNumber('visit')->name('brought-in-dead.certificate.download');
+                Route::post('visits/{visit}/notes', [EmergencyController::class, 'addProgressNote'])
+                    ->middleware('role:doctor,nurse')->whereNumber('visit')->name('notes.store');
+                Route::post('mortuary/{mortuaryCase}/receive', [EmergencyController::class, 'receiveMortuaryCase'])
+                    ->middleware(['role:admin,nurse', 'module:mortuary'])->whereNumber('mortuaryCase')->name('mortuary.receive');
+            });
+
+        // Mortuary case intake, custody, storage movement, and release.
+        Route::middleware(['role:admin,mortuary_attendant', 'module:mortuary'])
+            ->prefix('mortuary')->name('mortuary.')->group(function () {
+                Route::get('/', [MortuaryController::class, 'index'])->name('index');
+                Route::post('walk-in', [MortuaryController::class, 'storeWalkIn'])->name('walk-in.store');
+                Route::get('{mortuaryCase}', [MortuaryController::class, 'show'])->whereNumber('mortuaryCase')->name('show');
+                Route::post('{mortuaryCase}/receive', [MortuaryController::class, 'receive'])->whereNumber('mortuaryCase')->name('receive');
+                Route::post('{mortuaryCase}/move', [MortuaryController::class, 'move'])->whereNumber('mortuaryCase')->name('move');
+                Route::post('{mortuaryCase}/release', [MortuaryController::class, 'release'])->whereNumber('mortuaryCase')->name('release');
+            });
+
+        // Staff roster viewing and schedule assignment share the web workflow's module and role boundary.
+        Route::middleware([
+            'role:admin,receptionist,nurse,chief_nurse,doctor,lab,pharmacist,chief_pharmacist,accountant,chief_accountant,mortuary_attendant',
+            'module:staff_roster',
+        ])->prefix('nursing/roster')->name('nursing.roster.')->group(function () {
+            Route::get('/', [StaffRosterController::class, 'index'])->name('index');
+            Route::put('{staff}', [StaffRosterController::class, 'update'])->whereNumber('staff')->name('update');
+        });
+
         Route::middleware(['role:admin,nurse', 'module:medication_administration'])->prefix('nursing/medication-administrations')->name('nursing.administrations.')->group(function () {
             Route::get('/', [NursingAdministrationController::class, 'index'])->name('index');
             Route::get('visits/{visit}', [NursingAdministrationController::class, 'show'])->whereNumber('visit')->name('show');
@@ -152,6 +196,50 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::delete('{visit}/lab-requests/{labRequest}', [ClinicalController::class, 'removeLabRequest'])->middleware('module:laboratory')->whereNumber('visit')->whereNumber('labRequest')->name('lab-requests.destroy');
             Route::post('{visit}/prescriptions', [ClinicalController::class, 'prescribe'])->whereNumber('visit')->name('prescriptions.store');
             Route::delete('{visit}/prescriptions/{prescription}', [ClinicalController::class, 'removePrescription'])->whereNumber('visit')->whereNumber('prescription')->name('prescriptions.destroy');
+        });
+
+        Route::middleware(['role:doctor', 'module:inpatient'])->post('consultations/{visit}/admit', [AdmissionController::class, 'admit'])
+            ->whereNumber('visit')->name('consultations.admit');
+
+        Route::middleware('module:inpatient')->prefix('admissions')->name('admissions.')->group(function () {
+            Route::get('/', [AdmissionController::class, 'index'])
+                ->middleware('role:admin,doctor,nurse')->name('index');
+            Route::get('{admission}', [AdmissionController::class, 'show'])
+                ->middleware('role:admin,doctor,nurse')->whereNumber('admission')->name('show');
+            Route::post('{admission}/discharge', [AdmissionController::class, 'discharge'])
+                ->middleware('role:admin,doctor')->whereNumber('admission')->name('discharge');
+            Route::post('{admission}/declare-deceased', [AdmissionController::class, 'declareDeceased'])
+                ->middleware('role:admin,doctor')->whereNumber('admission')->name('declare-deceased');
+            Route::post('{admission}/death-certificate', [AdmissionController::class, 'issueDeathCertificate'])
+                ->middleware('role:doctor')->whereNumber('admission')->name('death-certificate.issue');
+            Route::get('{admission}/death-certificate', [AdmissionController::class, 'downloadDeathCertificate'])
+                ->middleware('role:admin,doctor')->whereNumber('admission')->name('death-certificate.download');
+            Route::post('{admission}/lab-results/{labRequest}/review', [AdmissionController::class, 'reviewLabResult'])
+                ->middleware('role:admin,doctor')->whereNumber('admission')->whereNumber('labRequest')->name('lab-results.review');
+            Route::post('{admission}/notes', [AdmissionController::class, 'addProgressNote'])
+                ->middleware('role:doctor,nurse')->whereNumber('admission')->name('notes.store');
+            Route::post('{admission}/vitals', [AdmissionController::class, 'recordVitals'])
+                ->middleware('role:admin,nurse')->whereNumber('admission')->name('vitals.store');
+            Route::post('{admission}/prescriptions', [AdmissionController::class, 'prescribe'])
+                ->middleware('role:doctor')->whereNumber('admission')->name('prescriptions.store');
+            Route::post('{admission}/sugar-checks', [AdmissionController::class, 'sugarCheck'])
+                ->middleware(['role:admin,nurse,doctor', 'workflow.section:sugar_checks'])->whereNumber('admission')->name('sugar-checks.store');
+            Route::post('{admission}/fluid-entries', [AdmissionController::class, 'fluidEntry'])
+                ->middleware(['role:admin,nurse,doctor', 'workflow.section:fluid_balance'])->whereNumber('admission')->name('fluid-entries.store');
+            Route::post('{admission}/oxygen', [AdmissionController::class, 'oxygen'])
+                ->middleware(['role:admin,nurse,doctor', 'workflow.section:oxygen'])->whereNumber('admission')->name('oxygen.store');
+            Route::post('{admission}/nebulizer-uses', [AdmissionController::class, 'nebulizer'])
+                ->middleware(['role:admin,nurse,doctor', 'workflow.section:nebulizer'])->whereNumber('admission')->name('nebulizer-uses.store');
+            Route::post('{admission}/insulin-machine-blocks', [AdmissionController::class, 'startInsulinMachineBlock'])
+                ->middleware(['role:admin,nurse,doctor', 'workflow.section:insulin_machine'])->whereNumber('admission')->name('insulin-machine-blocks.store');
+            Route::post('{admission}/insulin-machine-blocks/uses', [AdmissionController::class, 'recordInsulinMachineUse'])
+                ->middleware(['role:admin,nurse,doctor', 'workflow.section:insulin_machine'])->whereNumber('admission')->name('insulin-machine-blocks.uses.store');
+            Route::post('{admission}/dama', [AdmissionController::class, 'dama'])
+                ->middleware('role:admin,doctor')->whereNumber('admission')->name('dama.store');
+            Route::get('{admission}/dama', [AdmissionController::class, 'damaRecord'])
+                ->middleware('role:admin,doctor,nurse')->whereNumber('admission')->name('dama.show');
+            Route::get('{admission}/dama/witnesses/{witness}', [AdmissionController::class, 'damaWitness'])
+                ->middleware('role:admin,doctor,nurse')->whereNumber('admission')->whereNumber('witness')->name('dama.witnesses.show');
         });
 
         // Lab reads and result reporting; doctors may read only results they are allowed to see.

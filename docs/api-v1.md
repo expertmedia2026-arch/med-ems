@@ -2,7 +2,7 @@
 
 Base path: `/api/v1`. Existing browser routes are unchanged.
 
-For role-based Postman requests covering every registered API endpoint, import the files in [docs/postman](postman/README.md).
+For role-grouped Postman examples, including inpatient actions, see the [Postman guide](postman/README.md). The collection is not exhaustive; the endpoint tables in this document are the API reference.
 
 ## Authentication and response format
 
@@ -127,6 +127,79 @@ All routes in this section require the admin role.
 | PUT | `/consultations/{visit}/complete` | Doctor | Complete consultation; diagnosis required |
 | POST, DELETE | `/consultations/{visit}/lab-requests`, `/consultations/{visit}/lab-requests/{labRequest}` | Doctor | Add/remove lab tests |
 | POST, DELETE | `/consultations/{visit}/prescriptions`, `/consultations/{visit}/prescriptions/{prescription}` | Doctor | Add/remove prescriptions |
+
+## Accident & Emergency
+
+These endpoints require the hospital's `emergency` module. Records are scoped to the current hospital, and access follows the existing A&E role and department checks. Emergency observations and doctor consultations also use the shared `/triage` and `/consultations` endpoints above.
+
+| Method | Endpoint | Access | Purpose |
+|---|---|---|---|
+| GET | `/emergency?q=...` | Admin, receptionist, nurse, doctor with A&E access | Active emergency queue, mortuary handoffs, brought-in-dead cases, and optional patient search |
+| POST | `/emergency/patients/{patient}` | Admin, receptionist, nurse with A&E registration access | Check in an identified patient; rejects an existing active visit or admission |
+| POST | `/emergency/unidentified` | Admin, receptionist, nurse with A&E registration access | Create an unidentified patient record and emergency arrival |
+| POST | `/emergency/visits/{visit}/notes` | A&E doctor or nurse | Add a medical or nursing progress note to active emergency care |
+| POST | `/emergency/visits/{visit}/brought-in-dead/confirm` | A&E doctor | Confirm a brought-in-dead arrival and document mortuary transfer or direct family release |
+| POST, GET | `/emergency/visits/{visit}/brought-in-dead/death-certificate` | POST: A&E doctor; GET: admin or A&E doctor | Issue or download the hospital death certificate (PDF) after death confirmation |
+| POST | `/emergency/mortuary/{mortuaryCase}/receive` | Admin, nurse with handoff access; `mortuary` module also required | Receive an approved emergency mortuary transfer after the intake fee is paid |
+
+Arrival body: `complaint`, `arrival_mode` (`walk_in`, `ambulance`, `referred`, or `other`), and optional `brought_in_dead`. Unidentified arrivals also require `gender` and accept optional `estimated_age`, `next_of_kin_name`, and `next_of_kin_phone`.
+
+Brought-in-dead confirmation requires `cause_of_death`, `death_clinical_summary`, `disposition`, and `approval_confirmed=true`. Direct family release additionally requires `released_to`, `recipient_relationship`, and `release_authority`. A&E registration, triage priority, and attending-doctor rules are enforced by the same services and request validation used by the web workflow.
+
+## Mortuary
+
+These endpoints require the hospital's `mortuary` module and an admin or mortuary attendant account. Cases are hospital-scoped. The emergency handoff endpoint is also available under `/emergency/mortuary/{mortuaryCase}/receive` to authorized A&E staff.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/mortuary?q=...&status=awaiting_transfer\|received\|released` | Search cases, accrue due storage fees, and return a paginated case list with the hospital fee schedule |
+| POST | `/mortuary/walk-in` | Open an external walk-in case and create its invoice |
+| GET | `/mortuary/{mortuaryCase}` | View case, custody event history, release and death-certificate details, and linked invoice |
+| POST | `/mortuary/{mortuaryCase}/receive` | Record physical receipt and storage location after the intake fee is paid |
+| POST | `/mortuary/{mortuaryCase}/move` | Change storage location and append a custody event |
+| POST | `/mortuary/{mortuaryCase}/release` | Release a body after all mortuary charges have been paid |
+
+Walk-in fields: `first_name`, `last_name`, `gender` (`male`, `female`, `unknown`), `deceased_at`, `external_contact_name`, `external_contact_phone`, and optional `estimated_age`, `external_contact_address`, and `handoff_note`. Receipt fields are `storage_location` and optional `body_tag_number` and `handoff_note`. Move fields are `storage_location` and optional `note`. Release requires `released_to`, `recipient_relationship`, and `release_authority`, with optional `recipient_id_reference` and `release_note`. If receipt or release is blocked by outstanding fees, the API returns HTTP 402 and leaves custody status unchanged.
+
+## Staff duty roster
+
+Roster routes require the `staff_roster` module. The same role and department scope as the web roster applies: administrators can manage all staff, chief nurses can manage nurses, and department heads can manage staff in their own department. Other permitted staff can view their own shifts and same-shift coworkers.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/nursing/roster?week=YYYY-MM-DD&department={id}&search=...` | View the selected Monday-starting week, staff shifts, coverage, departments, and same-shift coworkers |
+| PUT | `/nursing/roster/{staff}` | Replace the staff member's assignments for one week and notify them |
+
+Use `week` as a date in the week to view; the response normalizes it to Monday. Assignment requires `week_start` set to a Monday. Non-doctor assignments use `morning_days` and `night_days` arrays containing day numbers 1 through 7; a staff member cannot have both shifts on a day. Doctor assignments use `doctor_day` (1 through 7) for one 24-hour duty. Assignments are saved as the full week, so omitted shift arrays clear those shifts.
+
+## Inpatient admissions
+
+These endpoints require the hospital's `inpatient` module. Admissions are scoped to the current hospital; doctors and nurses are further restricted to their ward/department by the existing admission service.
+
+| Method | Endpoint | Access | Purpose |
+|---|---|---|---|
+| POST | `/consultations/{visit}/admit` | Attending doctor | Admit an open consultation to a ward |
+| GET | `/admissions?search=...` | Admin, doctor, nurse | Paginated active and discharged admissions with queue counts |
+| GET | `/admissions/{admission}` | Admin, doctor, nurse | Admission details, clinical visit, notes, observations, care charts, results, and access flags |
+| POST | `/admissions/{admission}/notes` | Doctor, nurse | Add an inpatient progress note |
+| POST | `/admissions/{admission}/vitals` | Admin, nurse | Record ward observations |
+| POST | `/admissions/{admission}/prescriptions` | Doctor | Prescribe inpatient medication |
+| POST | `/admissions/{admission}/lab-results/{labRequest}/review` | Admin, attending doctor | Review a completed result belonging to this admission |
+| POST | `/admissions/{admission}/discharge` | Admin, authorized doctor | Record a discharge plan and close the inpatient visit |
+| POST | `/admissions/{admission}/declare-deceased` | Admin, authorized doctor | Record an inpatient death and its disposition |
+| POST, GET | `/admissions/{admission}/death-certificate` | POST: doctor; GET: admin/doctor | Issue and download a hospital death certificate (PDF) |
+| POST | `/admissions/{admission}/sugar-checks` | Admin, nurse, doctor; workflow section enabled | Record a blood sugar check |
+| POST | `/admissions/{admission}/fluid-entries` | Admin, nurse, doctor; workflow section enabled | Record fluid intake/output |
+| POST | `/admissions/{admission}/oxygen` | Admin, nurse, doctor; workflow section enabled | Record oxygen administration |
+| POST | `/admissions/{admission}/nebulizer-uses` | Admin, nurse, doctor; workflow section enabled | Record a nebulizer use |
+| POST | `/admissions/{admission}/insulin-machine-blocks` | Admin, nurse, doctor; workflow section enabled | Start an insulin-machine block |
+| POST | `/admissions/{admission}/insulin-machine-blocks/uses` | Admin, nurse, doctor; workflow section enabled | Record an insulin bottle use |
+| POST, GET | `/admissions/{admission}/dama` | POST: admin/doctor; GET: admin/doctor/nurse | Record or view discharge against medical advice |
+| GET | `/admissions/{admission}/dama/witnesses/{witness}` | Admin, doctor, nurse | Download a private DAMA witness image |
+
+Admission body: `department_id` (a ward), `admission_diagnosis`, `admission_reason`, `initial_treatment_plan`, and optional `expected_discharge_date` (`YYYY-MM-DD`). The API uses the same service and validation rules as the web admission workflow.
+
+Discharge requires `discharge_diagnosis`, `discharge_summary`, `discharge_medications`, `follow_up_instructions`, and `patient_discharge_instructions`. If any lab result is incomplete or unreviewed, include `pending_results_plan`. Clinical notes, ward vitals, prescriptions, care-chart values, death details, and DAMA fields use the same request fields and constraints as the corresponding web actions. The API returns JSON for data operations and streams certificate/witness downloads as files.
 
 ## Laboratory
 

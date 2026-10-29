@@ -25,6 +25,10 @@ Laravel is accessible, powerful, and provides tools required for large, robust a
 
 The versioned mobile API uses Sanctum bearer tokens. See [the API v1 endpoint guide](docs/api-v1.md) for authentication, role access, request shapes, and available patient, staff, clinical, laboratory, pharmacy, billing, and admin routes. Import the [Postman collection and local environment](docs/postman/README.md) to exercise the API by role. API routes are registered in `routes/api.php` and do not replace the existing browser routes.
 
+## Project handbook
+
+For an architectural walkthrough of the application, request lifecycle, tenant isolation, clinical and billing workflows, API structure, and links to the implementation files, see the [project handbook](docs/project-handbook.md).
+
 ## Learning Laravel
 
 Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.

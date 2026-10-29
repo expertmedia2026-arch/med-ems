@@ -17,7 +17,10 @@ class EmergencyService
     public function queue()
     {
         return Visit::query()
-            ->with(['patient', 'doctor', 'vitals', 'admission'])
+            ->with([
+                'patient', 'doctor', 'vitals', 'admission',
+                'emergencyObservations.recorder', 'emergencyProgressNotes.author',
+            ])
             ->withCount(['prescriptions as nursing_orders_count' => fn ($query) => $query->where('requires_in_facility_administration', true)])
             ->where('is_emergency', true)
             ->whereIn('status', [
@@ -35,7 +38,7 @@ class EmergencyService
     public function mortuaryHandoffs()
     {
         return MortuaryCase::query()
-            ->with(['patient', 'visit', 'mortuaryTransferApprovedBy', 'declaredBy'])
+            ->with(['patient', 'visit.department', 'mortuaryTransferApprovedBy', 'declaredBy'])
             ->where('status', 'awaiting_transfer')
             ->where('source', 'hospital')
             ->whereNotNull('mortuary_transfer_approved_by')
