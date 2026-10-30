@@ -11,6 +11,8 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
+// These routes are session-authenticated browser identity flows. API token
+// identity endpoints live under /api/v1/auth and must not be wired here.
 Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
@@ -35,6 +37,8 @@ Route::middleware('guest')->group(function () {
         ->name('password.store');
 });
 
+// Sensitive account mutations require both a valid user and the current
+// authenticated session so stale sessions cannot silently change credentials.
 Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');

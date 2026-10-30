@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\Hospital;
+use App\Services\DrugInventoryService;
+use App\Services\MortuaryCaseService;
+use App\Support\HospitalContext;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -8,10 +12,12 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('pharmacy:expire-stock-reservations', function (\App\Services\DrugInventoryService $inventory) {
-    $context = app(\App\Support\HospitalContext::class);
+Artisan::command('pharmacy:expire-stock-reservations', function (DrugInventoryService $inventory) {
+    // Console commands have no authenticated user, so each tenant must be selected
+    // explicitly before its globally-scoped stock records can be processed.
+    $context = app(HospitalContext::class);
     $count = 0;
-    foreach (\App\Models\Hospital::where('is_active', true)->get() as $hospital) {
+    foreach (Hospital::where('is_active', true)->get() as $hospital) {
         $context->set((int) $hospital->id);
         $count += $inventory->expireReservations();
     }
@@ -21,10 +27,12 @@ Artisan::command('pharmacy:expire-stock-reservations', function (\App\Services\D
 
 Schedule::command('pharmacy:expire-stock-reservations')->everyMinute()->withoutOverlapping();
 
-Artisan::command('mortuary:accrue-storage', function (\App\Services\MortuaryCaseService $mortuary) {
-    $context = app(\App\Support\HospitalContext::class);
+Artisan::command('mortuary:accrue-storage', function (MortuaryCaseService $mortuary) {
+    // Reuse one context instance but replace its hospital on every iteration;
+    // otherwise charges could be queried or written against the previous tenant.
+    $context = app(HospitalContext::class);
     $count = 0;
-    foreach (\App\Models\Hospital::where('is_active', true)->get() as $hospital) {
+    foreach (Hospital::where('is_active', true)->get() as $hospital) {
         $context->set((int) $hospital->id);
         $count += $mortuary->accrueStorageCharges();
     }

@@ -97,6 +97,23 @@ Emergency or inpatient deaths can create a mortuary case. [MortuaryCaseService.p
 
 Staff assignments are managed for Monday-to-Sunday weeks by [NurseRosterService.php](../app/Services/NurseRosterService.php) and stored in [StaffDuty.php](../app/Models/StaffDuty.php). It applies department and manager scope, supports 12-hour morning/night shifts and one weekly 24-hour doctor duty, and notifies the assigned staff member. The browser controller is [NurseRosterController.php](../app/Http/Controllers/NurseRosterController.php); the API interface is [StaffRosterController.php](../app/Http/Controllers/Api/V1/StaffRosterController.php).
 
+### Maternity: antenatal history, delivery, newborns, and billing
+
+Maternity is an extension of the inpatient workflow, not a separate registration or medication system. The hospital must enable both the `inpatient` and `maternity` modules. A patient first has an active [Admission.php](../app/Models/Admission.php) in an eligible ward; authorized maternity staff then open one [MaternityEpisode.php](../app/Models/MaternityEpisode.php) for that admission.
+
+The workflow is:
+
+1. `MaternityService::startLabor()` locks the admission, verifies it is active, checks ward/doctor access, prevents a duplicate episode, and records the labor assessment and whether the patient brought delivery materials.
+2. Medication, injections, IV fluids, observations, and other maternal care remain on the linked admission. Do not duplicate those records inside maternity.
+3. `MaternityService::recordDelivery()` locks the episode and records the delivery time, mode, notes, hospital-supplied pack, and one or more newborn outcomes in a transaction.
+4. Every live birth creates a separate patient record and hospital number, then links it through [MaternityNewborn.php](../app/Models/MaternityNewborn.php). Non-live outcomes remain clinical newborn records and do not create patient identities.
+5. The service adds the hospital-configured delivery-mode fee and optional supply-pack fee to the mother's visit invoice through [BillingService.php](../app/Services/BillingService.php). Stable source keys make the billing operation idempotent.
+6. Postpartum notes can be updated while the episode remains linked to the inpatient admission and its access rules.
+
+The browser entry points are the maternity section in [routes/web.php](../routes/web.php), [MaternityController.php](../app/Http/Controllers/MaternityController.php), and [resources/views/maternity](../resources/views/maternity). The equivalent mobile endpoints are grouped in [routes/api.php](../routes/api.php), handled by [Api/V1/MaternityController.php](../app/Http/Controllers/Api/V1/MaternityController.php), and serialized by [MaternityEpisodeResource.php](../app/Http/Resources/Api/V1/MaternityEpisodeResource.php). Both surfaces use the same requests and service, so validation, authorization, state transitions, and billing must remain identical.
+
+Hospital-specific maternity prices are stored on [HospitalSetting.php](../app/Models/HospitalSetting.php), edited through hospital settings, and exposed to API clients by the maternity fees endpoint. The `maternity:seed-demo` command creates ten synthetic journeys for an explicitly selected hospital; see the command documentation under “Development and test data” below.
+
 ### Settings, notifications, reports, and data transfer
 
 - Hospital branding, fees, payment settings, and protected uploaded assets are managed by [HospitalSettingsService.php](../app/Services/HospitalSettingsService.php), [SettingsController.php](../app/Http/Controllers/SettingsController.php), and [HospitalSetting.php](../app/Models/HospitalSetting.php).
@@ -124,6 +141,114 @@ Core records connect as follows:
 - Hospital configuration and enabled modules belong to a `Hospital`.
 
 The primary models to trace these relations are [Patient.php](../app/Models/Patient.php), [Appointment.php](../app/Models/Appointment.php), [Visit.php](../app/Models/Visit.php), [Invoice.php](../app/Models/Invoice.php), [InvoiceItem.php](../app/Models/InvoiceItem.php), [Admission.php](../app/Models/Admission.php), and [Hospital.php](../app/Models/Hospital.php).
+
+## Developer editing guide
+
+### Source directory map
+
+| Location | Responsibility | Edit here when |
+| --- | --- | --- |
+| `app/Enums` | Canonical workflow states and roles | Adding a persisted status or a role understood across layers |
+| `app/Http/Controllers` | Browser request/response adapters | Adding or changing a Blade page or browser action |
+| `app/Http/Controllers/Api/V1` | JSON request/response adapters | Adding or changing a version 1 mobile endpoint |
+| `app/Http/Requests` | Authorization and validation | Changing accepted input or who may submit an operation |
+| `app/Http/Resources/Api/V1` | Stable JSON representation | Changing an API response field; treat removals/renames as breaking changes |
+| `app/Http/Middleware` | Cross-cutting request gates and envelopes | Changing authentication, tenant/module access, roles, or response wrapping |
+| `app/Models` | Persistence, casts, relationships, query scopes | Changing how a database record is represented or related |
+| `app/Services` | Shared business rules and transactions | Changing a workflow used by web and API |
+| `app/Mail` and `app/Notifications` | Outbound user communication | Changing email or in-app notification payloads and templates |
+| `app/Providers` | Application bootstrapping | Changing global model behavior, rate limits, shared view data, or container bindings |
+| `app/Support` | Small cross-cutting state holders | Changing request-scoped infrastructure such as the hospital context |
+| `app/View/Components` | Blade layout/component adapters | Changing which shared layout a component renders |
+| `config` | Environment-independent defaults and declarative menus | Changing defaults; secrets must stay in `.env` |
+| `database/migrations` | Versioned schema history | Adding columns, tables, constraints, and indexes through a new migration |
+| `database/factories` | Test record defaults and states | Making tests create valid domain records consistently |
+| `database/seeders` | Intentional bootstrap/demo datasets | Adding reference data or repeatable development scenarios |
+| `resources/views` | Blade presentation | Changing browser UI, forms, printable reports, or email HTML |
+| `resources/js` and `resources/css` | Shared browser behavior and styling | Changing Alpine components, polling, or global/Tailwind styles |
+| `resources/csv-templates` | Import contracts and example data | Changing supported CSV columns together with `CsvTransferService` |
+| `routes/web.php` | Staff, patient portal, invitation, webhook routes | Wiring a browser action and its middleware/route name |
+| `routes/api.php` | Versioned JSON routes | Wiring a mobile action with matching auth, tenant, role, and module gates |
+| `routes/auth.php` | Browser identity routes | Changing login, registration, password, or email-verification routing |
+| `routes/console.php` | Scheduled and closure commands | Changing tenant-aware maintenance jobs or their frequency |
+
+### The safe change path
+
+For a workflow available on both web and API, make changes in this order:
+
+1. Start with the migration and model when persisted data changes. Add a new migration; never rewrite a migration that may already have run outside your machine.
+2. Put authorization and validation in a shared Form Request when both surfaces accept the same operation. Route middleware is the outer gate; the request/service remains the final protection.
+3. Implement the state transition in a service. Use a transaction when the operation updates multiple clinical, stock, billing, or identity records. Lock rows when two submissions could create duplicates or overspend stock.
+4. Keep the web controller limited to validated input, service invocation, redirects, and flash messages. Keep the API controller limited to the same service invocation, resources, and HTTP status codes.
+5. Update the Blade view and API Resource independently; they are different presentations of the same domain result.
+6. Wire both route surfaces with equivalent role, module, active-account, and hospital middleware.
+7. Add web feature tests and API feature tests for success, invalid data, unauthorized roles, cross-hospital access, duplicate submission, and billing side effects where relevant.
+8. Update [docs/api-v1.md](./api-v1.md), the Postman collection when the contract changes, and the applicable workflow section in this handbook.
+
+Avoid putting database queries in Blade, putting domain transitions directly in controllers, or implementing a mobile-only copy of a service rule. Those patterns cause web/API behavior to drift.
+
+### Web surface
+
+Browser routes use session authentication and generally apply `auth`, `auth.session`, `active`, and `hospital` before role/module gates. Blade forms use CSRF protection and named routes. Validation failures redirect back with old input; successful mutations redirect to a stable detail or list page with a flash message.
+
+The staff navigation is driven by [config/menu.php](../config/menu.php), and patient navigation by [config/portal_menu.php](../config/portal_menu.php). Menu visibility improves usability but is never authorization: a hidden link does not protect a route. When adding a page, check the route group, controller action, Form Request, service rule, menu visibility, Blade error handling, and responsive behavior.
+
+### API surface
+
+API v1 routes use Sanctum bearer tokens. Protected hospital endpoints apply `auth:sanctum`, `active`, and `hospital`; role and module gates then narrow access. Platform-admin identity and hospital-management endpoints are deliberately outside tenant middleware. Do not move them into a hospital group.
+
+Return models through an API Resource rather than exposing raw Eloquent serialization. Preserve the response envelope supplied by [ApiResponseEnvelope.php](../app/Http/Middleware/ApiResponseEnvelope.php), pagination metadata, and established HTTP status codes. Adding an optional field is usually backward compatible; renaming/removing a field or changing its type requires a new API version or a coordinated client migration.
+
+Use [docs/api-v1.md](./api-v1.md) as the endpoint contract. The collection in [docs/postman](./postman) is an executable aid, not the source of truth; routes, requests, services, resources, and tests define actual behavior.
+
+### Configuration ownership
+
+- [config/hms.php](../config/hms.php) contains scheduling and pharmacy reservation defaults used by shared services.
+- [config/menu.php](../config/menu.php) and [config/portal_menu.php](../config/portal_menu.php) declare navigation visibility.
+- [config/services.php](../config/services.php) maps third-party environment credentials, currently including Paystack. Never commit real keys.
+- Laravel's standard configuration files (`app`, `auth`, `cache`, `database`, `filesystems`, `logging`, `mail`, `queue`, and `session`) control framework infrastructure. Prefer environment variables for deployment differences and call `config()`, never `env()`, from application code.
+- Hospital-specific operational settings belong in `hospital_settings`, not global config, because two hospitals may require different branding, charges, or workflow choices.
+
+After changing environment-backed configuration in a deployed environment, rebuild the Laravel configuration cache. Configuration cache behavior means editing `.env` alone may not affect a running cached application.
+
+### Database and tenant safety
+
+Most models are hospital-owned and receive a global scope from [AppServiceProvider.php](../app/Providers/AppServiceProvider.php). HTTP reads fail closed when no hospital is resolved, and creates receive the current `hospital_id`. `Hospital` is the main exception; global administrators also have no hospital ID. User and invitation lookups have narrow bootstrapping exceptions documented in the provider.
+
+This protection does not remove the need to reason about tenant boundaries. Console commands have no authenticated user and must set [HospitalContext.php](../app/Support/HospitalContext.php) explicitly for every hospital they process. Cross-hospital tests should create two hospitals and prove a user from one cannot read or mutate records from the other.
+
+Migration files are historical source code. Create a follow-up migration for schema changes, use explicit table names rather than application models, and make `down()` reverse only what `up()` added. Add indexes for foreign keys and frequent tenant/status/date filters. Do not hand-edit `database/database.sqlite`; rebuild or migrate it through Artisan.
+
+### Resources and import templates
+
+Blade comments use `{{-- --}}` so maintenance notes are not sent to the browser. JavaScript and CSS comments should explain lifecycle, browser, accessibility, or layout constraints rather than repeat selectors and assignments. CSV templates cannot contain comment rows: they are parsed as data. Document new columns in [resources/csv-templates/README.md](../resources/csv-templates/README.md) and update validation/import/export behavior together in [CsvTransferService.php](../app/Services/CsvTransferService.php).
+
+### Commenting standard
+
+Comments in this repository should preserve decisions that names and types cannot show: tenant exceptions, authorization assumptions, transaction boundaries, idempotency keys, concurrency locks, external gateway behavior, clinical state invariants, and why web/API paths share a service. Class docblocks describe responsibility and important boundaries; method PHPDoc adds array shapes or non-obvious contracts. Do not add comments that merely narrate the next line, and remove or update a comment in the same change that invalidates it.
+
+### Development and test data
+
+Factories are preferred for isolated automated tests. Seeders are for repeatable reference or demonstration datasets. The maternity demo command is hospital-scoped and intentionally refuses production unless explicitly forced:
+
+```bash
+php artisan maternity:seed-demo --hospital=1
+php artisan maternity:seed-demo --hospital=1 --refresh
+```
+
+The first command leaves an existing marked demo cohort untouched. `--refresh` deletes and rebuilds only marked maternity demo records for the selected hospital; it must not delete genuine patients. Use `--force` in production only when synthetic clinical and billing records are genuinely intended.
+
+### Verification checklist
+
+Before handing over a change:
+
+- Run the narrowest relevant feature tests, including the corresponding web and API test files when both surfaces changed.
+- Run `vendor/bin/pint --dirty --format agent` after PHP edits.
+- Run `npm run build` when CSS, JavaScript, or Vite-managed assets changed.
+- Inspect `php artisan route:list --except-vendor` after route or middleware changes.
+- Confirm a second hospital cannot see the changed records.
+- Confirm duplicate form submissions or API retries do not duplicate bills, stock movements, payments, or clinical episodes.
+- Confirm secrets, patient data, generated files, and local databases are not included in the commit.
 
 ## Running and maintaining the project
 

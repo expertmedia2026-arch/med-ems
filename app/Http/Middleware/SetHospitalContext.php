@@ -2,16 +2,24 @@
 
 namespace App\Http\Middleware;
 
-use App\Support\HospitalContext;
 use App\Models\Hospital;
+use App\Support\HospitalContext;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Resolves the authenticated user's active hospital before tenant models run.
+ *
+ * Platform administrators intentionally bypass hospital workspaces, while
+ * ordinary users must belong to an active hospital. This middleware therefore
+ * establishes the context used by the global model scopes and create hooks.
+ */
 class SetHospitalContext
 {
     public function __construct(private readonly HospitalContext $context) {}
 
+    /** Establish tenant context, or reject the request before domain queries execute. */
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->is('api/*') ? $request->user('sanctum') : $request->user();

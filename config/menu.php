@@ -1,5 +1,10 @@
 <?php
 
+/*
+| Staff navigation is declarative so the layout can apply the same role,
+| permission, and hospital-module visibility rules to every menu item.
+| This is presentation filtering only; routes and services must still authorize.
+*/
 return [
     ['label' => 'Dashboard',    'route' => 'dashboard', 'roles' => '*'],
     ['label' => 'Patients',     'route' => 'patients.index',     'active' => 'patients.*',     'roles' => ['admin', 'receptionist', 'nurse', 'doctor']],

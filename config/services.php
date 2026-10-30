@@ -36,6 +36,7 @@ return [
     ],
 
     'paystack' => [
+        // Secrets stay in the environment; only the stable API origin belongs in source.
         'public_key' => env('PAYSTACK_PUBLIC_KEY'),
         'secret_key' => env('PAYSTACK_SECRET_KEY'),
         'base_url' => 'https://api.paystack.co',

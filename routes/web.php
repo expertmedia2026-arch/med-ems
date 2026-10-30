@@ -54,6 +54,8 @@ Route::get('patients/{patient}/photo', [PatientMediaController::class, 'photo'])
     ->middleware(['auth', 'auth.session', 'active', 'hospital'])
     ->name('patients.photo');
 
+// Platform administration is intentionally outside hospital context: these
+// users provision tenants and must never inherit a hospital's global scopes.
 Route::middleware(['auth', 'auth.session', 'active', 'global.admin'])
     ->prefix('global-admin')->name('global-admin.')
     ->group(function () {

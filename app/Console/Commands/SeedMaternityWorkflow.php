@@ -6,6 +6,12 @@ use Database\Seeders\MaternityWorkflowDemoSeeder;
 use Illuminate\Console\Command;
 use RuntimeException;
 
+/**
+ * Provides an explicit, production-guarded entry point for maternity demo data.
+ *
+ * Requiring a hospital ID prevents synthetic patients, visits, invoices, and
+ * payments from being attached to whichever tenant context happens to exist.
+ */
 class SeedMaternityWorkflow extends Command
 {
     protected $signature = 'maternity:seed-demo

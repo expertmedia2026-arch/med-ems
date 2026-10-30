@@ -26,6 +26,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
 
+/**
+ * Builds a deterministic ten-patient maternity cohort for one hospital.
+ *
+ * The cases span antenatal attendance, active labor, delivery modes, newborn
+ * outcomes, postpartum care, invoices, and payment states. Demo markers make
+ * refresh idempotent without deleting genuine hospital records.
+ */
 class MaternityWorkflowDemoSeeder extends Seeder
 {
     /** The command may replace this value to seed another hospital safely. */

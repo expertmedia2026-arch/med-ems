@@ -5,6 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Stores one birth outcome within a maternity episode.
+ *
+ * Live births may link to a newly registered Patient; non-live outcomes remain
+ * clinical records without creating a patient identity or hospital number.
+ */
 class MaternityNewborn extends Model
 {
     protected $guarded = [];

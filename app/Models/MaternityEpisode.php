@@ -6,6 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * Owns the clinical labor-to-postpartum record for one inpatient admission.
+ *
+ * Newborns and maternity invoice items are created through MaternityService so
+ * delivery, patient registration, and billing remain one atomic operation.
+ */
 class MaternityEpisode extends Model
 {
     protected $guarded = [];
