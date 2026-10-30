@@ -5,11 +5,23 @@
         // Keep submitted newborn rows visible after validation redirects, with one live-birth row by default.
         $input = 'mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-pink-600 focus:ring-pink-600';
         $label = 'block text-sm font-medium text-slate-700';
+        $newbornDefaults = [
+            'outcome' => 'live_birth',
+            'first_name' => '',
+            'last_name' => '',
+            'gender' => '',
+            'birth_weight_grams' => '',
+            'apgar_score_1_minute' => '',
+            'apgar_score_5_minutes' => '',
+        ];
         $newbornFormData = old('newborns');
         $newbornFormData = is_array($newbornFormData)
-            ? array_values(array_filter($newbornFormData, 'is_array'))
+            ? array_map(
+                fn (array $newborn): array => array_merge($newbornDefaults, $newborn),
+                array_values(array_filter($newbornFormData, 'is_array')),
+            )
             : [];
-        $newbornFormData = $newbornFormData ?: [['outcome' => 'live_birth', 'first_name' => '', 'last_name' => '', 'gender' => '']];
+        $newbornFormData = $newbornFormData ?: [$newbornDefaults];
     @endphp
 
     <div class="space-y-6">
@@ -102,10 +114,16 @@
                                     <label class="{{ $label }}">Last name<input :name="`newborns[${index}][last_name]`" x-model="newborn.last_name" x-bind:required="newborn.outcome === 'live_birth'" maxlength="100" class="{{ $input }}"></label>
                                     <label class="{{ $label }}">Sex<select :name="`newborns[${index}][gender]`" x-model="newborn.gender" x-bind:required="newborn.outcome === 'live_birth'" class="{{ $input }}"><option value="">Select</option><option value="female">Female</option><option value="male">Male</option></select></label>
                                 </div>
+                                <div class="grid gap-3 sm:grid-cols-3">
+                                    <label class="{{ $label }}">Birth weight (grams)<input type="number" min="1" max="15000" :name="`newborns[${index}][birth_weight_grams]`" x-model="newborn.birth_weight_grams" class="{{ $input }}"></label>
+                                    <label class="{{ $label }}">Apgar at 1 minute<input type="number" min="0" max="10" :name="`newborns[${index}][apgar_score_1_minute]`" x-model="newborn.apgar_score_1_minute" class="{{ $input }}"></label>
+                                    <label class="{{ $label }}">Apgar at 5 minutes<input type="number" min="0" max="10" :name="`newborns[${index}][apgar_score_5_minutes]`" x-model="newborn.apgar_score_5_minutes" class="{{ $input }}"></label>
+                                </div>
+                                <p class="text-xs text-slate-500">Birth weight and Apgar scores are optional when they are not yet available.</p>
                                 <p x-show="newborn.outcome === 'stillbirth'" class="text-xs text-slate-500">A birth record will be saved; no patient account will be created.</p>
                             </div>
                         </template>
-                        <button type="button" @click="newborns.push({ outcome: 'live_birth', first_name: '', last_name: '', gender: '' })" class="rounded-lg border border-pink-700 px-3 py-2 text-sm font-semibold text-pink-800 hover:bg-pink-50">Add another baby</button>
+                        <button type="button" @click="newborns.push({ outcome: 'live_birth', first_name: '', last_name: '', gender: '', birth_weight_grams: '', apgar_score_1_minute: '', apgar_score_5_minutes: '' })" class="rounded-lg border border-pink-700 px-3 py-2 text-sm font-semibold text-pink-800 hover:bg-pink-50">Add another baby</button>
                     </fieldset>
                     <button class="rounded-lg bg-pink-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-800">Save delivery and newborn records</button>
                 </form>
@@ -118,7 +136,16 @@
                 <div class="mt-4 divide-y">
                     @foreach ($episode->newborns as $newborn)
                         <div class="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                            <div><p class="font-medium text-slate-900">Baby {{ $newborn->birth_order }} · {{ trim(($newborn->first_name ?? '').' '.($newborn->last_name ?? '')) ?: 'Name not recorded' }}</p><p class="mt-1 text-xs text-slate-500">{{ str($newborn->outcome)->replace('_', ' ')->title() }} · {{ $newborn->date_of_birth->format('d M Y') }}{{ $newborn->gender ? ' · '.ucfirst($newborn->gender) : '' }}</p></div>
+                            <div>
+                                <p class="font-medium text-slate-900">Baby {{ $newborn->birth_order }} · {{ trim(($newborn->first_name ?? '').' '.($newborn->last_name ?? '')) ?: 'Name not recorded' }}</p>
+                                <p class="mt-1 text-xs text-slate-500">{{ str($newborn->outcome)->replace('_', ' ')->title() }} · {{ $newborn->date_of_birth->format('d M Y') }}{{ $newborn->gender ? ' · '.ucfirst($newborn->gender) : '' }}</p>
+                                @if ($newborn->birth_weight_grams || ! is_null($newborn->apgar_score_1_minute) || ! is_null($newborn->apgar_score_5_minutes))
+                                    <p class="mt-1 text-xs text-slate-600">
+                                        {{ $newborn->birth_weight_grams ? number_format($newborn->birth_weight_grams).' g' : 'Weight not recorded' }}
+                                        · Apgar {{ is_null($newborn->apgar_score_1_minute) ? '—' : $newborn->apgar_score_1_minute }}/{{ is_null($newborn->apgar_score_5_minutes) ? '—' : $newborn->apgar_score_5_minutes }} (1/5 min)
+                                    </p>
+                                @endif
+                            </div>
                             @if ($newborn->patient)
                                 <a href="{{ route('patients.show', $newborn->patient) }}" class="text-sm font-semibold text-pink-800 hover:underline">Open patient record · {{ $newborn->patient->hospital_number }}</a>
                             @else

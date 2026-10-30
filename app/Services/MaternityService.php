@@ -140,7 +140,15 @@ class MaternityService
      *     delivery_notes?: string|null,
      *     hospital_supplied_delivery_pack: bool,
      *     delivery_material_notes?: string|null,
-     *     newborns: array<int, array{outcome: string, first_name?: string|null, last_name?: string|null, gender?: string|null}>
+     *     newborns: array<int, array{
+     *         outcome: string,
+     *         first_name?: string|null,
+     *         last_name?: string|null,
+     *         gender?: string|null,
+     *         birth_weight_grams?: int|null,
+     *         apgar_score_1_minute?: int|null,
+     *         apgar_score_5_minutes?: int|null
+     *     }>
      * }  $data
      */
     public function recordDelivery(MaternityEpisode $episode, array $data, User $actor): MaternityEpisode
@@ -184,6 +192,9 @@ class MaternityService
                     'last_name' => $newbornData['last_name'] ?? null,
                     'gender' => $newbornData['gender'] ?? null,
                     'date_of_birth' => $deliveryAt->toDateString(),
+                    'birth_weight_grams' => $newbornData['birth_weight_grams'] ?? null,
+                    'apgar_score_1_minute' => $newbornData['apgar_score_1_minute'] ?? null,
+                    'apgar_score_5_minutes' => $newbornData['apgar_score_5_minutes'] ?? null,
                 ]);
             }
 
@@ -246,6 +257,27 @@ class MaternityService
         return $episode->refresh()->load(['admission.patient', 'newborns.patient']);
     }
 
+    /** Determine whether a staff member may access maternity care for the admission. */
+    public function canAccessAdmission(Admission $admission, User $viewer): bool
+    {
+        if ((int) $admission->hospital_id !== (int) $viewer->hospital_id) {
+            return false;
+        }
+
+        if ($viewer->hasRole(Role::Admin)) {
+            return true;
+        }
+
+        if ($viewer->hasRole(Role::Doctor)
+            && ($admission->attending_doctor_id === $viewer->id
+                || ($viewer->department_id && (int) $viewer->department_id === (int) $admission->department_id))) {
+            return true;
+        }
+
+        return $viewer->hasRole(Role::Nurse)
+            && (int) $viewer->department_id === (int) $admission->department_id;
+    }
+
     /**
      * Enforce maternity access using the same ward and attending-doctor rules
      * for both web and API calls; route middleware alone does not establish
@@ -253,18 +285,7 @@ class MaternityService
      */
     private function assertAdmissionAccess(Admission $admission, User $viewer): void
     {
-        if ($viewer->hasRole(Role::Admin)) {
-            return;
-        }
-
-        if ($viewer->hasRole(Role::Doctor)
-            && ($admission->attending_doctor_id === $viewer->id
-                || ($viewer->department_id && (int) $viewer->department_id === (int) $admission->department_id))) {
-            return;
-        }
-
-        abort_unless($viewer->hasRole(Role::Nurse)
-            && (int) $viewer->department_id === (int) $admission->department_id,
+        abort_unless($this->canAccessAdmission($admission, $viewer),
             403, 'Only the attending doctor, a doctor in this ward department, or a nurse assigned to this ward can access the maternity episode.');
     }
 }

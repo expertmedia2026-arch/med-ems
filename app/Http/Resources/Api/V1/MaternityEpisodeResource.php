@@ -42,6 +42,9 @@ class MaternityEpisodeResource extends JsonResource
                 'name' => trim(($newborn->first_name ?? '').' '.($newborn->last_name ?? '')) ?: null,
                 'gender' => $newborn->gender,
                 'date_of_birth' => $newborn->date_of_birth?->toDateString(),
+                'birth_weight_grams' => $newborn->birth_weight_grams,
+                'apgar_score_1_minute' => $newborn->apgar_score_1_minute,
+                'apgar_score_5_minutes' => $newborn->apgar_score_5_minutes,
                 'patient' => $newborn->patient ? [
                     'id' => $newborn->patient->id,
                     'hospital_number' => $newborn->patient->hospital_number,

@@ -2,26 +2,23 @@
 
 namespace App\Http\Requests;
 
+use App\Models\MaternityEpisode;
+use App\Services\MaternityService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class RecordMaternityDeliveryRequest extends FormRequest
 {
-    /** The route restricts the module and role; the service checks access to the admission. */
-    public function authorize(): bool
+    /** Reject staff outside the episode's admission scope before validating clinical data. */
+    public function authorize(MaternityService $maternity): bool
     {
-        return true;
-    }
+        $episode = $this->route('maternityEpisode');
+        $user = $this->user();
 
-    /** Normalize HTML radio values so they validate consistently with JSON booleans. */
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('hospital_supplied_delivery_pack')) {
-            $this->merge([
-                'hospital_supplied_delivery_pack' => $this->boolean('hospital_supplied_delivery_pack'),
-            ]);
-        }
+        return $episode instanceof MaternityEpisode
+            && $user !== null
+            && $maternity->canAccessAdmission($episode->admission, $user);
     }
 
     /** Validate delivery details, whether a hospital pack was supplied, and each newborn entry. */
@@ -39,6 +36,9 @@ class RecordMaternityDeliveryRequest extends FormRequest
             'newborns.*.first_name' => ['nullable', 'string', 'max:100'],
             'newborns.*.last_name' => ['nullable', 'string', 'max:100'],
             'newborns.*.gender' => ['nullable', Rule::in(['male', 'female'])],
+            'newborns.*.birth_weight_grams' => ['nullable', 'integer', 'min:1', 'max:15000'],
+            'newborns.*.apgar_score_1_minute' => ['nullable', 'integer', 'between:0,10'],
+            'newborns.*.apgar_score_5_minutes' => ['nullable', 'integer', 'between:0,10'],
         ];
     }
 

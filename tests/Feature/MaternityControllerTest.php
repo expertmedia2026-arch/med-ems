@@ -90,6 +90,9 @@ class MaternityControllerTest extends TestCase
                 'first_name' => 'Baby',
                 'last_name' => 'Patient',
                 'gender' => 'female',
+                'birth_weight_grams' => 3250,
+                'apgar_score_1_minute' => 8,
+                'apgar_score_5_minutes' => 9,
             ]],
         ]);
 
@@ -105,6 +108,9 @@ class MaternityControllerTest extends TestCase
             'maternity_episode_id' => $episode->id,
             'outcome' => 'live_birth',
             'first_name' => 'Baby',
+            'birth_weight_grams' => 3250,
+            'apgar_score_1_minute' => 8,
+            'apgar_score_5_minutes' => 9,
         ]);
 
         $newborn = MaternityNewborn::query()->where('maternity_episode_id', $episode->id)->sole();
@@ -132,6 +138,10 @@ class MaternityControllerTest extends TestCase
             'billable_type' => MaternityEpisode::class,
             'billable_id' => $episode->id,
         ]);
+        $this->get(route('maternity.episodes.show', $episode))
+            ->assertOk()
+            ->assertSee('3,250 g')
+            ->assertSee('Apgar 8/9 (1/5 min)');
 
         $this->put(route('maternity.episodes.postpartum', $episode), [
             'postpartum_notes' => 'Mother and baby transferred for routine postpartum care.',
@@ -197,6 +207,50 @@ class MaternityControllerTest extends TestCase
         $this->assertDatabaseMissing('invoices', [
             'visit_id' => $case['admission']->visit_id,
         ]);
+    }
+
+    /** Web writes reject out-of-ward staff before exposing validation feedback. */
+    public function test_web_delivery_returns_403_before_validation_for_another_ward(): void
+    {
+        $case = $this->createInpatientCase();
+        $episode = $this->createEpisode($case);
+        $otherWard = Department::create([
+            'hospital_id' => $case['hospital']->id,
+            'name' => 'Medical Ward',
+            'has_ward' => true,
+        ]);
+        $otherWardNurse = User::factory()->create([
+            'hospital_id' => $case['hospital']->id,
+            'department_id' => $otherWard->id,
+            'role' => Role::Nurse,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($otherWardNurse)
+            ->post(route('maternity.episodes.delivery', $episode), [])
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('maternity_newborns', 0);
+    }
+
+    /** Free-text clinical notes are escaped when the maternity summary is rendered. */
+    public function test_maternity_summary_escapes_clinical_notes(): void
+    {
+        $case = $this->createInpatientCase();
+        $episode = $this->createEpisode($case);
+
+        $this->actingAs($case['doctor'])->post(route('maternity.episodes.delivery', $episode), [
+            'delivery_at' => now()->subMinutes(30)->toDateTimeString(),
+            'delivery_mode' => 'vaginal',
+            'delivery_notes' => '<script>alert(1)</script>',
+            'hospital_supplied_delivery_pack' => '0',
+            'newborns' => [['outcome' => 'stillbirth']],
+        ])->assertRedirect(route('maternity.episodes.show', $episode));
+
+        $this->get(route('maternity.episodes.show', $episode))
+            ->assertOk()
+            ->assertSee('&lt;script&gt;alert(1)&lt;/script&gt;', false)
+            ->assertDontSee('<script>alert(1)</script>', false);
     }
 
     /**

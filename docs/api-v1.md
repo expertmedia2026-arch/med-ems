@@ -201,6 +201,68 @@ Admission body: `department_id` (a ward), `admission_diagnosis`, `admission_reas
 
 Discharge requires `discharge_diagnosis`, `discharge_summary`, `discharge_medications`, `follow_up_instructions`, and `patient_discharge_instructions`. If any lab result is incomplete or unreviewed, include `pending_results_plan`. Clinical notes, ward vitals, prescriptions, care-chart values, death details, and DAMA fields use the same request fields and constraints as the corresponding web actions. The API returns JSON for data operations and streams certificate/witness downloads as files.
 
+## Maternity
+
+These endpoints require both the `inpatient` and `maternity` modules. Access is limited to hospital administrators, the attending doctor, doctors in the admission's department, and nurses assigned to that department. Cross-hospital records return 404; authenticated clinical staff outside the ward receive 403 before payload validation.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/maternity/fees` | Current hospital's delivery and supply-pack prices |
+| GET | `/maternity/episodes` | Paginated episodes visible to the caller |
+| POST | `/maternity/admissions/{admission}/episodes` | Start labor for an active admission |
+| GET | `/maternity/episodes/{maternityEpisode}` | Episode, admission, and newborn details |
+| POST | `/maternity/episodes/{maternityEpisode}/delivery` | Record delivery, newborns, and applicable billing |
+| PUT | `/maternity/episodes/{maternityEpisode}/postpartum` | Save the maternal postpartum summary |
+
+Start-labor body:
+
+```json
+{
+  "labor_started_at": "2026-10-29T14:00:00+01:00",
+  "labor_assessment": "Initial assessment.",
+  "patient_brought_delivery_materials": true
+}
+```
+
+`labor_started_at` is optional and defaults to the current time; it cannot be in the future. The materials answer is required and must be a JSON boolean. Only one maternity episode may be opened for an admission.
+
+Delivery body:
+
+```json
+{
+  "delivery_at": "2026-10-29T16:20:00+01:00",
+  "delivery_mode": "vaginal",
+  "delivery_notes": "Uncomplicated delivery.",
+  "hospital_supplied_delivery_pack": true,
+  "delivery_material_notes": "Pack issued from the ward.",
+  "newborns": [
+    {
+      "outcome": "live_birth",
+      "first_name": "Baby",
+      "last_name": "Patient",
+      "gender": "female",
+      "birth_weight_grams": 3250,
+      "apgar_score_1_minute": 8,
+      "apgar_score_5_minutes": 9
+    }
+  ]
+}
+```
+
+`delivery_mode` accepts `vaginal`, `assisted_vaginal`, `cesarean`, or `other`. `delivery_at` is required, cannot be in the future, and cannot precede labor. One to 20 newborn entries are accepted. `outcome` accepts `live_birth` or `stillbirth`; a live birth requires first name, last name, and gender (`male` or `female`) and creates a linked patient record. Birth weight is optional from 1 to 15,000 grams; optional Apgar scores are integers from 0 to 10. A stillbirth remains a maternity birth record without creating a patient account.
+
+The delivery operation is atomic: clinical records, linked live-birth patient records, and invoice items succeed or roll back together. It can run only once. The configured delivery fee is billed, and the delivery-pack fee is billed only when `hospital_supplied_delivery_pack` is `true`. A zero-fee schedule does not create an empty invoice.
+
+Postpartum body:
+
+```json
+{
+  "postpartum_notes": "Mother and baby transferred for routine postpartum care."
+}
+```
+
+Postpartum notes are accepted only after delivery and while the linked admission remains active.
+
 ## Laboratory
 
 | Method | Endpoint | Access | Purpose |

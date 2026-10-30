@@ -2,24 +2,21 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Admission;
+use App\Services\MaternityService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StartMaternityLaborRequest extends FormRequest
 {
-    /** Authorization is applied by the maternity route middleware and service access check. */
-    public function authorize(): bool
+    /** Reject staff outside the admission's maternity access scope before validation runs. */
+    public function authorize(MaternityService $maternity): bool
     {
-        return true;
-    }
+        $admission = $this->route('admission');
+        $user = $this->user();
 
-    /** Normalize browser radio values and API booleans to a consistent boolean input. */
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('patient_brought_delivery_materials')) {
-            $this->merge([
-                'patient_brought_delivery_materials' => $this->boolean('patient_brought_delivery_materials'),
-            ]);
-        }
+        return $admission instanceof Admission
+            && $user !== null
+            && $maternity->canAccessAdmission($admission, $user);
     }
 
     /** Validate the initial labor assessment and the required materials checklist answer. */
