@@ -1,0 +1,14 @@
+<x-app-layout>
+    <x-slot name="header">Sale Receipt</x-slot>
+
+    <div class="mx-auto max-w-2xl">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden"><a href="{{ route('standalone-pharmacy.sales.index') }}" class="text-sm font-semibold text-teal-700 hover:underline">← Sales history</a><button type="button" onclick="window.print()" class="rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white">Print receipt</button></div>
+        <article class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print:border-0 print:shadow-none sm:p-8">
+            <header class="border-b border-slate-200 pb-5 text-center"><h1 class="text-xl font-bold text-slate-900">{{ $hospital->name }}</h1><p class="mt-1 text-sm text-slate-500">Standalone Pharmacy Sales Receipt</p><p class="mt-3 font-mono text-xs font-semibold text-teal-800">{{ $sale->sale_number }}</p></header>
+            <div class="grid grid-cols-2 gap-4 border-b border-slate-200 py-5 text-sm"><div><p class="text-xs text-slate-500">Customer</p><p class="font-medium">{{ $sale->customer_name ?: 'Walk-in customer' }}</p><p class="text-xs text-slate-500">{{ $sale->customer_phone }}</p></div><div class="text-right"><p class="text-xs text-slate-500">Date</p><p class="font-medium">{{ $sale->sold_at->format('d M Y, g:i A') }}</p><p class="text-xs uppercase text-slate-500">{{ $sale->payment_method }}</p></div></div>
+            <table class="my-5 w-full text-sm"><thead class="border-b border-slate-200 text-left text-xs uppercase text-slate-500"><tr><th class="py-2">Product</th><th class="py-2 text-right">Qty</th><th class="py-2 text-right">Price</th><th class="py-2 text-right">Total</th></tr></thead><tbody class="divide-y divide-slate-100">@foreach ($sale->items as $item)<tr><td class="py-3 font-medium">{{ $item->drug_name }}</td><td class="py-3 text-right">{{ $item->quantity }}</td><td class="py-3 text-right">₦{{ number_format($item->unit_price, 2) }}</td><td class="py-3 text-right font-semibold">₦{{ number_format($item->total, 2) }}</td></tr>@endforeach</tbody></table>
+            <dl class="ml-auto w-64 space-y-2 border-t border-slate-200 pt-4 text-sm"><div class="flex justify-between"><dt class="text-slate-500">Subtotal</dt><dd>₦{{ number_format($sale->subtotal, 2) }}</dd></div><div class="flex justify-between"><dt class="text-slate-500">Discount</dt><dd>₦{{ number_format($sale->discount, 2) }}</dd></div><div class="flex justify-between text-lg font-bold"><dt>Total</dt><dd>₦{{ number_format($sale->total, 2) }}</dd></div></dl>
+            <footer class="mt-8 border-t border-dashed border-slate-300 pt-5 text-center text-xs text-slate-500"><p>Served by {{ $sale->seller->name }}</p><p class="mt-1">Thank you for your patronage.</p></footer>
+        </article>
+    </div>
+</x-app-layout>

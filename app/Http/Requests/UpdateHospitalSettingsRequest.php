@@ -10,6 +10,8 @@ class UpdateHospitalSettingsRequest extends FormRequest
     /** The settings routes provide role authorization; validation is shared by web and API. */
     public function authorize(): bool
     {
+        abort_if($this->route('section') === 'payments' && $this->user()?->hospital?->isStandalonePharmacy(), 404);
+
         return true;
     }
 

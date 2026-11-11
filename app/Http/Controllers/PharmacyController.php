@@ -70,7 +70,11 @@ class PharmacyController extends Controller
     public function inventory(PharmacyInventoryRequest $request, PharmacyService $pharmacy)
     {
         $data = $request->validated();
-        $drugs = $pharmacy->inventoryData($data['q'] ?? null, (bool) ($data['low'] ?? false));
+        $drugs = $pharmacy->inventoryData(
+            $data['q'] ?? null,
+            (bool) ($data['low'] ?? false),
+            $request->user()->hospital?->isStandalonePharmacy() === true,
+        );
 
         return view('pharmacy.inventory', compact('drugs'));
     }
@@ -80,8 +84,13 @@ class PharmacyController extends Controller
      */
     public function restock(RestockDrugRequest $request, Drug $drug, PharmacyService $pharmacy)
     {
-        $quantity = $request->validated('quantity');
-        $drug = $pharmacy->restock($drug, $quantity, $request->user()->id);
+        $data = $request->validated();
+        $quantity = $data['quantity'];
+        $batch = isset($data['expiry_date']) ? [
+            'expiry_date' => $data['expiry_date'],
+            'batch_number' => $data['batch_number'] ?? null,
+        ] : null;
+        $drug = $pharmacy->restock($drug, $quantity, $request->user()->id, $batch);
 
         return back()->with('success', "Added {$quantity} to {$drug->name}. On hand: {$drug->stock_quantity}; available: {$drug->available_quantity}.");
     }

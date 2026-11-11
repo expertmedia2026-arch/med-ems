@@ -1,7 +1,9 @@
 <div class="mb-6 flex gap-2 border-b">
     @php
-        $tabs = ['pharmacy.index' => 'Dispensing queue', 'pharmacy.inventory' => 'Inventory'];
-        if (auth()->user()->hasRole('admin', 'chief_pharmacist')) {
+        $tabs = auth()->user()->hospital?->isStandalonePharmacy()
+            ? ['standalone-pharmacy.sales.create' => 'New sale', 'standalone-pharmacy.sales.index' => 'Sales & expiry alerts', 'pharmacy.inventory' => 'Inventory']
+            : ['pharmacy.index' => 'Dispensing queue', 'pharmacy.inventory' => 'Inventory'];
+        if (! auth()->user()->hospital?->isStandalonePharmacy() && auth()->user()->hasRole('admin', 'chief_pharmacist')) {
             $tabs['pharmacy.audit'] = 'Dispensing audit';
         }
     @endphp

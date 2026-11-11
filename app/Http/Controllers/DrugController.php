@@ -23,7 +23,7 @@ class DrugController extends Controller
      */
     public function store(SaveDrugRequest $request, DrugCatalogService $catalog)
     {
-        $drug = $catalog->create($request->validated());
+        $drug = $catalog->create($request->validated(), $request->user()->id);
 
         return redirect()
             ->route('pharmacy.inventory')

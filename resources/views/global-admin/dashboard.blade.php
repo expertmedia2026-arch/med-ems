@@ -6,9 +6,9 @@
         <div>
             <p class="text-xs font-bold uppercase tracking-[.16em] text-white/55">MedEMS platform</p>
             <h1 class="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Platform overview</h1>
-            <p class="mt-2 text-sm text-white/65">Your hospital network, all in one place.</p>
+            <p class="mt-2 text-sm text-white/65">Your hospital and standalone pharmacy network, all in one place.</p>
         </div>
-        <a href="{{ route('global-admin.hospitals.create') }}" class="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#e51d2a] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#c81020] focus:outline-none focus:ring-2 focus:ring-white/70">+ Add new hospital</a>
+        <a href="{{ route('global-admin.hospitals.create') }}" class="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#e51d2a] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#c81020] focus:outline-none focus:ring-2 focus:ring-white/70">+ Add workspace</a>
     </div>
 
     <section aria-label="Platform totals" class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">

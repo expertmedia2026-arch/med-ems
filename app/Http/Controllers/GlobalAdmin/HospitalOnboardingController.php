@@ -70,6 +70,7 @@ class HospitalOnboardingController
         $canCreateInitialAdmin = $request->user()->isPlatformSuperAdmin();
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'facility_type' => ['nullable', Rule::in(['hospital', 'standalone_pharmacy'])],
             'slug' => ['nullable', 'string', 'max:80', 'alpha_dash', 'unique:hospitals,slug'],
             'admin_name' => $canCreateInitialAdmin
                 ? ['required', 'string', 'max:255']
@@ -79,7 +80,9 @@ class HospitalOnboardingController
                 : ['prohibited'],
             'modules' => ['nullable', 'array'],
             'modules.*' => ['string', Rule::in(array_keys(self::MODULES))],
-            'admission_template' => ['required', Rule::in(['current', 'basic'])],
+            'admission_template' => $request->input('facility_type', 'hospital') === 'standalone_pharmacy'
+                ? ['prohibited']
+                : ['required', Rule::in(['current', 'basic'])],
         ]);
 
         $result = $service->createHospital($data, $request->user());
@@ -130,7 +133,9 @@ class HospitalOnboardingController
         $data = $request->validate([
             'modules' => ['nullable', 'array'],
             'modules.*' => ['string', Rule::in(array_keys(self::MODULES))],
-            'admission_template' => ['required', Rule::in(['current', 'basic'])],
+            'admission_template' => $hospital->isStandalonePharmacy()
+                ? ['prohibited']
+                : ['required', Rule::in(['current', 'basic'])],
         ]);
 
         $service->updateConfiguration($hospital, $data, $request->user());

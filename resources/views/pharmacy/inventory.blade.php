@@ -49,12 +49,27 @@
                         @if ($drug->is_low_stock)
                             <x-badge color="red" class="ml-2">Low</x-badge>
                         @endif
+                        @if (auth()->user()->hospital?->isStandalonePharmacy())
+                            @php $nextBatch = $drug->stockBatches->first(); @endphp
+                            <span class="mt-1 block text-xs font-semibold text-teal-700">{{ $drug->stockBatches->filter(fn ($batch) => $batch->expiry_date->gte(today()))->sum('quantity_remaining') }} unexpired units available for sale</span>
+                            @if ($nextBatch)
+                                <span class="mt-1 block text-xs {{ $nextBatch->expiry_date->isPast() ? 'font-semibold text-red-700' : ($nextBatch->expiry_date->lte(today()->addDays(90)) ? 'font-semibold text-amber-700' : 'text-slate-500') }}">
+                                    Earliest expiry: {{ $nextBatch->expiry_date->format('d M Y') }} · {{ $nextBatch->quantity_remaining }} units
+                                </span>
+                            @else
+                                <span class="mt-1 block text-xs font-semibold text-red-700">No batch expiry record</span>
+                            @endif
+                        @endif
                     </td>
                     <td class="px-4 py-3">
                         <form method="POST" action="{{ route('pharmacy.restock', $drug) }}" class="flex items-center gap-2">
                             @csrf
                             <input type="number" name="quantity" min="1" required placeholder="Qty"
                                 class="w-24 rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
+                            @if (auth()->user()->hospital?->isStandalonePharmacy())
+                                <input type="date" name="expiry_date" min="{{ now()->addDay()->toDateString() }}" required aria-label="Expiry date" class="w-36 rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
+                                <input type="text" name="batch_number" placeholder="Batch #" aria-label="Batch number" class="w-28 rounded-lg border-slate-300 text-sm shadow-sm focus:border-teal-600 focus:ring-teal-600">
+                            @endif
                             <button class="rounded-lg border border-teal-700 px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-50">Add</button>
                         </form>
                     </td>

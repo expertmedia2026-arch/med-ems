@@ -1,14 +1,14 @@
-@extends('layouts.global-admin', ['title' => 'Customize hospital'])
+@extends('layouts.global-admin', ['title' => 'Customize workspace'])
 
 @section('content')
 <div class="w-full space-y-7">
     <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-            <a href="{{ route('global-admin.hospitals.index') }}" class="text-sm font-semibold text-[#c81020] hover:underline">← All hospitals</a>
+            <a href="{{ route('global-admin.hospitals.index') }}" class="text-sm font-semibold text-[#c81020] hover:underline">← All workspaces</a>
             <h1 class="mt-3 text-2xl font-semibold">Customize {{ $hospital->name }}</h1>
-            <p class="mt-1 text-sm text-slate-600">Choose the platform modules and admission starting workflow for this hospital.</p>
+            <p class="mt-1 text-sm text-slate-600">{{ $hospital->isStandalonePharmacy() ? 'Manage the modules available to this standalone pharmacy.' : 'Choose the platform modules and admission starting workflow for this hospital.' }}</p>
         </div>
-        <span class="inline-flex w-fit items-center rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{{ $hospital->is_active ? 'Active hospital' : 'Inactive hospital' }}</span>
+        <span class="inline-flex w-fit items-center rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{{ $hospital->is_active ? 'Active' : 'Inactive' }} {{ $hospital->isStandalonePharmacy() ? 'standalone pharmacy' : 'hospital' }}</span>
     </div>
     @if (session('success')) <div class="rounded-lg bg-green-50 p-4 text-green-800">{{ session('success') }}</div> @endif
     @if ($errors->any())
@@ -17,7 +17,7 @@
     @if (auth()->user()->isPlatformSuperAdmin())
         <section class="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <div>
-                <h2 class="text-lg font-semibold">Hospital administrators</h2>
+                <h2 class="text-lg font-semibold">Workspace administrators</h2>
                 @if (count($hospital->admin_emails) > 0)
                     <p class="mt-1 text-sm text-slate-600">Active administrator accounts: {{ implode(', ', $hospital->admin_emails) }}</p>
                 @else
@@ -39,15 +39,18 @@
         {{-- Keep module availability tied to each hospital; Maternity requires Inpatient. --}}
         <fieldset>
             <legend class="text-sm font-semibold">Enabled modules</legend>
-            <p class="mt-1 text-sm text-slate-600">Disabled modules are hidden from this hospital’s users. External Lab and Lab Inventory require Laboratory; A&amp;E Pharmacy requires A&amp;E and Pharmacy; Maternity requires Inpatient; Online Payments requires Patient Portal.</p>
+            <p class="mt-1 text-sm text-slate-600">{{ $hospital->isStandalonePharmacy() ? 'Pharmacy is required. Staff roster and finance reports are optional.' : 'Disabled modules are hidden from this hospital’s users. External Lab and Lab Inventory require Laboratory; A&E Pharmacy requires A&E and Pharmacy; Maternity requires Inpatient; Online Payments requires Patient Portal.' }}</p>
             <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
                 @foreach ($modules as $key => $label)
+                    @continue($hospital->isStandalonePharmacy() && ! in_array($key, ['pharmacy', 'staff_roster', 'finance_reports'], true))
                     <label class="flex items-center gap-2 rounded-lg border border-slate-200 p-3 text-sm">
-                        <input type="checkbox" name="modules[]" value="{{ $key }}" @checked(in_array($key, old('modules', $enabledModules), true)) class="rounded border-slate-300 text-[#e51d2a] focus:ring-[#e51d2a]">{{ $label }}
+                        <input type="checkbox" name="modules[]" value="{{ $key }}" @checked($key === 'pharmacy' || in_array($key, old('modules', $enabledModules), true)) @disabled($hospital->isStandalonePharmacy() && $key === 'pharmacy') class="rounded border-slate-300 text-[#e51d2a] focus:ring-[#e51d2a]">{{ $label }}
+                        @if ($hospital->isStandalonePharmacy() && $key === 'pharmacy')<input type="hidden" name="modules[]" value="pharmacy">@endif
                     </label>
                 @endforeach
             </div>
         </fieldset>
+        @unless ($hospital->isStandalonePharmacy())
         <fieldset>
             <legend class="text-sm font-semibold">Admission workflow starting template</legend>
             <div class="mt-3 grid gap-3 sm:grid-cols-2">
@@ -55,6 +58,7 @@
                 <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-4 text-sm"><input type="radio" name="admission_template" value="basic" @checked(old('admission_template', $admissionTemplate) === 'basic') class="mt-1 text-[#e51d2a] focus:ring-[#e51d2a]"><span><strong>Basic workflow</strong><br><span class="text-slate-600">Starts with admission details, vitals, and care notes.</span></span></label>
             </div>
         </fieldset>
+        @endunless
         <div class="flex justify-end"><button class="rounded-md bg-[#e51d2a] px-4 py-2 font-semibold text-white hover:bg-[#c81020]">Save customization</button></div>
     </form>
 </div>

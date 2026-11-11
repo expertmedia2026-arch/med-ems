@@ -16,6 +16,7 @@ class PlatformHospitalResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
+            'facility_type' => $this->facility_type,
             'is_active' => (bool) $this->is_active,
             'enabled_modules' => $this->enabled_modules ?? [],
             'admission_template' => $this->admission_template ?? 'basic',

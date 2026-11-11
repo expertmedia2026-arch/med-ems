@@ -19,6 +19,7 @@ class CreatePlatformHospitalRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
+            'facility_type' => ['nullable', Rule::in(['hospital', 'standalone_pharmacy'])],
             'slug' => ['nullable', 'string', 'max:80', 'alpha_dash', 'unique:hospitals,slug'],
             'admin_name' => $canCreateInitialAdmin
                 ? ['required', 'string', 'max:255']
@@ -28,7 +29,9 @@ class CreatePlatformHospitalRequest extends FormRequest
                 : ['prohibited'],
             'modules' => ['nullable', 'array'],
             'modules.*' => ['string', Rule::in(array_keys(GlobalAdminHospitalService::MODULES))],
-            'admission_template' => ['required', Rule::in(['current', 'basic'])],
+            'admission_template' => $this->input('facility_type', 'hospital') === 'standalone_pharmacy'
+                ? ['prohibited']
+                : ['required', Rule::in(['current', 'basic'])],
         ];
     }
 }

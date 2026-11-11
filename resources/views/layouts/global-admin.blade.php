@@ -21,8 +21,8 @@
             <nav aria-label="Platform administration" class="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
                 @php($navItems = [
                     ['route' => 'global-admin.dashboard', 'label' => 'Overview', 'match' => 'global-admin.dashboard'],
-                    ['route' => 'global-admin.hospitals.index', 'label' => 'Hospitals', 'match' => 'global-admin.hospitals.*'],
-                    ['route' => 'global-admin.hospitals.create', 'label' => 'Add new hospital', 'match' => 'global-admin.hospitals.create'],
+                    ['route' => 'global-admin.hospitals.index', 'label' => 'Workspaces', 'match' => 'global-admin.hospitals.*'],
+                    ['route' => 'global-admin.hospitals.create', 'label' => 'Add workspace', 'match' => 'global-admin.hospitals.create'],
                     ['route' => 'global-admin.configuration', 'label' => 'Configuration', 'match' => 'global-admin.configuration'],
                 ])
                 @foreach ($navItems as $item)

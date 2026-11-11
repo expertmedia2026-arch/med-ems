@@ -45,6 +45,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\StaffInvitationController;
+use App\Http\Controllers\StandalonePharmacySaleController;
 use App\Http\Controllers\TriageController;
 use App\Http\Controllers\VisitController;
 use Illuminate\Support\Facades\Route;
@@ -410,6 +411,14 @@ Route::middleware(['auth', 'auth.session', 'active', 'hospital', 'staff'])->grou
         Route::put('drugs/{drug}', [DrugController::class, 'update'])->name('drugs.update');
         Route::patch('drugs/{drug}/toggle', [DrugController::class, 'toggle'])->name('drugs.toggle');
     });
+
+    Route::middleware(['role:admin,pharmacist,chief_pharmacist,cashier', 'module:pharmacy', 'standalone.pharmacy'])
+        ->prefix('standalone-pharmacy')->name('standalone-pharmacy.')->group(function () {
+            Route::get('sales', [StandalonePharmacySaleController::class, 'index'])->name('sales.index');
+            Route::get('sales/create', [StandalonePharmacySaleController::class, 'create'])->name('sales.create');
+            Route::post('sales', [StandalonePharmacySaleController::class, 'store'])->name('sales.store');
+            Route::get('sales/{sale}', [StandalonePharmacySaleController::class, 'show'])->whereNumber('sale')->name('sales.show');
+        });
 
     // Finance reporting for administrators and accounting leadership.
     Route::middleware(['role:admin,chief_accountant', 'module:finance_reports'])->prefix('finance')->name('finance.')->group(function () {

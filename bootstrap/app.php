@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureHospitalModule;
 use App\Http\Middleware\EnsureMainPharmacyAccess;
 use App\Http\Middleware\EnsureNotPatient;
 use App\Http\Middleware\EnsurePlatformSuperAdmin;
+use App\Http\Middleware\EnsureStandalonePharmacy;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\EnsureWorkflowSection;
 use App\Http\Middleware\RoleMiddleware;
@@ -41,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'hospital' => SetHospitalContext::class,
             'module' => EnsureHospitalModule::class,
             'workflow.section' => EnsureWorkflowSection::class,
+            'standalone.pharmacy' => EnsureStandalonePharmacy::class,
             'auth.session' => AuthenticateSession::class,
 
         ]);

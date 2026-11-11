@@ -23,4 +23,9 @@ class DrugStockMovement extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function pharmacySaleItem(): BelongsTo
+    {
+        return $this->belongsTo(PharmacySaleItem::class);
+    }
 }

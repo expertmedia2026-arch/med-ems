@@ -6,9 +6,9 @@
 | This is presentation filtering only; routes and services must still authorize.
 */
 return [
-    ['label' => 'Dashboard',    'route' => 'dashboard', 'roles' => '*'],
+    ['label' => 'Dashboard',    'route' => 'dashboard', 'roles' => '*', 'facility_types' => ['hospital', 'standalone_pharmacy']],
     ['label' => 'Patients',     'route' => 'patients.index',     'active' => 'patients.*',     'roles' => ['admin', 'receptionist', 'nurse', 'doctor']],
-    ['label' => 'Staff',             'route' => 'staff.index',   'active' => 'staff.*',    'roles' => ['admin', 'chief_accountant']],
+    ['label' => 'Staff',             'route' => 'staff.index',   'active' => 'staff.*',    'roles' => ['admin', 'chief_accountant'], 'facility_types' => ['hospital', 'standalone_pharmacy']],
     ['label' => 'Departments', 'route' => 'departments.index', 'active' => 'departments.*', 'roles' => ['admin']],
     ['label' => 'Consultation Pricing', 'route' => 'consultation-types.index', 'active' => 'consultation-types.*', 'roles' => ['admin']],
     ['label' => 'Appointments', 'route' => 'appointments.index', 'active' => 'appointments.*', 'roles' => ['admin', 'receptionist', 'doctor'], 'module' => 'appointments'],
@@ -27,9 +27,12 @@ return [
     ['label' => 'Laboratory', 'route' => 'lab.index', 'active' => ['lab.index', 'lab.show', 'lab.report', 'lab.tests.*', 'lab.attachments.*'], 'roles' => ['admin', 'lab', 'doctor'], 'module' => 'laboratory'],
     ['label' => 'External Lab Request', 'route' => 'lab.referrals.create', 'active' => 'lab.referrals.*', 'roles' => ['admin', 'receptionist', 'lab'], 'modules' => ['laboratory', 'external_lab']],
     ['label' => 'Pharmacy',   'route' => 'pharmacy.index', 'active' => 'pharmacy.*', 'roles' => ['admin', 'pharmacist', 'chief_pharmacist'], 'module' => 'pharmacy'],
+    ['label' => 'New Sale', 'route' => 'standalone-pharmacy.sales.create', 'active' => 'standalone-pharmacy.sales.create', 'roles' => ['admin', 'pharmacist', 'chief_pharmacist', 'cashier'], 'module' => 'pharmacy', 'facility_types' => ['standalone_pharmacy']],
+    ['label' => 'Sales & Expiry Alerts', 'route' => 'standalone-pharmacy.sales.index', 'active' => ['standalone-pharmacy.sales.index', 'standalone-pharmacy.sales.show'], 'roles' => ['admin', 'pharmacist', 'chief_pharmacist', 'cashier'], 'module' => 'pharmacy', 'facility_types' => ['standalone_pharmacy']],
+    ['label' => 'Inventory', 'route' => 'pharmacy.inventory', 'active' => ['pharmacy.inventory', 'pharmacy.drugs.*'], 'roles' => ['admin', 'pharmacist', 'chief_pharmacist'], 'module' => 'pharmacy', 'facility_types' => ['standalone_pharmacy']],
     ['label' => 'Billing', 'route' => 'billing.index', 'active' => 'billing.*', 'roles' => ['admin', 'accountant', 'receptionist']],
     ['label' => 'Finance overview', 'route' => 'finance.index', 'active' => 'finance.*', 'roles' => ['admin', 'chief_accountant'], 'module' => 'finance_reports'],
     ['label' => 'General Report', 'route' => 'reports.general', 'active' => 'reports.*', 'roles' => ['admin', 'chief_accountant'], 'module' => 'finance_reports'],
-    ['label' => 'Hospital Settings', 'route' => 'settings.edit', 'active' => 'settings.*', 'roles' => ['admin']],
+    ['label' => 'Workspace Settings', 'route' => 'settings.edit', 'active' => 'settings.*', 'roles' => ['admin'], 'facility_types' => ['hospital', 'standalone_pharmacy']],
 
 ];

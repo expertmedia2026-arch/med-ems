@@ -20,6 +20,7 @@ class SettingsController extends Controller
         $section = $request->route('section') ?: 'basic';
 
         abort_unless(in_array($section, ['basic', 'payments', 'branding'], true), 404);
+        abort_if($section === 'payments' && $request->user()?->hospital?->isStandalonePharmacy(), 404);
 
         return view('settings.hospital', ['settings' => $settings->current(), 'section' => $section]);
     }

@@ -14,6 +14,11 @@ class Hospital extends Model
         return ['is_active' => 'boolean'];
     }
 
+    public function isStandalonePharmacy(): bool
+    {
+        return $this->facility_type === 'standalone_pharmacy';
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);

@@ -16,8 +16,11 @@
             ? $user->{$item['permission']}()
             : ($item['roles'] === '*' || $user->hasRole(...$item['roles']));
         $requiredModules = $item['modules'] ?? (isset($item['module']) ? [$item['module']] : []);
+        $facilityTypes = $item['facility_types'] ?? ['hospital'];
 
-        return $allowedByRole && collect($requiredModules)->every(fn ($module) => in_array($module, $hospitalModules ?? [], true));
+        return $allowedByRole
+            && in_array($user->hospital?->facility_type ?? 'hospital', $facilityTypes, true)
+            && collect($requiredModules)->every(fn ($module) => in_array($module, $hospitalModules ?? [], true));
     });
 @endphp
 

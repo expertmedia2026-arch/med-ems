@@ -3,8 +3,8 @@
 @section('content')
 <div class="space-y-7">
     <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div><p class="text-xs font-bold uppercase tracking-[.16em] text-[#c81020]">Platform tenants</p><h1 class="mt-2 text-2xl font-bold tracking-tight">Hospitals</h1><p class="mt-1 text-sm text-slate-600">Hospital-level summaries and enabled features.</p></div>
-        <a href="{{ route('global-admin.hospitals.create') }}" class="inline-flex items-center justify-center rounded-md bg-[#e51d2a] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#c81020]">+ Add new hospital</a>
+        <div><p class="text-xs font-bold uppercase tracking-[.16em] text-[#c81020]">Platform tenants</p><h1 class="mt-2 text-2xl font-bold tracking-tight">Workspaces</h1><p class="mt-1 text-sm text-slate-600">Hospital and standalone pharmacy workspaces.</p></div>
+        <a href="{{ route('global-admin.hospitals.create') }}" class="inline-flex items-center justify-center rounded-md bg-[#e51d2a] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#c81020]">+ Add workspace</a>
     </div>
     @if (session('success')) <div class="rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">{{ session('success') }}</div> @endif
     @if (session('warning')) <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">{{ session('warning') }}</div> @endif
@@ -15,7 +15,7 @@
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($hospitals as $hospital)
                         <tr>
-                            <td class="px-5 py-4"><div class="font-bold">{{ $hospital->name }}</div><div class="mt-1 text-xs text-slate-500">{{ $hospital->slug }}</div></td>
+                            <td class="px-5 py-4"><div class="font-bold">{{ $hospital->name }}</div><div class="mt-1 flex items-center gap-2 text-xs text-slate-500"><span>{{ $hospital->slug }}</span><span class="rounded-full bg-teal-50 px-2 py-0.5 font-semibold text-teal-800">{{ $hospital->isStandalonePharmacy() ? 'Standalone Pharmacy' : 'Hospital' }}</span></div></td>
                             <td class="max-w-64 px-5 py-4"><div class="flex flex-col gap-1">
                                 @forelse ($hospital->admin_emails as $email)
                                     <a href="mailto:{{ $email }}" class="break-all text-xs font-medium text-[#a70e1a] hover:underline">{{ $email }}</a>

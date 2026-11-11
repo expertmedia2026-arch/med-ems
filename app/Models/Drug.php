@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Drug extends Model
 {
@@ -14,7 +15,7 @@ class Drug extends Model
     {
         return [
             'unit_price' => 'decimal:2',
-            'is_active'  => 'boolean',
+            'is_active' => 'boolean',
             'is_fluid' => 'boolean',
         ];
     }
@@ -54,10 +55,13 @@ class Drug extends Model
         return $this->hasMany(DrugStockMovement::class);
     }
 
-    public function emergencyStock(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function stockBatches(): HasMany
+    {
+        return $this->hasMany(DrugStockBatch::class);
+    }
+
+    public function emergencyStock(): HasOne
     {
         return $this->hasOne(EmergencyPharmacyStock::class);
     }
-
-
 }

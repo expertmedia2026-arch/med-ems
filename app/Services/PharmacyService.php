@@ -2,18 +2,21 @@
 
 namespace App\Services;
 
+use App\Enums\Role;
 use App\Enums\VisitStatus;
 use App\Enums\WorkStatus;
-use App\Enums\Role;
 use App\Models\Department;
 use App\Models\Drug;
 use App\Models\Prescription;
 use App\Models\User;
 use App\Models\Visit;
-use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 use App\Support\HospitalContext;
+use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Builds pharmacy queues and audit data and coordinates stock dispensing/restocking.
@@ -54,8 +57,8 @@ class PharmacyService
                     ->where('status', VisitStatus::InConsultation->value)
                     ->where('is_emergency', false)
                     ->whereHas('prescriptions', fn ($prescriptions) => $this->pendingAtPharmacy($prescriptions))))
-            ->whereHas('prescriptions', fn ($query) => $this->pendingAtPharmacy($query))
-            ->orderByRaw('COALESCE(closed_at, checked_in_at) asc')->get(),
+                ->whereHas('prescriptions', fn ($query) => $this->pendingAtPharmacy($query))
+                ->orderByRaw('COALESCE(closed_at, checked_in_at) asc')->get(),
             'lowStock' => Drug::lowStock()->orderBy('stock_quantity')->get(),
             'dispensedToday' => $dispensedToday,
             'pharmacySummary' => $today,
@@ -167,7 +170,7 @@ class PharmacyService
      *
      * @param  CarbonImmutable|null  $start  Inclusive lower date bound.
      * @param  CarbonImmutable|null  $end  Inclusive upper date bound.
-     * @return \Illuminate\Support\Collection<int, array{user: User, patients: int, items: int, injections: int}>
+     * @return Collection<int, array{user: User, patients: int, items: int, injections: int}>
      */
     private function pharmacistActivity(?CarbonImmutable $start, ?CarbonImmutable $end)
     {
@@ -255,14 +258,15 @@ class PharmacyService
      *
      * @param  string|null  $term  Optional name or generic-name search text.
      * @param  bool  $lowStock  Whether to include only drugs below the low-stock threshold.
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator Paginated matching drugs with query parameters retained.
+     * @return LengthAwarePaginator Paginated matching drugs with query parameters retained.
      */
-    public function inventoryData(?string $term, bool $lowStock)
+    public function inventoryData(?string $term, bool $lowStock, bool $includeBatches = false)
     {
         $this->inventory->expireReservations();
 
-        return Drug::query()->when($term, fn ($query) => $query->where(fn ($search) => $search
-            ->whereLike('name', "%{$term}%")->orWhereLike('generic_name', "%{$term}%")))
+        return Drug::query()->when($includeBatches, fn ($query) => $query->with(['stockBatches' => fn ($batches) => $batches->where('quantity_remaining', '>', 0)->orderBy('expiry_date')]))
+            ->when($term, fn ($query) => $query->where(fn ($search) => $search
+                ->whereLike('name', "%{$term}%")->orWhereLike('generic_name', "%{$term}%")))
             ->when($lowStock, fn ($query) => $query->lowStock())->orderBy('name')->paginate(15)->withQueryString();
     }
 
@@ -347,9 +351,9 @@ class PharmacyService
      * @param  int  $userId  Staff user recording the restock.
      * @return Drug Updated drug record.
      */
-    public function restock(Drug $drug, int $quantity, int $userId): Drug
+    public function restock(Drug $drug, int $quantity, int $userId, ?array $batch = null): Drug
     {
-        return $this->inventory->restock($drug, $quantity, $userId);
+        return $this->inventory->restock($drug, $quantity, $userId, $batch);
     }
 
     /**
@@ -358,8 +362,8 @@ class PharmacyService
      * Orders must be sent to pharmacy or belong to an eligible completed, inpatient,
      * or emergency visit, and are hidden when the visit disposition is deceased.
      *
-     * @param  \Illuminate\Database\Eloquent\Relations\HasMany|\Illuminate\Database\Eloquent\Builder  $query  Prescription query to constrain.
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany|\Illuminate\Database\Eloquent\Builder Filtered pending-order query.
+     * @param  HasMany|Builder  $query  Prescription query to constrain.
+     * @return HasMany|Builder Filtered pending-order query.
      */
     private function pendingAtPharmacy($query)
     {

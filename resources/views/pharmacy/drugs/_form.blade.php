@@ -27,10 +27,12 @@
         </select>
     </div>
 
-    <label class="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm sm:col-span-2 xl:col-span-3">
-        <input type="checkbox" name="is_fluid" value="1" @checked($val('is_fluid', false)) class="mt-0.5 rounded border-slate-300 text-teal-700 focus:ring-teal-600">
-        <span><span class="font-semibold text-slate-900">This is a prescribed fluid</span><span class="mt-1 block text-xs text-slate-600">Enable this for IV fluids or oral rehydration products so nurses can select the prescription in the inpatient fluid intake chart.</span></span>
-    </label>
+    @unless (auth()->user()->hospital?->isStandalonePharmacy())
+        <label class="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm sm:col-span-2 xl:col-span-3">
+            <input type="checkbox" name="is_fluid" value="1" @checked($val('is_fluid', false)) class="mt-0.5 rounded border-slate-300 text-teal-700 focus:ring-teal-600">
+            <span><span class="font-semibold text-slate-900">This is a prescribed fluid</span><span class="mt-1 block text-xs text-slate-600">Enable this for IV fluids or oral rehydration products so nurses can select the prescription in the inpatient fluid intake chart.</span></span>
+        </label>
+    @endunless
 
     <div>
         <label for="strength" class="{{ $label }}">Strength</label>
@@ -55,5 +57,16 @@
             <input id="stock_quantity" name="stock_quantity" type="number" min="0" value="{{ old('stock_quantity', 0) }}" required class="{{ $input }}">
             @error('stock_quantity')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
         </div>
+        @if (auth()->user()->hospital?->isStandalonePharmacy())
+            <div>
+                <label for="expiry_date" class="{{ $label }}">Opening stock expiry date</label>
+                <input id="expiry_date" name="expiry_date" type="date" min="{{ now()->addDay()->toDateString() }}" value="{{ old('expiry_date') }}" required class="{{ $input }}">
+                @error('expiry_date')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+            </div>
+            <div>
+                <label for="batch_number" class="{{ $label }}">Batch number <span class="font-normal text-slate-400">(optional)</span></label>
+                <input id="batch_number" name="batch_number" type="text" value="{{ old('batch_number') }}" class="{{ $input }}">
+            </div>
+        @endif
     @endunless
 </div>

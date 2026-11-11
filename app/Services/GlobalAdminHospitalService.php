@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Department;
 use App\Models\Hospital;
 use App\Models\HospitalModule;
 use App\Models\HospitalSetting;
@@ -144,7 +145,7 @@ class GlobalAdminHospitalService
      * The administrator receives a random temporary password and must use the
      * password-reset link returned by the API to set their own credential.
      *
-     * @param  array{name: string, slug?: string|null, admin_name?: string, admin_email?: string, modules?: array<int, string>, admission_template: string}  $data
+     * @param  array{name: string, facility_type: string, slug?: string|null, admin_name?: string, admin_email?: string, modules?: array<int, string>, admission_template: string}  $data
      * @return array{hospital: Hospital, admin_email: string|null}
      */
     public function createHospital(array $data, ?Authenticatable $viewer = null): array
@@ -168,6 +169,7 @@ class GlobalAdminHospitalService
                 $hospital = Hospital::create([
                     'name' => $data['name'],
                     'slug' => $slug,
+                    'facility_type' => $data['facility_type'] ?? 'hospital',
                     'is_active' => true,
                 ]);
                 $this->context->set((int) $hospital->id);
@@ -181,7 +183,9 @@ class GlobalAdminHospitalService
                     'name' => $hospital->name,
                 ]);
 
-                $enabledModules = $data['modules'] ?? [];
+                $enabledModules = ($data['facility_type'] ?? 'hospital') === 'standalone_pharmacy'
+                    ? ['pharmacy', 'finance_reports', 'staff_roster']
+                    : ($data['modules'] ?? []);
                 foreach (self::MODULES as $key => $label) {
                     $hospital->modules()->create([
                         'module' => $key,
@@ -189,14 +193,23 @@ class GlobalAdminHospitalService
                     ]);
                 }
 
-                HospitalWorkflow::create([
-                    'hospital_id' => $hospital->id,
-                    'workflow' => 'admission',
-                    'version' => 1,
-                    'definition' => $this->admissionWorkflow($data['admission_template']),
-                    'is_active' => true,
-                    'published_at' => now(),
-                ]);
+                if (! $hospital->isStandalonePharmacy()) {
+                    HospitalWorkflow::create([
+                        'hospital_id' => $hospital->id,
+                        'workflow' => 'admission',
+                        'version' => 1,
+                        'definition' => $this->admissionWorkflow($data['admission_template']),
+                        'is_active' => true,
+                        'published_at' => now(),
+                    ]);
+                }
+
+                if ($hospital->isStandalonePharmacy()) {
+                    Department::create([
+                        'name' => Department::PHARMACY_NAME,
+                        'has_ward' => false,
+                    ]);
+                }
 
                 return $hospital;
             });
@@ -257,13 +270,20 @@ class GlobalAdminHospitalService
         array $data,
         ?Authenticatable $viewer = null,
     ): Hospital {
+        if ($hospital->isStandalonePharmacy()) {
+            $data['modules'] = array_values(array_unique([
+                'pharmacy',
+                ...array_intersect($data['modules'] ?? [], ['staff_roster', 'finance_reports']),
+            ]));
+        }
+
         $this->validateModuleDependencies($data['modules'] ?? []);
         $previousHospitalId = $this->context->id();
 
         try {
             $this->context->set((int) $hospital->id);
 
-            DB::transaction(function () use ($data): void {
+            DB::transaction(function () use ($data, $hospital): void {
                 $enabledModules = $data['modules'] ?? [];
                 foreach (self::MODULES as $key => $label) {
                     $module = HospitalModule::query()->firstOrNew(['module' => $key]);
@@ -271,20 +291,22 @@ class GlobalAdminHospitalService
                     $module->save();
                 }
 
-                $version = (int) HospitalWorkflow::query()
-                    ->where('workflow', 'admission')
-                    ->max('version') + 1;
-                HospitalWorkflow::query()
-                    ->where('workflow', 'admission')
-                    ->where('is_active', true)
-                    ->update(['is_active' => false]);
-                HospitalWorkflow::create([
-                    'workflow' => 'admission',
-                    'version' => $version,
-                    'definition' => $this->admissionWorkflow($data['admission_template']),
-                    'is_active' => true,
-                    'published_at' => now(),
-                ]);
+                if (! $hospital->isStandalonePharmacy()) {
+                    $version = (int) HospitalWorkflow::query()
+                        ->where('workflow', 'admission')
+                        ->max('version') + 1;
+                    HospitalWorkflow::query()
+                        ->where('workflow', 'admission')
+                        ->where('is_active', true)
+                        ->update(['is_active' => false]);
+                    HospitalWorkflow::create([
+                        'workflow' => 'admission',
+                        'version' => $version,
+                        'definition' => $this->admissionWorkflow($data['admission_template']),
+                        'is_active' => true,
+                        'published_at' => now(),
+                    ]);
+                }
             });
         } finally {
             $this->context->set($previousHospitalId);

@@ -39,6 +39,11 @@ class SaveDrugRequest extends FormRequest
 
         if (! $drug) {
             $rules['stock_quantity'] = ['required', 'integer', 'min:0', 'max:1000000'];
+
+            if ($this->user()?->hospital?->isStandalonePharmacy()) {
+                $rules['expiry_date'] = ['required', 'date', 'after:today'];
+                $rules['batch_number'] = ['nullable', 'string', 'max:100'];
+            }
         }
 
         return $rules;
@@ -46,6 +51,9 @@ class SaveDrugRequest extends FormRequest
 
     public function messages(): array
     {
-        return ['name.unique' => 'This drug already exists with the same strength and form.'];
+        return [
+            'name.unique' => 'This drug already exists with the same strength and form.',
+            'expiry_date.after' => 'The opening stock expiry date must be in the future.',
+        ];
     }
 }

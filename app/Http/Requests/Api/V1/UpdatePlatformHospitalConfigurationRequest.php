@@ -15,10 +15,14 @@ class UpdatePlatformHospitalConfigurationRequest extends FormRequest
 
     public function rules(): array
     {
+        $hospital = $this->route('hospital');
+
         return [
             'modules' => ['nullable', 'array'],
             'modules.*' => ['string', Rule::in(array_keys(GlobalAdminHospitalService::MODULES))],
-            'admission_template' => ['required', Rule::in(['current', 'basic'])],
+            'admission_template' => $hospital?->isStandalonePharmacy()
+                ? ['prohibited']
+                : ['required', Rule::in(['current', 'basic'])],
         ];
     }
 }

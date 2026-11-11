@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Drug;
+use App\Models\DrugStockBatch;
 use App\Models\DrugStockMovement;
 use App\Models\Prescription;
 use App\Models\PrescriptionStockReservation;
@@ -258,14 +259,26 @@ class DrugInventoryService
     }
 
     /** Add stock and record the restock movement atomically under a drug-row lock. */
-    public function restock(Drug $drug, int $quantity, int $userId): Drug
+    public function restock(Drug $drug, int $quantity, int $userId, ?array $batch = null): Drug
     {
-        return DB::transaction(function () use ($drug, $quantity, $userId) {
+        return DB::transaction(function () use ($drug, $quantity, $userId, $batch) {
             $drug = Drug::query()->lockForUpdate()->findOrFail($drug->id);
             $before = (int) $drug->stock_quantity;
             $drug->stock_quantity += $quantity;
             $drug->save();
             $this->movement($drug, 'restock', $quantity, $before, (int) $drug->stock_quantity, $userId);
+
+            if ($batch !== null) {
+                DrugStockBatch::create([
+                    'drug_id' => $drug->id,
+                    'batch_number' => $batch['batch_number'] ?? null,
+                    'quantity_received' => $quantity,
+                    'quantity_remaining' => $quantity,
+                    'expiry_date' => $batch['expiry_date'],
+                    'received_by' => $userId,
+                    'received_at' => now(),
+                ]);
+            }
 
             return $drug->refresh();
         });

@@ -9,10 +9,12 @@ use App\Models\Admission;
 use App\Models\Appointment;
 use App\Models\DepartmentInventoryItem;
 use App\Models\Drug;
+use App\Models\DrugStockBatch;
 use App\Models\Invoice;
 use App\Models\LabRequest;
 use App\Models\LabTest;
 use App\Models\Payment;
+use App\Models\PharmacySale;
 use App\Models\Prescription;
 use App\Models\StaffDuty;
 use App\Models\User;
@@ -33,11 +35,12 @@ class DashboardService
      * Adds personal shift and emergency indicators where applicable. Queue results are limited
      * to operational staff roles and scoped to the viewer's department/doctor assignment.
      *
-     * @return array{cards: array, queue: Collection}
+     * @return array{cards: array, queue: Collection, standaloneCharts: array<string, mixed>|null}
      */
     public function data(User $user): array
     {
-        $cards = match ($user->role) {
+        $isStandalonePharmacy = $user->hospital?->isStandalonePharmacy() === true;
+        $cards = $isStandalonePharmacy ? $this->standalonePharmacy() : match ($user->role) {
             Role::Admin => $this->admin(),
             Role::Receptionist => $this->receptionist(),
             Role::Nurse => $this->nurse(),
@@ -50,8 +53,9 @@ class DashboardService
             Role::ChiefAccountant => $this->chiefAccountant(),
             default => [],
         };
+        $standaloneCharts = $isStandalonePharmacy ? $this->standalonePharmacyCharts() : null;
 
-        if ($user->hasRole(Role::Admin, Role::ChiefAccountant) && $user->hospital?->hasModule('finance_reports')) {
+        if (! $isStandalonePharmacy && $user->hasRole(Role::Admin, Role::ChiefAccountant) && $user->hospital?->hasModule('finance_reports')) {
             $cards[] = $this->card('General hospital report', 'View report', 'teal', 'reports.general');
         }
 
@@ -68,7 +72,7 @@ class DashboardService
             );
         }
 
-        if ($user->canAccessEmergency()) {
+        if (! $isStandalonePharmacy && $user->canAccessEmergency()) {
             $cards[] = $this->card(
                 'Active A&E visits',
                 Visit::where('is_emergency', true)
@@ -79,7 +83,7 @@ class DashboardService
             );
         }
 
-        $queue = $user->hasRole(Role::Admin, Role::Receptionist, Role::Nurse, Role::Doctor)
+        $queue = ! $isStandalonePharmacy && $user->hasRole(Role::Admin, Role::Receptionist, Role::Nurse, Role::Doctor)
             ? Visit::with(['patient', 'doctor', 'department'])
                 ->withStatus(VisitStatus::WaitingTriage, VisitStatus::WaitingDoctor, VisitStatus::InConsultation)
                 ->where('is_brought_in_dead', false)
@@ -91,7 +95,62 @@ class DashboardService
                 ->get()
             : collect();
 
-        return compact('cards', 'queue');
+        return compact('cards', 'queue', 'standaloneCharts');
+    }
+
+    /** Build retail sales, inventory, and expiry cards for a standalone pharmacy. */
+    private function standalonePharmacy(): array
+    {
+        return [
+            $this->card('New retail sale', 'Open POS', 'teal', 'standalone-pharmacy.sales.create'),
+            $this->card('Sales today', PharmacySale::where('status', 'completed')->whereDate('sold_at', today())->count(), 'blue', 'standalone-pharmacy.sales.index'),
+            $this->card('Revenue today', $this->money((float) PharmacySale::where('status', 'completed')->whereDate('sold_at', today())->sum('total')), 'green', 'standalone-pharmacy.sales.index'),
+            $this->card('Low-stock products', Drug::active()->lowStock()->count(), 'red', 'pharmacy.inventory', ['low' => 1]),
+            $this->card('Expiring within 90 days', DrugStockBatch::where('quantity_remaining', '>', 0)->whereBetween('expiry_date', [today(), today()->addDays(90)])->count(), 'amber', 'standalone-pharmacy.sales.index'),
+            $this->card('Expired stock', DrugStockBatch::where('quantity_remaining', '>', 0)->whereDate('expiry_date', '<', today())->count(), 'red', 'standalone-pharmacy.sales.index'),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function standalonePharmacyCharts(): array
+    {
+        $start = today()->subDays(6)->startOfDay();
+        $sales = PharmacySale::query()
+            ->where('status', 'completed')
+            ->whereBetween('sold_at', [$start, now()->endOfDay()])
+            ->get(['total', 'payment_method', 'sold_at']);
+        $dailySales = $sales->groupBy(fn (PharmacySale $sale) => $sale->sold_at->toDateString());
+        $revenueTrend = collect(range(0, 6))->map(function (int $offset) use ($start, $dailySales): array {
+            $date = $start->copy()->addDays($offset);
+            $rows = $dailySales->get($date->toDateString(), collect());
+
+            return [
+                'date' => $date->toDateString(),
+                'label' => $date->format('D'),
+                'amount' => (float) $rows->sum(fn (PharmacySale $sale) => (float) $sale->total),
+                'sales' => $rows->count(),
+            ];
+        })->all();
+        $paymentMethods = $sales->groupBy('payment_method')
+            ->map(fn (Collection $rows, string $method) => [
+                'method' => ucfirst($method),
+                'amount' => (float) $rows->sum(fn (PharmacySale $sale) => (float) $sale->total),
+                'sales' => $rows->count(),
+            ])->sortByDesc('amount')->values()->all();
+        $batches = DrugStockBatch::query()
+            ->where('quantity_remaining', '>', 0)
+            ->whereDate('expiry_date', '<=', today()->addDays(90))
+            ->get(['quantity_remaining', 'expiry_date']);
+
+        return [
+            'revenueTrend' => $revenueTrend,
+            'paymentMethods' => $paymentMethods,
+            'expiryRisk' => [
+                ['label' => 'Expired', 'units' => (int) $batches->filter(fn (DrugStockBatch $batch) => $batch->expiry_date->lt(today()))->sum('quantity_remaining')],
+                ['label' => 'Within 30 days', 'units' => (int) $batches->filter(fn (DrugStockBatch $batch) => $batch->expiry_date->betweenIncluded(today(), today()->addDays(30)))->sum('quantity_remaining')],
+                ['label' => '31–90 days', 'units' => (int) $batches->filter(fn (DrugStockBatch $batch) => $batch->expiry_date->betweenIncluded(today()->addDays(31), today()->addDays(90)))->sum('quantity_remaining')],
+            ],
+        ];
     }
 
     /** Assemble operational, inpatient, pharmacy, and finance summary cards for administrators. */

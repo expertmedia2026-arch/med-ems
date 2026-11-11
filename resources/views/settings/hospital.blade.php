@@ -1,16 +1,19 @@
 <x-app-layout>
-    <x-slot name="header">Hospital Settings</x-slot>
+    <x-slot name="header">{{ auth()->user()->hospital?->isStandalonePharmacy() ? 'Workspace Settings' : 'Hospital Settings' }}</x-slot>
 
     @php
         $input = 'mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-teal-600 focus:ring-teal-600';
         $label = 'block text-sm font-medium text-slate-700';
+        $isStandalonePharmacy = auth()->user()->hospital?->isStandalonePharmacy() === true;
         $onlinePaymentsEnabled = auth()->user()->hospital?->hasModule('online_payments') ?? false;
         $sections = [
-            'basic' => ['title' => 'Basic details', 'description' => 'Hospital name and contact details'],
-            'admission-workflow' => ['title' => 'Admission workflow', 'description' => 'Choose the inpatient charts your hospital uses'],
-            'payments' => ['title' => 'Payments', 'description' => 'Registration, maternity, A&E, and mortuary charges'.($onlinePaymentsEnabled ? ', plus patient online checkout' : '')],
-            'branding' => ['title' => 'Branding', 'description' => 'Colors, logo, and patient card signature'],
+            'basic' => ['title' => 'Basic details', 'description' => $isStandalonePharmacy ? 'Pharmacy name and contact details' : 'Hospital name and contact details'],
         ];
+        if (! $isStandalonePharmacy) {
+            $sections['admission-workflow'] = ['title' => 'Admission workflow', 'description' => 'Choose the inpatient charts your hospital uses'];
+            $sections['payments'] = ['title' => 'Payments', 'description' => 'Registration, maternity, A&E, and mortuary charges'.($onlinePaymentsEnabled ? ', plus patient online checkout' : '')];
+        }
+        $sections['branding'] = ['title' => 'Branding', 'description' => $isStandalonePharmacy ? 'Colors and pharmacy logo' : 'Colors, logo, and patient card signature'];
         $settingsRoute = fn ($target) => match ($target) {
             'basic' => route('settings.edit'),
             'admission-workflow' => route('settings.admission-workflow'),
@@ -35,12 +38,12 @@
         @endif
 
         <div class="mb-6">
-            <h2 class="text-xl font-semibold text-slate-900">Configure your hospital</h2>
-            <p class="mt-1 text-sm text-slate-600">Manage hospital information, admission charts, payment options, and branding.</p>
+            <h2 class="text-xl font-semibold text-slate-900">Configure your {{ $isStandalonePharmacy ? 'pharmacy' : 'hospital' }}</h2>
+            <p class="mt-1 text-sm text-slate-600">{{ $isStandalonePharmacy ? 'Manage pharmacy information and branding.' : 'Manage hospital information, admission charts, payment options, and branding.' }}</p>
         </div>
 
         <div class="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
-            <nav aria-label="Hospital settings sections" class="h-fit rounded-xl border bg-white p-2 shadow-sm">
+            <nav aria-label="Workspace settings sections" class="h-fit rounded-xl border bg-white p-2 shadow-sm">
                 @foreach ($sections as $key => $item)
                     <a href="{{ $settingsRoute($key) }}" @if ($section === $key) aria-current="page" @endif
                        class="mb-1 block rounded-lg px-4 py-3 last:mb-0 {{ $section === $key ? 'bg-teal-50 text-teal-900 ring-1 ring-teal-200' : 'text-slate-700 hover:bg-slate-50' }}">
@@ -61,10 +64,10 @@
                     @method('PUT')
 
                     @if ($section === 'basic')
-                        <p class="mb-5 text-sm text-slate-600">These details appear on receipts, patient cards, and throughout the hospital portal.</p>
+                        <p class="mb-5 text-sm text-slate-600">These details appear on receipts and throughout the {{ $isStandalonePharmacy ? 'pharmacy workspace' : 'hospital portal' }}.</p>
                         <div class="grid gap-5 sm:grid-cols-2">
                             <div class="sm:col-span-2">
-                                <label for="name" class="{{ $label }}">Hospital name <span class="text-red-600">*</span></label>
+                                <label for="name" class="{{ $label }}">{{ $isStandalonePharmacy ? 'Pharmacy' : 'Hospital' }} name <span class="text-red-600">*</span></label>
                                 <input id="name" name="name" type="text" value="{{ old('name', $settings->name) }}" required maxlength="150" class="{{ $input }}">
                                 @error('name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
@@ -265,7 +268,7 @@
 
                         <div class="mt-6 grid gap-5 border-t pt-6 sm:grid-cols-2">
                             <div>
-                                <label for="logo" class="{{ $label }}">Hospital logo</label>
+                                <label for="logo" class="{{ $label }}">{{ $isStandalonePharmacy ? 'Pharmacy' : 'Hospital' }} logo</label>
                                 @if ($settings->logo_url)
                                     <div class="mt-3 flex items-center gap-4">
                                         <img src="{{ $settings->logo_url }}" alt="Current hospital logo" class="h-16 max-w-[10rem] rounded border bg-white object-contain p-1">
@@ -276,6 +279,7 @@
                                 <p class="mt-1 text-xs text-slate-500">PNG, JPG, or WebP up to 2 MB.</p>
                                 @error('logo')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
+                            @unless ($isStandalonePharmacy)
                             <div>
                                 <label for="administrator_signature" class="{{ $label }}">Authorized signature for patient cards</label>
                                 @if ($settings->administrator_signature_path)
@@ -288,6 +292,7 @@
                                 <p class="mt-1 text-xs text-slate-500">PNG, JPG, or WebP up to 2 MB. Stored privately and shown on printed patient cards.</p>
                                 @error('administrator_signature')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
+                            @endunless
                         </div>
                     @endif
 

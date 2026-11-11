@@ -26,8 +26,10 @@ class HospitalWorkflowSettingsController extends Controller
     /**
      * Combines current hospital settings with enabled workflow sections for the settings page.
      */
-    public function edit(HospitalSettingsService $settings): View
+    public function edit(Request $request, HospitalSettingsService $settings): View
     {
+        abort_if($request->user()?->hospital?->isStandalonePharmacy(), 404);
+
         $workflow = HospitalWorkflow::query()->where('workflow', 'admission')->where('is_active', true)->latest('version')->first();
         $enabled = collect(data_get($workflow?->definition, 'sections', []))
             ->filter(fn ($section) => ($section['enabled'] ?? false) === true)
@@ -44,6 +46,8 @@ class HospitalWorkflowSettingsController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
+        abort_if($request->user()?->hospital?->isStandalonePharmacy(), 404);
+
         $data = $request->validate([
             'sections' => ['nullable', 'array'],
             'sections.*' => ['string', Rule::in(array_keys(self::OPTIONAL_SECTIONS))],

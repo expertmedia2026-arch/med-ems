@@ -13,6 +13,18 @@ class RestockDrugRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['quantity' => ['required', 'integer', 'min:1', 'max:100000']];
+        $rules = ['quantity' => ['required', 'integer', 'min:1', 'max:100000']];
+
+        if ($this->user()?->hospital?->isStandalonePharmacy()) {
+            $rules['expiry_date'] = ['required', 'date', 'after:today'];
+            $rules['batch_number'] = ['nullable', 'string', 'max:100'];
+        }
+
+        return $rules;
+    }
+
+    public function messages(): array
+    {
+        return ['expiry_date.after' => 'The restocked batch expiry date must be in the future.'];
     }
 }
