@@ -2,24 +2,25 @@
 
 namespace App\Services;
 
-use App\Enums\Role;
 use App\Enums\AdmissionStatus;
+use App\Enums\Role;
 use App\Enums\VisitStatus;
-use App\Models\Appointment;
 use App\Models\Admission;
+use App\Models\Appointment;
+use App\Models\DepartmentInventoryItem;
 use App\Models\Drug;
 use App\Models\Invoice;
 use App\Models\LabRequest;
 use App\Models\LabTest;
-use App\Models\StaffDuty;
 use App\Models\Payment;
 use App\Models\Prescription;
+use App\Models\StaffDuty;
 use App\Models\User;
 use App\Models\Visit;
+use App\Support\HospitalContext;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use App\Support\HospitalContext;
 
 /**
  * Builds role-specific dashboard cards and the staff-facing visit queue.
@@ -49,6 +50,10 @@ class DashboardService
             Role::ChiefAccountant => $this->chiefAccountant(),
             default => [],
         };
+
+        if ($user->hasRole(Role::Admin, Role::ChiefAccountant) && $user->hospital?->hasModule('finance_reports')) {
+            $cards[] = $this->card('General hospital report', 'View report', 'teal', 'reports.general');
+        }
 
         if (! $user->hasRole(Role::Admin, Role::Patient)) {
             $weekStart = now()->startOfWeek(Carbon::MONDAY);
@@ -132,6 +137,7 @@ class DashboardService
         $nurse = auth()->user();
         $departmentId = $nurse->department_id;
         $isCentralNurse = $nurse->isCentralVitalsNurse();
+
         return [
             $this->card('Nursing visits to finish', Visit::whereIn('status', [VisitStatus::Completed->value, VisitStatus::Inpatient->value])
                 ->whereNull('discharged_at')
@@ -194,7 +200,7 @@ class DashboardService
             $this->card('Pending requests', LabRequest::pending()->where($departmentRequests)->count(), 'amber', 'lab.index'),
             $this->card('Completed today', LabRequest::completed()->whereDate('completed_at', today())->where($departmentRequests)->count(), 'green', 'lab.index'),
             $this->card('Active services in catalog', LabTest::active()->where('department_id', $departmentId)->count(), 'blue', 'lab.tests.index'),
-            $this->card('Low-stock department items', \App\Models\DepartmentInventoryItem::query()->where('department_id', $departmentId)->whereColumn('quantity_on_hand', '<=', 'reorder_level')->count(), 'red', 'lab.inventory.index'),
+            $this->card('Low-stock department items', DepartmentInventoryItem::query()->where('department_id', $departmentId)->whereColumn('quantity_on_hand', '<=', 'reorder_level')->count(), 'red', 'lab.inventory.index'),
         ];
     }
 

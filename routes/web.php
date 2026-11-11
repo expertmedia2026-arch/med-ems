@@ -14,6 +14,7 @@ use App\Http\Controllers\DrugController;
 use App\Http\Controllers\EmergencyController;
 use App\Http\Controllers\EmergencyPharmacyController;
 use App\Http\Controllers\FinanceController;
+use App\Http\Controllers\GeneralReportController;
 use App\Http\Controllers\GlobalAdmin\HospitalOnboardingController;
 use App\Http\Controllers\GlobalAdmin\PlatformAdminController;
 use App\Http\Controllers\GlobalAdmin\ProfileController as GlobalAdminProfileController;
@@ -414,6 +415,11 @@ Route::middleware(['auth', 'auth.session', 'active', 'hospital', 'staff'])->grou
     Route::middleware(['role:admin,chief_accountant', 'module:finance_reports'])->prefix('finance')->name('finance.')->group(function () {
         Route::get('/', [FinanceController::class, 'index'])->name('index');
         Route::get('export/pdf', [FinanceController::class, 'exportPdf'])->name('export.pdf');
+    });
+
+    Route::middleware(['role:admin,chief_accountant', 'module:finance_reports'])->prefix('reports')->name('reports.')->group(function () {
+        Route::get('general', [GeneralReportController::class, 'index'])->name('general');
+        Route::get('general/export/pdf', [GeneralReportController::class, 'exportPdf'])->name('general.export.pdf');
     });
 
     // Payment collection and invoice handling.

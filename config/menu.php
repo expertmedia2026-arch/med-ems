@@ -29,6 +29,7 @@ return [
     ['label' => 'Pharmacy',   'route' => 'pharmacy.index', 'active' => 'pharmacy.*', 'roles' => ['admin', 'pharmacist', 'chief_pharmacist'], 'module' => 'pharmacy'],
     ['label' => 'Billing', 'route' => 'billing.index', 'active' => 'billing.*', 'roles' => ['admin', 'accountant', 'receptionist']],
     ['label' => 'Finance overview', 'route' => 'finance.index', 'active' => 'finance.*', 'roles' => ['admin', 'chief_accountant'], 'module' => 'finance_reports'],
+    ['label' => 'General Report', 'route' => 'reports.general', 'active' => 'reports.*', 'roles' => ['admin', 'chief_accountant'], 'module' => 'finance_reports'],
     ['label' => 'Hospital Settings', 'route' => 'settings.edit', 'active' => 'settings.*', 'roles' => ['admin']],
 
 ];
